@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Enable when apps/web/package.json exists (Phase 1+)
+  # - package-ecosystem: "npm"
+  #   directory: "/apps/web"
+  #   schedule:
+  #     interval: "weekly"
+
+  # Enable when pyproject.toml exists (Phase 1+)
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"

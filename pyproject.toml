@@ -1,0 +1,47 @@
+[project]
+name = "deepscout"
+version = "0.1.0"
+description = "Autonomous Research & Decision Intelligence"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["libs/core", "libs/providers", "libs/research", "libs/persistence", "apps/api"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9",
+    "httpx>=0.28",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    ".",
+    "libs/core/src",
+    "libs/providers/src",
+    "libs/research/src",
+    "libs/persistence/src",
+    "apps/api/src",
+]
+markers = [
+    "integration: live provider/runtime tests requiring local .env secrets",
+    "postgres: tests requiring a real PostgreSQL database",
+]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["libs", "apps/api/src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"apps/api/src/deepscout_api/app.py" = ["B008"]
+"apps/api/src/deepscout_api/deps.py" = ["B008"]
+"apps/api/src/deepscout_api/routes/research_runs.py" = ["B008"]

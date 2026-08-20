@@ -1,0 +1,31 @@
+[project]
+name = "deepscout-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "deepscout-core",
+    "deepscout-providers",
+    "deepscout-research",
+    "deepscout-persistence",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "redis>=5.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deepscout_api"]
+
+[tool.uv.sources]
+deepscout-core = { workspace = true }
+deepscout-providers = { workspace = true }
+deepscout-research = { workspace = true }
+deepscout-persistence = { workspace = true }
+
+[project.scripts]
+deepscout-api = "deepscout_api.main:run"

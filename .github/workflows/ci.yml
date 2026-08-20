@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required public files
+        run: |
+          set -euo pipefail
+          required=(
+            README.md
+            ARCHITECTURE.md
+            LICENSE
+            SECURITY.md
+            CONTRIBUTING.md
+            CHANGELOG.md
+            CODE_OF_CONDUCT.md
+            .env.example
+            docs/PROJECT_SPEC.md
+            docs/threat-model/THREAT_MODEL.md
+          )
+          for f in "${required[@]}"; do
+            test -f "$f" || { echo "Missing required file: $f"; exit 1; }
+          done
+
+      - name: Ensure secrets are not tracked
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "BLOCK: .env must not be tracked"
+            exit 1
+          fi
+          tracked_env="$(git ls-files '.env.*' | grep -v '^\.env\.example$' || true)"
+          if [ -n "$tracked_env" ]; then
+            echo "BLOCK: tracked env files other than .env.example:"
+            echo "$tracked_env"
+            exit 1
+          fi
+
+      - name: Secret and credential scan
+        run: bash scripts/scan-secrets.sh
+
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: deepscout
+          POSTGRES_PASSWORD: deepscout
+          POSTGRES_DB: deepscout
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deepscout -d deepscout"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://deepscout:deepscout@localhost:5432/deepscout
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Apply database migrations
+        working-directory: libs/persistence
+        run: uv run alembic upgrade head
+
+      - name: Pytest
+        run: uv run pytest -m "not integration"
+
+  web:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install and build
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build

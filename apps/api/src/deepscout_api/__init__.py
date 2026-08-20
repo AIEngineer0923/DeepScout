@@ -1,0 +1,1 @@
+"""DeepScout FastAPI application."""
