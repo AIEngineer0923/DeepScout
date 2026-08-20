@@ -25,14 +25,21 @@ def locate_quote_in_content(snippet: str, content: str, *, min_len: int = 24) ->
     if len(key) < min_len:
         return None
     normalized_content = normalize_match_key(content)
-    start = normalized_content.find(key)
-    if start < 0:
+    if key not in normalized_content:
         return None
-    # Map back approximately by scanning original content words.
+    # Prefer exact substring by scanning sentence-sized windows in original content.
     words = normalize_whitespace(content).split()
     snippet_words = normalize_whitespace(snippet).split()
     if not snippet_words:
         return None
+    window = max(len(snippet_words), 8)
+    for index in range(len(words)):
+        for size in range(window, len(snippet_words) + 5):
+            if index + size > len(words):
+                break
+            candidate = " ".join(words[index : index + size])
+            if normalize_match_key(candidate) == key:
+                return candidate
     first = snippet_words[0].lower()
     for index in range(len(words)):
         if words[index].lower().startswith(first[: max(3, len(first))]):
