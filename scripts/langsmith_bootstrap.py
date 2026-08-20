@@ -50,8 +50,12 @@ BASELINE_EXAMPLES = [
 ]
 
 
+from deepscout_research.langsmith_env import configure_langsmith_env
+
+
 def main() -> int:
-    if not os.getenv("LANGSMITH_API_KEY"):
+    settings = configure_langsmith_env()
+    if settings.langsmith_api_key is None:
         print("LANGSMITH_API_KEY not configured — skipping bootstrap", file=sys.stderr)
         return 0
     try:

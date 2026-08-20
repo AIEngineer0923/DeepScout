@@ -520,6 +520,21 @@ class ResearchStore:
         row.status = ResearchRunStatus.CANCELLED
         row.termination_reason = "cancelled"
         row.updated_at = datetime.now(UTC)
+        active_tasks = self._session.scalars(
+            select(ResearchTaskRow).where(
+                ResearchTaskRow.research_run_id == run_id,
+                ResearchTaskRow.status.not_in(
+                    {
+                        ResearchTaskStatus.COMPLETED,
+                        ResearchTaskStatus.FAILED,
+                        ResearchTaskStatus.CANCELLED,
+                    }
+                ),
+            )
+        ).all()
+        for task in active_tasks:
+            task.status = ResearchTaskStatus.CANCELLED
+            task.completed_at = datetime.now(UTC)
         self._session.flush()
         return row
 
@@ -761,6 +776,16 @@ class ResearchStore:
             usage_status=row.usage_report_status,
             cost_status=row.cost_report_status,
             pricing_version=row.pricing_version,
+        )
+
+    def list_token_usage(self, run_id: uuid.UUID) -> list[TokenUsageRecordRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(TokenUsageRecordRow)
+                .where(TokenUsageRecordRow.research_run_id == run_id)
+                .order_by(TokenUsageRecordRow.created_at)
+            ).all()
         )
 
     def enqueue_job(

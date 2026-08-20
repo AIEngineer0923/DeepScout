@@ -6,7 +6,7 @@ from typing import Any, TypedDict
 from uuid import UUID
 
 from deepscout_research.prompts import RESEARCH_WORKER_V1, compose_system_message
-from langgraph.checkpoint.memory import MemorySaver
+from deepscout_research.workers.checkpointer import get_worker_checkpointer
 from langgraph.graph import END, START, StateGraph
 
 
@@ -34,7 +34,11 @@ def _prepare(state: WorkerGraphState) -> WorkerGraphState:
 
 
 def _search(state: WorkerGraphState, config) -> WorkerGraphState:
+    if state.get("status") == "completed":
+        return state
     configurable = config.get("configurable", {})
+    if configurable.get("cancelled"):
+        return {**state, "status": "failed", "error": "run_cancelled"}
     search_provider = configurable.get("search_provider")
     if search_provider is None:
         return {**state, "status": "failed", "error": "search_provider_missing"}
@@ -59,6 +63,8 @@ def _search(state: WorkerGraphState, config) -> WorkerGraphState:
 def _finalize(state: WorkerGraphState) -> WorkerGraphState:
     if state.get("status") == "failed":
         return state
+    if state.get("status") == "completed":
+        return state
     return {**state, "status": "completed"}
 
 
@@ -74,13 +80,19 @@ def build_research_worker_graph() -> StateGraph:
     return graph
 
 
-_CHECKPOINTER = MemorySaver()
-
-
-def compile_research_worker(*, with_checkpoint: bool = True):
+def compile_research_worker(
+    *,
+    with_checkpoint: bool = True,
+    database_url: str | None = None,
+    durable_checkpoint: bool = True,
+):
     graph = build_research_worker_graph()
     if with_checkpoint:
-        return graph.compile(checkpointer=_CHECKPOINTER)
+        checkpointer = get_worker_checkpointer(
+            database_url=database_url,
+            durable=durable_checkpoint,
+        )
+        return graph.compile(checkpointer=checkpointer)
     return graph.compile()
 
 
@@ -96,15 +108,29 @@ def run_worker_graph(
     objective: str,
     search_provider,
     resume: bool = False,
+    database_url: str | None = None,
+    durable_checkpoint: bool = True,
+    cancelled: bool = False,
 ) -> WorkerGraphState:
-    app = compile_research_worker(with_checkpoint=True)
+    app = compile_research_worker(
+        with_checkpoint=True,
+        database_url=database_url,
+        durable_checkpoint=durable_checkpoint,
+    )
     thread_id = worker_thread_id(run_id=run_id, task_id=task_id)
     config = {
         "configurable": {
             "thread_id": thread_id,
             "search_provider": search_provider,
+            "cancelled": cancelled,
         }
     }
+    if resume:
+        snapshot = app.get_state(config)
+        if snapshot.values:
+            if snapshot.values.get("status") == "completed":
+                return snapshot.values
+            return app.invoke(None, config=config)
     initial: WorkerGraphState = {
         "run_id": str(run_id),
         "task_id": str(task_id),
@@ -113,8 +139,4 @@ def run_worker_graph(
         "result_count": 0,
         "search_results": [],
     }
-    if resume:
-        snapshot = app.get_state(config)
-        if snapshot.values:
-            return app.invoke(None, config=config)
     return app.invoke(initial, config=config)

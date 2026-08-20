@@ -16,6 +16,16 @@ def test_response_to_snapshot_text_plain() -> None:
     assert text == "Plain body text."
 
 
+def test_response_to_snapshot_text_strips_nul_bytes() -> None:
+    text = response_to_snapshot_text(b"Hello\x00world with enough length for snapshot.", "text/plain")
+    assert "\x00" not in text
+    assert "Hello" in text
+
+
+def test_response_to_snapshot_text_skips_pdf() -> None:
+    assert response_to_snapshot_text(b"%PDF-1.4 binary", "application/pdf") == ""
+
+
 def test_split_sentences_filters_short_fragments() -> None:
     sentences = split_sentences("Short. This is a long enough sentence about batteries.")
     assert len(sentences) == 1

@@ -99,6 +99,21 @@ class ResearchWorkerPool:
             store = ResearchStore(session)
         else:
             session = store._session  # noqa: SLF001 — inline test execution shares fixture session
+
+        run = store.get_run(run_id)
+        if run is not None and run.status.value == "cancelled":
+            store.update_task_status(
+                task.id,
+                ResearchTaskStatus.CANCELLED,
+                worker_id=worker_id,
+                error_message="run_cancelled",
+            )
+            self._persist(session, owns_session)
+            return WorkerResult(task.id, worker_id, success=False, error="run_cancelled")
+
+        if task.status == ResearchTaskStatus.COMPLETED:
+            return WorkerResult(task.id, worker_id, success=True, sources_added=0)
+
         budget = BudgetGate(store)
         try:
             store.update_task_status(
@@ -131,6 +146,9 @@ class ResearchWorkerPool:
                     worker_id=worker_id,
                     objective=task.objective,
                     search_provider=self._search,
+                    database_url=self._settings.database_url,
+                    durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,
+                    cancelled=run is not None and run.status.value == "cancelled",
                 )
                 if graph_state.get("status") == "failed":
                     raise RuntimeError(graph_state.get("error") or "worker_graph_failed")

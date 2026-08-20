@@ -65,6 +65,7 @@ class ResearchOrchestrator:
         self._budget = BudgetGate(store)
         self._events: list[ResearchEvent] = []
         self._sink = event_sink
+        self._max_correction_rounds = 1
 
     def _ensure_active(self, run_id: uuid.UUID) -> None:
         run = self._store.get_run(run_id)
@@ -241,7 +242,7 @@ class ResearchOrchestrator:
             raise LookupError(f"ResearchRun {run_id} not found")
 
         tasks = self._store.list_tasks(run_id)
-        if not tasks:
+        if not tasks or self._settings.research_use_legacy_path:
             return self._legacy_single_question_iteration(run_id, iteration=iteration)
 
         graph = TaskGraph(tuple(tasks))
@@ -381,6 +382,7 @@ class ResearchOrchestrator:
         if run.status == ResearchRunStatus.BUDGET_EXHAUSTED:
             return
 
+        self._ensure_active(run_id)
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_STARTED,
@@ -405,6 +407,7 @@ class ResearchOrchestrator:
         )
         self._store.commit()
 
+        self._ensure_active(run_id)
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_STARTED,
@@ -482,6 +485,15 @@ class ResearchOrchestrator:
         critic_result = None
         if claims:
             critic_result = run_critic_for_run(self._store, run_id)
+            correction_round = 0
+            while (
+                not critic_result.passed
+                and correction_round < self._max_correction_rounds
+            ):
+                correction_round += 1
+                self._ensure_active(run_id)
+                verify_claims_for_run(self._store, run_id)
+                critic_result = run_critic_for_run(self._store, run_id)
         else:
             from deepscout_core.domain.schemas import CriticResult
 
