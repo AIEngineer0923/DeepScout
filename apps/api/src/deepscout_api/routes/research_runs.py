@@ -19,9 +19,9 @@ class ExecuteResponse(BaseModel):
     status: str
 
 
-def _run_orchestrator(run_id: UUID, database_url: str) -> None:
+def _run_orchestrator(run_id: UUID) -> None:
     settings = get_settings()
-    session = get_session_factory(database_url)()
+    session = get_session_factory(settings.database_url)()
     try:
         with TavilyWebSearchProvider(settings) as search_provider:
             orchestrator = ResearchOrchestrator(
@@ -68,5 +68,5 @@ def execute_research_run(
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    background_tasks.add_task(_run_orchestrator, run_id, settings.database_url)
+    background_tasks.add_task(_run_orchestrator, run_id)
     return ExecuteResponse(run_id=run_id, status="accepted")

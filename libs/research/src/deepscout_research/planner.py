@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langsmith import traceable
 
 from deepscout_research.context import ContextAssembly
+from deepscout_research.trace_redaction import redact_trace_inputs
 
 PLANNER_SYSTEM = (
     "You are DeepScout research planner. Produce a concise structured plan only. "
@@ -20,7 +21,7 @@ PLANNER_SYSTEM = (
 )
 
 
-@traceable(name="phase:plan", run_type="chain")
+@traceable(name="phase:plan", run_type="chain", process_inputs=redact_trace_inputs)
 def build_research_plan(
     settings: Settings,
     *,
