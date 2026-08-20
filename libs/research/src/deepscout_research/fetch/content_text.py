@@ -66,7 +66,16 @@ def html_to_text(html: str) -> str:
 
 
 def normalize_plain_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    cleaned = text.replace("\x00", "")
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def sanitize_snapshot_text(text: str) -> str:
+    """Remove PostgreSQL-incompatible bytes and obvious binary payloads."""
+    cleaned = normalize_plain_text(text)
+    if cleaned.startswith("%PDF-"):
+        return ""
+    return cleaned
 
 
 def response_to_snapshot_text(body: bytes, content_type: str) -> str:
@@ -75,14 +84,18 @@ def response_to_snapshot_text(body: bytes, content_type: str) -> str:
         _, _, charset_part = content_type.lower().partition("charset=")
         charset = charset_part.split(";")[0].strip() or charset
     raw = body.decode(charset, errors="replace")
+    if raw.startswith("%PDF-") or body.lstrip().startswith(b"%PDF-"):
+        return ""
     lowered = content_type.lower()
     if (
         "html" in lowered
         or raw.lstrip().startswith("<!DOCTYPE")
         or raw.lstrip().startswith("<html")
     ):
-        return html_to_text(raw)
-    return normalize_plain_text(raw)
+        return sanitize_snapshot_text(html_to_text(raw))
+    if "pdf" in lowered:
+        return ""
+    return sanitize_snapshot_text(normalize_plain_text(raw))
 
 
 def split_sentences(text: str, *, min_len: int = 40) -> list[str]:

@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     research_max_sources: int = Field(default=40, alias="RESEARCH_MAX_SOURCES")
     research_max_tool_calls: int = Field(default=80, alias="RESEARCH_MAX_TOOL_CALLS")
     research_workers_inline: bool = Field(default=False, alias="RESEARCH_WORKERS_INLINE")
+    research_use_legacy_path: bool = Field(default=False, alias="RESEARCH_USE_LEGACY_PATH")
+    research_durable_langgraph_checkpoint: bool = Field(
+        default=False,
+        alias="RESEARCH_DURABLE_LANGGRAPH_CHECKPOINT",
+    )
 
     def default_research_budget(self) -> "ResearchBudget":
         from deepscout_core.domain.budget import ResearchBudget

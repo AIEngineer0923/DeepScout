@@ -30,6 +30,7 @@ def test_worker_graph_prepares_query() -> None:
         worker_id=uuid4(),
         objective="EV battery chemistries",
         search_provider=FakeSearchProvider(),
+        durable_checkpoint=False,
     )
     assert result["status"] == "completed"
     assert result.get("result_count", 0) >= 1
@@ -39,7 +40,7 @@ def test_worker_graph_prepares_query() -> None:
 def test_worker_graph_checkpoint_resume() -> None:
     run_id = uuid4()
     task_id = uuid4()
-    app = compile_research_worker(with_checkpoint=True)
+    app = compile_research_worker(with_checkpoint=True, durable_checkpoint=False)
     thread_id = worker_thread_id(run_id=run_id, task_id=task_id)
     config = {
         "configurable": {
