@@ -85,3 +85,17 @@ def execute_research_run(
 
         background_tasks.add_task(run_worker, once=True)
     return ExecuteResponse(run_id=run_id, status="accepted", job_id=job.id)
+
+
+@router.post("/{run_id}/cancel", response_model=ResearchRunRead)
+def cancel_research_run(
+    run_id: UUID,
+    store=Depends(get_research_store),
+) -> ResearchRunRead:
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    store.cancel_run(run_id)
+    updated = store.get_run(run_id)
+    assert updated is not None
+    return updated

@@ -19,6 +19,7 @@ from deepscout_core.domain.enums import (
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,
+    TERMINAL_RESEARCH_RUN_STATUSES,
     UsageReportStatus,
 )
 from deepscout_core.domain.invariants import (
@@ -493,6 +494,32 @@ class ResearchStore:
             evidence_status=payload.evidence_status,
         )
         self._session.add(row)
+        self._session.flush()
+        return row
+
+    def list_contradictions(self, run_id: uuid.UUID) -> list[ContradictionRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(ContradictionRow)
+                .where(ContradictionRow.research_run_id == run_id)
+                .order_by(ContradictionRow.created_at)
+            ).all()
+        )
+
+    def get_decision(self, run_id: uuid.UUID) -> DecisionRow | None:
+        self._require_run(run_id)
+        return self._session.scalar(
+            select(DecisionRow).where(DecisionRow.research_run_id == run_id)
+        )
+
+    def cancel_run(self, run_id: uuid.UUID) -> ResearchRunRow:
+        row = self._require_run(run_id)
+        if row.status in TERMINAL_RESEARCH_RUN_STATUSES:
+            return row
+        row.status = ResearchRunStatus.CANCELLED
+        row.termination_reason = "cancelled"
+        row.updated_at = datetime.now(UTC)
         self._session.flush()
         return row
 

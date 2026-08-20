@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -25,4 +26,4 @@ class ResearchEvent(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     phase: ResearchPhase | None = None
     iteration: int | None = None
-    payload: dict[str, str | int | float] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)

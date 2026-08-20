@@ -21,10 +21,13 @@ from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
 from deepscout_research.budget_gate import BudgetGate
+from deepscout_research.exceptions import RunCancelledError
 from deepscout_research.phases.contradiction import detect_contradictions_for_run
+from deepscout_research.phases.critic import run_critic_for_run
 from deepscout_research.phases.extract import extract_claims_for_run
 from deepscout_research.phases.fetch import fetch_sources_for_run
 from deepscout_research.phases.report import generate_report
+from deepscout_research.phases.synthesis import synthesize_decision
 from deepscout_research.phases.verify import verify_claims_for_run
 from deepscout_research.planner import build_research_plan, planner_output_to_write
 from deepscout_research.search.protocol import WebSearchProvider
@@ -63,6 +66,11 @@ class ResearchOrchestrator:
         self._events: list[ResearchEvent] = []
         self._sink = event_sink
 
+    def _ensure_active(self, run_id: uuid.UUID) -> None:
+        run = self._store.get_run(run_id)
+        if run is not None and run.status == ResearchRunStatus.CANCELLED:
+            raise RunCancelledError(f"Research run {run_id} cancelled")
+
     def _emit(self, event: ResearchEvent) -> None:
         self._events.append(event)
         if self._sink is not None:
@@ -90,11 +98,13 @@ class ResearchOrchestrator:
         try:
             self.build_plan(run_id, goal=run.goal)
             while True:
+                self._ensure_active(run_id)
                 iterations += 1
                 decision = self.execute_research_batch(run_id, iteration=iterations)
                 if decision.should_stop:
                     break
 
+            self._ensure_active(run_id)
             self._run_post_research_phases(run_id)
 
             final = evaluate_termination(
@@ -119,6 +129,22 @@ class ResearchOrchestrator:
             return OrchestratorResult(
                 run_id=run_id,
                 final_status=terminal_status,
+                iterations=iterations,
+                events=list(self._events),
+            )
+        except RunCancelledError:
+            self._store.set_termination_reason(run_id, "cancelled")
+            self._store.update_run_status(run_id, ResearchRunStatus.CANCELLED)
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.RUN_COMPLETED,
+                    run_id=run_id,
+                    payload={"reason": "cancelled"},
+                )
+            )
+            return OrchestratorResult(
+                run_id=run_id,
+                final_status=ResearchRunStatus.CANCELLED,
                 iterations=iterations,
                 events=list(self._events),
             )
@@ -189,6 +215,7 @@ class ResearchOrchestrator:
             run_id=run_id,
             goal=goal,
             budget_summary=budget_summary,
+            store=self._store,
         )
         self._store.save_plan(run_id, planner_output_to_write(plan_output))
         self._store.commit()
@@ -443,6 +470,62 @@ class ResearchOrchestrator:
                 payload={"contradictions_detected": contradictions},
             )
         )
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.CRITIC,
+            )
+        )
+        claims = self._store.list_claims(run_id)
+        critic_result = None
+        if claims:
+            critic_result = run_critic_for_run(self._store, run_id)
+        else:
+            from deepscout_core.domain.schemas import CriticResult
+
+            critic_result = CriticResult(
+                passed=True,
+                artifact_type="research_pipeline",
+                severity="pass",
+                issues=[],
+            )
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.CRITIC,
+                payload={
+                    "passed": critic_result.passed,
+                    "issues": critic_result.issues,
+                },
+            )
+        )
+
+        decision_id = None
+        if critic_result.passed:
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.PHASE_STARTED,
+                    run_id=run_id,
+                    phase=ResearchPhase.SYNTHESIS,
+                )
+            )
+            try:
+                decision_id = synthesize_decision(self._store, self._settings, run_id)
+            except Exception:
+                logger.exception("Synthesis phase failed", extra={"run_id": str(run_id)})
+            self._store.commit()
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.PHASE_COMPLETED,
+                    run_id=run_id,
+                    phase=ResearchPhase.SYNTHESIS,
+                    payload={"decision_id": str(decision_id) if decision_id else None},
+                )
+            )
 
         self._emit(
             ResearchEvent(
