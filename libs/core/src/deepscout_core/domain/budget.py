@@ -45,9 +45,7 @@ class BudgetConsumption:
             BudgetMetric.ITERATIONS: budget.max_iterations - self.iterations,
             BudgetMetric.WALL_TIME: budget.max_wall_time_seconds - self.wall_time_seconds,
             BudgetMetric.TOKENS: (
-                None
-                if self.total_tokens is None
-                else budget.max_total_tokens - self.total_tokens
+                None if self.total_tokens is None else budget.max_total_tokens - self.total_tokens
             ),
             BudgetMetric.COST: (
                 None if self.cost_usd is None else budget.max_cost_usd - self.cost_usd

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from deepscout_core.domain.enums import ResearchTaskStatus, TERMINAL_RESEARCH_TASK_STATUSES
+from deepscout_core.domain.enums import TERMINAL_RESEARCH_TASK_STATUSES, ResearchTaskStatus
 from deepscout_core.domain.schemas import PlannerTask, ResearchTaskRead
 
 
@@ -55,9 +55,7 @@ class TaskGraph:
         for task in self.tasks:
             if task.status not in {ResearchTaskStatus.PENDING, ResearchTaskStatus.READY}:
                 continue
-            if all(
-                by_key[dep].status == ResearchTaskStatus.COMPLETED for dep in task.depends_on
-            ):
+            if all(by_key[dep].status == ResearchTaskStatus.COMPLETED for dep in task.depends_on):
                 ready.append(task)
         return sorted(ready, key=lambda item: (item.priority, item.task_key))
 

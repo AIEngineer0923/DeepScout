@@ -50,7 +50,7 @@ def stream_run_events(run_id: UUID, store=Depends(get_research_store)):
             events = store.list_run_events(run_id, after_sequence=last_sequence)
             for event in events:
                 last_sequence = event.sequence
-                yield f"data: {{\"sequence\": {event.sequence}, \"type\": \"{event.event_type}\"}}\n\n"
+                yield f'data: {{"sequence": {event.sequence}, "type": "{event.event_type}"}}\n\n'
             if events:
                 continue
             run_state = store.get_run(run_id)

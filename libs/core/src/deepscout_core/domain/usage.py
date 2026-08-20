@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import UUID
 
-from deepscout_core.domain.enums import AgentRole, CostReportStatus, ResearchPhase, UsageReportStatus
+from deepscout_core.domain.enums import (
+    AgentRole,
+    CostReportStatus,
+    ResearchPhase,
+    UsageReportStatus,
+)
 
 
 @dataclass(frozen=True, slots=True)

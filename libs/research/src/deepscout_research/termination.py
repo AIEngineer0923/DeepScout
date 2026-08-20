@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from deepscout_core.domain.budget import BudgetConsumption, ResearchBudget
 from deepscout_core.domain.enums import ResearchQuestionStatus, ResearchRunStatus
 from deepscout_core.domain.schemas import ResearchQuestionRead, ResearchTaskRead
+
 from deepscout_research.tasks.graph import TaskGraph
 
 
@@ -57,8 +58,7 @@ def evaluate_termination(
     active = [
         question
         for question in questions
-        if question.status
-        in {ResearchQuestionStatus.PENDING, ResearchQuestionStatus.RESEARCHING}
+        if question.status in {ResearchQuestionStatus.PENDING, ResearchQuestionStatus.RESEARCHING}
     ]
     if not active:
         return TerminationDecision(

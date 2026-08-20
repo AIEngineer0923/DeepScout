@@ -42,11 +42,7 @@ class ModelRouter:
 
     def resolve(self, role: AgentRole) -> ModelSelection:
         policy = self._policies.get(role)
-        provider = (
-            policy.provider
-            if policy and policy.provider
-            else self._settings.llm_provider
-        )
+        provider = policy.provider if policy and policy.provider else self._settings.llm_provider
         model = (
             policy.model
             if policy and policy.model

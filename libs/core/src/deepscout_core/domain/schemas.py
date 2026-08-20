@@ -7,9 +7,7 @@ from pydantic import BaseModel, Field
 
 from deepscout_core.domain.budget import ResearchBudget
 from deepscout_core.domain.enums import (
-    AgentRole,
     ContradictionEvidenceStatus,
-    ResearchPhase,
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
-from deepscout_core.domain.enums import ResearchJobStatus, ResearchJobType
+from deepscout_core.domain.enums import ResearchJobType
 from deepscout_persistence.models import ResearchJobRow
 from deepscout_persistence.store import ResearchStore
-from sqlalchemy import select, update
 
 
 class JobService:
@@ -35,12 +33,16 @@ class JobService:
         return self._store.claim_next_job(owner, lease_seconds=self._lease_seconds)
 
     def heartbeat(self, job_id: uuid.UUID, owner: str, lease_token: str) -> None:
-        self._store.renew_job_lease(job_id, owner=owner, lease_token=lease_token, lease_seconds=self._lease_seconds)
+        self._store.renew_job_lease(
+            job_id, owner=owner, lease_token=lease_token, lease_seconds=self._lease_seconds
+        )
 
     def complete(self, job_id: uuid.UUID, owner: str, lease_token: str) -> None:
         self._store.complete_job(job_id, owner=owner, lease_token=lease_token)
 
-    def fail(self, job_id: uuid.UUID, owner: str, lease_token: str, error: str, *, retry: bool = True) -> None:
+    def fail(
+        self, job_id: uuid.UUID, owner: str, lease_token: str, error: str, *, retry: bool = True
+    ) -> None:
         self._store.fail_job(
             job_id,
             owner=owner,

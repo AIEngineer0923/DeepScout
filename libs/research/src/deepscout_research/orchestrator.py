@@ -100,7 +100,9 @@ class ResearchOrchestrator:
                 questions=self._store.list_questions(run_id),
                 tasks=self._store.list_tasks(run_id),
             )
-            terminal_status = final.terminal_status if final.should_stop else ResearchRunStatus.COMPLETED
+            terminal_status = (
+                final.terminal_status if final.should_stop else ResearchRunStatus.COMPLETED
+            )
             reason = final.reason if final.should_stop else "pipeline_complete"
             self._store.set_termination_reason(run_id, reason)
             self._store.update_run_status(run_id, terminal_status)
@@ -269,9 +271,12 @@ class ResearchOrchestrator:
         self, run_id: uuid.UUID, *, iteration: int
     ) -> TerminationDecision:
         """Backward-compatible path when no task rows exist."""
-        from deepscout_core.domain.schemas import SearchCandidateWrite, SourceWrite, ToolExecutionWrite
-        from deepscout_core.domain.enums import ToolExecutionStatus
         from urllib.parse import urlparse
+
+        from deepscout_core.domain.schemas import (
+            SearchCandidateWrite,
+            SourceWrite,
+        )
 
         run = self._store.get_run(run_id)
         if run is None:
@@ -299,7 +304,7 @@ class ResearchOrchestrator:
         try:
             results = self._search.search(query, max_results=3)
             self._budget.reserve_tool_call(run_id, note=f"search:{iteration}")
-        except Exception as exc:
+        except Exception:
             self._store.update_question_status(
                 question.id, ResearchQuestionStatus.INSUFFICIENT_EVIDENCE
             )

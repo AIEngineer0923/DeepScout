@@ -13,7 +13,6 @@ from deepscout_persistence.store import ResearchStore
 from deepscout_research.jobs.service import JobService
 from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.search.tavily import TavilyWebSearchProvider
-from langsmith import traceable
 
 logger = logging.getLogger(__name__)
 

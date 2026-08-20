@@ -79,11 +79,15 @@ def upgrade() -> None:
     )
     op.add_column(
         "research_runs",
-        sa.Column("usage_report_status", usage_report_status, nullable=False, server_default="unknown"),
+        sa.Column(
+            "usage_report_status", usage_report_status, nullable=False, server_default="unknown"
+        ),
     )
     op.add_column(
         "research_runs",
-        sa.Column("cost_report_status", cost_report_status, nullable=False, server_default="unknown"),
+        sa.Column(
+            "cost_report_status", cost_report_status, nullable=False, server_default="unknown"
+        ),
     )
     op.add_column("research_runs", sa.Column("pricing_version", sa.String(length=32)))
     op.alter_column("research_runs", "consumed_total_tokens", nullable=True)
@@ -97,8 +101,18 @@ def upgrade() -> None:
         sa.Column("objective", sa.Text(), nullable=False),
         sa.Column("status", research_task_status, nullable=False, server_default="pending"),
         sa.Column("priority", sa.Integer(), nullable=False, server_default="3"),
-        sa.Column("depends_on", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
-        sa.Column("allowed_tools", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default='["web_search"]'),
+        sa.Column(
+            "depends_on",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="[]",
+        ),
+        sa.Column(
+            "allowed_tools",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default='["web_search"]',
+        ),
         sa.Column("model_policy", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("delegated_budget", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("worker_id", sa.Uuid(), nullable=True),
@@ -125,7 +139,9 @@ def upgrade() -> None:
         sa.Column("job_type", research_job_type, nullable=False),
         sa.Column("status", research_job_status, nullable=False, server_default="pending"),
         sa.Column("idempotency_key", sa.String(length=128), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
+        ),
         sa.Column("lease_owner", sa.String(length=128)),
         sa.Column("lease_token", sa.String(length=64)),
         sa.Column("lease_expires_at", sa.DateTime(timezone=True)),
@@ -149,7 +165,9 @@ def upgrade() -> None:
         sa.Column("research_run_id", sa.Uuid(), nullable=False),
         sa.Column("sequence", sa.BigInteger(), nullable=False),
         sa.Column("event_type", sa.String(length=64), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.ForeignKeyConstraint(["research_run_id"], ["research_runs.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -175,8 +193,12 @@ def upgrade() -> None:
         sa.Column("reasoning_tokens", sa.Integer()),
         sa.Column("total_tokens", sa.Integer()),
         sa.Column("cost_usd", sa.Float()),
-        sa.Column("usage_report_status", usage_report_status, nullable=False, server_default="unknown"),
-        sa.Column("cost_report_status", cost_report_status, nullable=False, server_default="unknown"),
+        sa.Column(
+            "usage_report_status", usage_report_status, nullable=False, server_default="unknown"
+        ),
+        sa.Column(
+            "cost_report_status", cost_report_status, nullable=False, server_default="unknown"
+        ),
         sa.Column("pricing_version", sa.String(length=32)),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.ForeignKeyConstraint(["research_run_id"], ["research_runs.id"], ondelete="CASCADE"),
@@ -203,7 +225,9 @@ def downgrade() -> None:
     op.drop_column("research_runs", "concurrency_limit")
     op.drop_column("research_runs", "termination_reason")
     bind = op.get_bind()
-    op.execute("UPDATE research_runs SET consumed_total_tokens = 0 WHERE consumed_total_tokens IS NULL")
+    op.execute(
+        "UPDATE research_runs SET consumed_total_tokens = 0 WHERE consumed_total_tokens IS NULL"
+    )
     op.alter_column("research_runs", "consumed_total_tokens", nullable=False, server_default="0")
     for name in (
         "cost_report_status",

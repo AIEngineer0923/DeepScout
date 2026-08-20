@@ -48,8 +48,8 @@ from deepscout_core.domain.schemas import (
     ToolExecutionWrite,
 )
 from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
-from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
 from deepscout_core.settings import Settings
+from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -62,9 +62,9 @@ from deepscout_persistence.models import (
     EvidenceRow,
     ReportEvidenceRow,
     ReportRow,
+    ResearchJobRow,
     ResearchPlanRow,
     ResearchQuestionRow,
-    ResearchJobRow,
     ResearchRunRow,
     ResearchTaskRow,
     RunEventRow,
@@ -261,7 +261,9 @@ class ResearchStore:
             ).all()
         )
 
-    def list_sources_without_snapshot(self, run_id: uuid.UUID, *, limit: int = 5) -> list[SourceRow]:
+    def list_sources_without_snapshot(
+        self, run_id: uuid.UUID, *, limit: int = 5
+    ) -> list[SourceRow]:
         self._require_run(run_id)
         rows = self._session.scalars(
             select(SourceRow)
@@ -617,7 +619,9 @@ class ResearchStore:
             ).all()
         )
 
-    def record_token_usage(self, usage: TokenUsageRecord, *, pricing_version: str | None = None) -> None:
+    def record_token_usage(
+        self, usage: TokenUsageRecord, *, pricing_version: str | None = None
+    ) -> None:
         row = TokenUsageRecordRow(
             research_run_id=usage.research_run_id,
             phase=usage.phase.value,
@@ -699,7 +703,11 @@ class ResearchStore:
             select(ResearchJobRow)
             .where(
                 ResearchJobRow.status.in_(
-                    [ResearchJobStatus.PENDING, ResearchJobStatus.CLAIMED, ResearchJobStatus.RUNNING]
+                    [
+                        ResearchJobStatus.PENDING,
+                        ResearchJobStatus.CLAIMED,
+                        ResearchJobStatus.RUNNING,
+                    ]
                 ),
                 (ResearchJobRow.lease_expires_at.is_(None))
                 | (ResearchJobRow.lease_expires_at < now),

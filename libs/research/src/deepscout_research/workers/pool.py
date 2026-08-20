@@ -15,15 +15,19 @@ from deepscout_core.domain.enums import (
     ResearchTaskStatus,
     ToolExecutionStatus,
 )
-from deepscout_core.domain.schemas import ResearchTaskRead, SearchCandidateWrite, SourceWrite, ToolExecutionWrite
+from deepscout_core.domain.schemas import (
+    ResearchTaskRead,
+    SearchCandidateWrite,
+    SourceWrite,
+    ToolExecutionWrite,
+)
 from deepscout_core.settings import Settings
 from deepscout_persistence.store import ResearchStore
-from langsmith import traceable
-from sqlalchemy.orm import sessionmaker
-
 from deepscout_research.budget_gate import BudgetGate
 from deepscout_research.search.protocol import WebSearchProvider
 from deepscout_research.working_memory import WorkingMemory
+from langsmith import traceable
+from sqlalchemy.orm import sessionmaker
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 
 from deepscout_core.domain.schemas import SourceSnapshotWrite
-from deepscout_persistence.models import SourceRow
 from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 

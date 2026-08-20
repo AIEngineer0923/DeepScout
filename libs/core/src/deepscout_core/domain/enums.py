@@ -115,6 +115,7 @@ class CostReportStatus(StrEnum):
     ESTIMATED = "estimated"
     KNOWN = "known"
 
+
 class ClaimVerificationStatus(StrEnum):
     PENDING = "pending"
     SUPPORTED = "supported"
