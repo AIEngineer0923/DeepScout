@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["libs/core", "libs/providers", "libs/research", "libs/persistence", "apps/api"]
+members = ["libs/core", "libs/providers", "libs/research", "libs/persistence", "libs/evaluation", "apps/api"]
 
 [dependency-groups]
 dev = [
@@ -25,6 +25,7 @@ pythonpath = [
     "libs/providers/src",
     "libs/research/src",
     "libs/persistence/src",
+    "libs/evaluation/src",
     "apps/api/src",
 ]
 markers = [

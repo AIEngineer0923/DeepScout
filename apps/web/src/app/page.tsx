@@ -1,3 +1,5 @@
+import { ResearchConsole } from "../components/ResearchConsole";
+
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function fetchHealth(): Promise<string> {
@@ -22,10 +24,8 @@ export default async function HomePage() {
         <p>
           API status: <code>{apiStatus}</code>
         </p>
-        <p>
-          Phase 1 scaffold — research lifecycle UI arrives in Phase 7.
-        </p>
       </div>
+      <ResearchConsole />
     </main>
   );
 }

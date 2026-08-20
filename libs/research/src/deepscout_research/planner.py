@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langsmith import traceable
 
 from deepscout_research.context import ContextAssembly
+from deepscout_research.tasks.graph import merge_planner_tasks
 from deepscout_research.trace_redaction import redact_trace_inputs
 
 PLANNER_SYSTEM = (
@@ -51,8 +52,11 @@ def build_research_plan(
 
 def planner_output_to_write(output: PlannerOutput) -> ResearchPlanWrite:
     ordered = sorted(output.questions, key=lambda item: item.priority)
+    questions = [question.text for question in ordered]
+    tasks = merge_planner_tasks(output.tasks, questions)
     return ResearchPlanWrite(
         strategy=output.approach,
         success_criteria=output.success_criteria,
-        questions=[question.text for question in ordered],
+        questions=questions,
+        tasks=tasks,
     )

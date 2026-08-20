@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 from deepscout_core.domain.budget import BudgetConsumption, ResearchBudget
 from deepscout_core.domain.enums import ResearchQuestionStatus, ResearchRunStatus
-from deepscout_core.domain.schemas import ResearchQuestionRead
+from deepscout_core.domain.schemas import ResearchQuestionRead, ResearchTaskRead
+from deepscout_research.tasks.graph import TaskGraph
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +20,7 @@ def evaluate_termination(
     budget: ResearchBudget,
     consumption: BudgetConsumption,
     questions: list[ResearchQuestionRead],
+    tasks: list[ResearchTaskRead] | None = None,
 ) -> TerminationDecision:
     if consumption.is_exhausted(budget):
         return TerminationDecision(
@@ -32,6 +34,25 @@ def evaluate_termination(
             reason="max_iterations",
             terminal_status=ResearchRunStatus.COMPLETED,
         )
+
+    if tasks:
+        graph = TaskGraph(tuple(tasks))
+        ready = graph.ready_tasks()
+        if graph.all_terminal():
+            return TerminationDecision(
+                should_stop=True,
+                reason="no_active_tasks",
+                terminal_status=ResearchRunStatus.COMPLETED,
+            )
+        if not ready and not any(
+            task.status.value in {"pending", "ready", "running"} for task in tasks
+        ):
+            return TerminationDecision(
+                should_stop=True,
+                reason="no_active_tasks",
+                terminal_status=ResearchRunStatus.COMPLETED,
+            )
+        return TerminationDecision(should_stop=False, reason="continue")
 
     active = [
         question

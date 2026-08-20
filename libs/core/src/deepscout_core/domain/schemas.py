@@ -7,12 +7,16 @@ from pydantic import BaseModel, Field
 
 from deepscout_core.domain.budget import ResearchBudget
 from deepscout_core.domain.enums import (
+    AgentRole,
     ContradictionEvidenceStatus,
+    ResearchPhase,
     ResearchQuestionStatus,
     ResearchRunStatus,
+    ResearchTaskStatus,
     SourceType,
     ToolExecutionStatus,
 )
+from deepscout_core.domain.usage import RunUsageSummary
 
 
 class ResearchRunCreate(BaseModel):
@@ -27,14 +31,26 @@ class ResearchRunRead(BaseModel):
     llm_provider: str
     llm_model: str
     budget: ResearchBudget
+    usage: RunUsageSummary | None = None
+    termination_reason: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class PlannerTask(BaseModel):
+    task_key: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_-]+$")
+    objective: str = Field(min_length=1, max_length=2000)
+    question_text: str | None = Field(default=None, max_length=2000)
+    depends_on: list[str] = Field(default_factory=list, max_length=20)
+    priority: int = Field(default=3, ge=1, le=5)
+    allowed_tools: list[str] = Field(default_factory=lambda: ["web_search"], max_length=10)
 
 
 class ResearchPlanWrite(BaseModel):
     strategy: str = Field(min_length=1, max_length=16000)
     success_criteria: str = Field(min_length=1, max_length=8000)
     questions: list[str] = Field(default_factory=list, max_length=50)
+    tasks: list[PlannerTask] = Field(default_factory=list, max_length=50)
 
 
 class PlannerQuestion(BaseModel):
@@ -48,6 +64,7 @@ class PlannerOutput(BaseModel):
     approach: str = Field(min_length=1, max_length=4000)
     success_criteria: str = Field(min_length=1, max_length=4000)
     questions: list[PlannerQuestion] = Field(min_length=1, max_length=20)
+    tasks: list[PlannerTask] = Field(default_factory=list, max_length=20)
 
 
 class SearchResult(BaseModel):
@@ -71,6 +88,20 @@ class ResearchQuestionRead(BaseModel):
     text: str
     status: ResearchQuestionStatus
     sort_order: int
+
+
+class ResearchTaskRead(BaseModel):
+    id: UUID
+    task_key: str
+    objective: str
+    status: ResearchTaskStatus
+    priority: int
+    depends_on: list[str]
+    allowed_tools: list[str]
+    question_id: UUID | None = None
+    worker_id: UUID | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class SourceWrite(BaseModel):

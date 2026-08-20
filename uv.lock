@@ -11,6 +11,7 @@ members = [
     "deepscout",
     "deepscout-api",
     "deepscout-core",
+    "deepscout-evaluation",
     "deepscout-persistence",
     "deepscout-providers",
     "deepscout-research",
@@ -444,6 +445,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "deepscout-evaluation"
+version = "0.1.0"
+source = { editable = "libs/evaluation" }
+dependencies = [
+    { name = "deepscout-core" },
+    { name = "langsmith" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "deepscout-core", editable = "libs/core" },
+    { name = "langsmith", specifier = ">=0.3" },
+]
+
+[[package]]
 name = "deepscout-persistence"
 version = "0.1.0"
 source = { editable = "libs/persistence" }
@@ -493,6 +509,7 @@ dependencies = [
     { name = "deepscout-providers" },
     { name = "httpx" },
     { name = "langchain" },
+    { name = "langgraph" },
     { name = "langsmith" },
 ]
 
@@ -503,6 +520,7 @@ requires-dist = [
     { name = "deepscout-providers", editable = "libs/providers" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "langchain", specifier = ">=0.3" },
+    { name = "langgraph", specifier = ">=0.2" },
     { name = "langsmith", specifier = ">=0.3" },
 ]
 
