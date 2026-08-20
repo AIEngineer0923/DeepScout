@@ -18,6 +18,7 @@ from deepscout_core.domain.enums import (
 from deepscout_core.domain.schemas import (
     ResearchTaskRead,
     SearchCandidateWrite,
+    SearchResult,
     SourceWrite,
     ToolExecutionWrite,
 )
@@ -25,6 +26,7 @@ from deepscout_core.settings import Settings
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.budget_gate import BudgetGate
 from deepscout_research.search.protocol import WebSearchProvider
+from deepscout_research.workers.langgraph_worker import run_worker_graph
 from deepscout_research.working_memory import WorkingMemory
 from langsmith import traceable
 from sqlalchemy.orm import sessionmaker
@@ -123,7 +125,20 @@ class ResearchWorkerPool:
             query = task.objective[:500]
             try:
                 budget.reserve_tool_call(run_id, note=f"search:{task.task_key}")
-                results = self._search.search(query, max_results=3)
+                graph_state = run_worker_graph(
+                    run_id=run_id,
+                    task_id=task.id,
+                    worker_id=worker_id,
+                    objective=task.objective,
+                    search_provider=self._search,
+                )
+                if graph_state.get("status") == "failed":
+                    raise RuntimeError(graph_state.get("error") or "worker_graph_failed")
+                query = graph_state.get("query", query)
+                results = [
+                    SearchResult.model_validate(item)
+                    for item in graph_state.get("search_results", [])
+                ]
             except BudgetExhaustedError as exc:
                 store.update_task_status(
                     task.id,

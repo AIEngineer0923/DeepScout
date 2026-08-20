@@ -150,6 +150,20 @@ class DecisionWrite(BaseModel):
     supporting_claim_ids: list[UUID] = Field(min_length=1)
 
 
+class CriticResult(BaseModel):
+    passed: bool
+    artifact_type: str = Field(min_length=1, max_length=64)
+    severity: str = Field(default="pass", max_length=32)
+    issues: list[str] = Field(default_factory=list, max_length=20)
+
+
+class SynthesisOutput(BaseModel):
+    recommendation: str = Field(min_length=1, max_length=16000)
+    rationale: str = Field(min_length=1, max_length=16000)
+    uncertainty_state: str = Field(min_length=1, max_length=64)
+    supporting_claim_ids: list[UUID] = Field(default_factory=list, max_length=50)
+
+
 class ReportWrite(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     body_markdown: str = Field(min_length=1, max_length=200_000)
