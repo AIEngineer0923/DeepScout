@@ -7,10 +7,15 @@ from deepscout_core.domain.enums import (
     BudgetMetric,
     ClaimVerificationStatus,
     ContradictionEvidenceStatus,
+    CostReportStatus,
+    ResearchJobStatus,
+    ResearchJobType,
     ResearchQuestionStatus,
     ResearchRunStatus,
+    ResearchTaskStatus,
     SourceType,
     ToolExecutionStatus,
+    UsageReportStatus,
 )
 from sqlalchemy import (
     DateTime,
@@ -50,10 +55,23 @@ class ResearchRunRow(Base):
     max_tool_calls: Mapped[int] = mapped_column(Integer, nullable=False)
     consumed_iterations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     consumed_wall_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    consumed_total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    consumed_total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     consumed_cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     consumed_sources: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     consumed_tool_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    termination_reason: Mapped[str | None] = mapped_column(String(64))
+    concurrency_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    usage_report_status: Mapped[UsageReportStatus] = mapped_column(
+        pg_enum(UsageReportStatus, "usage_report_status"),
+        nullable=False,
+        default=UsageReportStatus.UNKNOWN,
+    )
+    cost_report_status: Mapped[CostReportStatus] = mapped_column(
+        pg_enum(CostReportStatus, "cost_report_status"),
+        nullable=False,
+        default=CostReportStatus.UNKNOWN,
+    )
+    pricing_version: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -329,3 +347,132 @@ class BudgetLedgerEntryRow(Base):
     )
 
     run: Mapped[ResearchRunRow] = relationship(back_populates="ledger_entries")
+
+
+class ResearchTaskRow(Base):
+    __tablename__ = "research_tasks"
+    __table_args__ = (
+        UniqueConstraint("research_run_id", "task_key", name="uq_research_tasks_run_key"),
+        Index("ix_research_tasks_run_id", "research_run_id"),
+        Index("ix_research_tasks_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    question_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_questions.id", ondelete="SET NULL")
+    )
+    task_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ResearchTaskStatus] = mapped_column(
+        pg_enum(ResearchTaskStatus, "research_task_status"),
+        nullable=False,
+        default=ResearchTaskStatus.PENDING,
+    )
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    depends_on: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    allowed_tools: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    model_policy: Mapped[dict | None] = mapped_column(JSONB)
+    delegated_budget: Mapped[dict | None] = mapped_column(JSONB)
+    worker_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    checkpoint: Mapped[dict | None] = mapped_column(JSONB)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchJobRow(Base):
+    __tablename__ = "research_jobs"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_research_jobs_idempotency"),
+        Index("ix_research_jobs_status", "status"),
+        Index("ix_research_jobs_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    job_type: Mapped[ResearchJobType] = mapped_column(
+        pg_enum(ResearchJobType, "research_job_type"), nullable=False
+    )
+    status: Mapped[ResearchJobStatus] = mapped_column(
+        pg_enum(ResearchJobStatus, "research_job_status"),
+        nullable=False,
+        default=ResearchJobStatus.PENDING,
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    lease_token: Mapped[str | None] = mapped_column(String(64))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RunEventRow(Base):
+    __tablename__ = "run_events"
+    __table_args__ = (
+        UniqueConstraint("research_run_id", "sequence", name="uq_run_events_run_sequence"),
+        Index("ix_run_events_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TokenUsageRecordRow(Base):
+    __tablename__ = "token_usage_records"
+    __table_args__ = (Index("ix_token_usage_records_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    agent_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_tasks.id", ondelete="SET NULL")
+    )
+    worker_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    iteration: Mapped[int | None] = mapped_column(Integer)
+    retry: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    cached_input_tokens: Mapped[int | None] = mapped_column(Integer)
+    reasoning_tokens: Mapped[int | None] = mapped_column(Integer)
+    total_tokens: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    usage_report_status: Mapped[UsageReportStatus] = mapped_column(
+        pg_enum(UsageReportStatus, "usage_report_status"),
+        nullable=False,
+        default=UsageReportStatus.UNKNOWN,
+    )
+    cost_report_status: Mapped[CostReportStatus] = mapped_column(
+        pg_enum(CostReportStatus, "cost_report_status"),
+        nullable=False,
+        default=CostReportStatus.UNKNOWN,
+    )
+    pricing_version: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

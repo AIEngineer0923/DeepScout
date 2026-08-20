@@ -184,9 +184,7 @@ def test_real_google_runtime_tool_call_langsmith_trace_and_privacy() -> None:
     assert root_run is not None, f"No LangSmith runs found in project {settings.langsmith_project}"
 
     trace_id = root_run.trace_id or root_run.id
-    child_runs = list(
-        client.list_runs(project_name=settings.langsmith_project, trace_id=trace_id)
-    )
+    child_runs = list(client.list_runs(project_name=settings.langsmith_project, trace_id=trace_id))
     observed_runs = [root_run, *child_runs]
     run_types = {run.run_type for run in observed_runs if run.run_type}
     assert run_types.intersection({"tool", "llm", "chain"}), (

@@ -1,4 +1,4 @@
-"""Research orchestrator — deterministic outer loop."""
+"""Research orchestrator — deterministic supervisor with parallel workers."""
 
 from __future__ import annotations
 
@@ -6,29 +6,28 @@ import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
 
 from deepscout_core.domain.budget import BudgetExhaustedError
 from deepscout_core.domain.enums import (
     ResearchPhase,
     ResearchQuestionStatus,
     ResearchRunStatus,
-    ToolExecutionStatus,
+    ResearchTaskStatus,
 )
 from deepscout_core.domain.events import ResearchEvent, ResearchEventType
-from deepscout_core.domain.schemas import (
-    SearchCandidateWrite,
-    SourceWrite,
-    ToolExecutionWrite,
-)
 from deepscout_core.settings import Settings
+from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
 from deepscout_research.budget_gate import BudgetGate
+from deepscout_research.phases.fetch import fetch_sources_for_run
+from deepscout_research.phases.report import generate_report
 from deepscout_research.planner import build_research_plan, planner_output_to_write
 from deepscout_research.search.protocol import WebSearchProvider
+from deepscout_research.tasks.graph import TaskGraph
 from deepscout_research.termination import TerminationDecision, evaluate_termination
+from deepscout_research.workers.pool import ResearchWorkerPool
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class OrchestratorResult:
 
 
 class ResearchOrchestrator:
-    """Application outer loop — LangChain never owns global lifecycle."""
+    """Global deterministic supervisor — bounded workers execute ready tasks."""
 
     def __init__(
         self,
@@ -65,6 +64,15 @@ class ResearchOrchestrator:
         self._events.append(event)
         if self._sink is not None:
             self._sink(event)
+        self._store.append_run_event(
+            event.run_id,
+            event.event_type.value,
+            {
+                "phase": event.phase.value if event.phase else None,
+                "iteration": event.iteration,
+                **(event.payload or {}),
+            },
+        )
 
     @traceable(name="research_run_execute", run_type="chain")
     def execute(self, run_id: uuid.UUID) -> OrchestratorResult:
@@ -80,28 +88,39 @@ class ResearchOrchestrator:
             self.build_plan(run_id, goal=run.goal)
             while True:
                 iterations += 1
-                decision = self.execute_research_iteration(run_id, iteration=iterations)
+                decision = self.execute_research_batch(run_id, iteration=iterations)
                 if decision.should_stop:
-                    self._store.update_run_status(run_id, decision.terminal_status)
-                    event_type = (
-                        ResearchEventType.RUN_FAILED
-                        if decision.terminal_status == ResearchRunStatus.FAILED
-                        else ResearchEventType.RUN_COMPLETED
-                    )
-                    self._emit(
-                        ResearchEvent(
-                            event_type=event_type,
-                            run_id=run_id,
-                            payload={"reason": decision.reason},
-                        )
-                    )
-                    return OrchestratorResult(
-                        run_id=run_id,
-                        final_status=decision.terminal_status,
-                        iterations=iterations,
-                        events=list(self._events),
-                    )
+                    break
+
+            self._run_post_research_phases(run_id)
+
+            final = evaluate_termination(
+                budget=run.budget,
+                consumption=self._store.get_consumption(run_id),
+                questions=self._store.list_questions(run_id),
+                tasks=self._store.list_tasks(run_id),
+            )
+            terminal_status = (
+                final.terminal_status if final.should_stop else ResearchRunStatus.COMPLETED
+            )
+            reason = final.reason if final.should_stop else "pipeline_complete"
+            self._store.set_termination_reason(run_id, reason)
+            self._store.update_run_status(run_id, terminal_status)
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.RUN_COMPLETED,
+                    run_id=run_id,
+                    payload={"reason": reason},
+                )
+            )
+            return OrchestratorResult(
+                run_id=run_id,
+                final_status=terminal_status,
+                iterations=iterations,
+                events=list(self._events),
+            )
         except BudgetExhaustedError:
+            self._store.set_termination_reason(run_id, "budget_exhausted")
             self._store.update_run_status(run_id, ResearchRunStatus.BUDGET_EXHAUSTED)
             self._emit(
                 ResearchEvent(
@@ -118,6 +137,7 @@ class ResearchOrchestrator:
             )
         except Exception:
             logger.exception("Research run failed", extra={"run_id": str(run_id)})
+            self._store.set_termination_reason(run_id, "unexpected_failure")
             self._store.update_run_status(run_id, ResearchRunStatus.FAILED)
             self._emit(
                 ResearchEvent(
@@ -133,8 +153,6 @@ class ResearchOrchestrator:
                 events=list(self._events),
             )
 
-        raise RuntimeError("unreachable orchestrator state")
-
     @traceable(name="phase:plan", run_type="chain")
     def build_plan(self, run_id: uuid.UUID, *, goal: str) -> None:
         self._emit(
@@ -148,8 +166,7 @@ class ResearchOrchestrator:
         if run is None:
             raise LookupError(f"ResearchRun {run_id} not found")
 
-        questions = self._store.list_questions(run_id)
-        if questions:
+        if self._store.list_questions(run_id):
             self._emit(
                 ResearchEvent(
                     event_type=ResearchEventType.PHASE_COMPLETED,
@@ -171,6 +188,7 @@ class ResearchOrchestrator:
             budget_summary=budget_summary,
         )
         self._store.save_plan(run_id, planner_output_to_write(plan_output))
+        self._store.commit()
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
@@ -179,9 +197,7 @@ class ResearchOrchestrator:
             )
         )
 
-    def execute_research_iteration(
-        self, run_id: uuid.UUID, *, iteration: int
-    ) -> TerminationDecision:
+    def execute_research_batch(self, run_id: uuid.UUID, *, iteration: int) -> TerminationDecision:
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_STARTED,
@@ -194,6 +210,77 @@ class ResearchOrchestrator:
         if run is None:
             raise LookupError(f"ResearchRun {run_id} not found")
 
+        tasks = self._store.list_tasks(run_id)
+        if not tasks:
+            return self._legacy_single_question_iteration(run_id, iteration=iteration)
+
+        graph = TaskGraph(tuple(tasks))
+        graph.validate_dependencies()
+        ready = graph.ready_tasks()
+        for task in ready:
+            if task.status == ResearchTaskStatus.PENDING:
+                self._store.update_task_status(task.id, ResearchTaskStatus.READY)
+
+        consumption = self._store.get_consumption(run_id)
+        pre_decision = evaluate_termination(
+            budget=run.budget,
+            consumption=consumption,
+            questions=self._store.list_questions(run_id),
+            tasks=self._store.list_tasks(run_id),
+        )
+        if pre_decision.should_stop:
+            return pre_decision
+
+        if not ready:
+            return evaluate_termination(
+                budget=run.budget,
+                consumption=self._store.get_consumption(run_id),
+                questions=self._store.list_questions(run_id),
+                tasks=self._store.list_tasks(run_id),
+            )
+
+        self._store.commit()
+        self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
+        self._store.commit()
+        pool = ResearchWorkerPool(
+            get_session_factory(self._settings.database_url),
+            self._settings,
+            self._search,
+            max_workers=self._store.get_concurrency_limit(run_id),
+            inline_store=self._store if self._settings.research_workers_inline else None,
+        )
+        results = pool.execute_batch(run_id, ready, iteration=iteration)
+        self._store.refresh()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.RESEARCH,
+                iteration=iteration,
+                payload={"workers": len(results), "ready_tasks": len(ready)},
+            )
+        )
+        return evaluate_termination(
+            budget=run.budget,
+            consumption=self._store.get_consumption(run_id),
+            questions=self._store.list_questions(run_id),
+            tasks=self._store.list_tasks(run_id),
+        )
+
+    def _legacy_single_question_iteration(
+        self, run_id: uuid.UUID, *, iteration: int
+    ) -> TerminationDecision:
+        """Backward-compatible path when no task rows exist."""
+        from urllib.parse import urlparse
+
+        from deepscout_core.domain.schemas import (
+            SearchCandidateWrite,
+            SourceWrite,
+        )
+
+        run = self._store.get_run(run_id)
+        if run is None:
+            raise LookupError(f"ResearchRun {run_id} not found")
         consumption = self._store.get_consumption(run_id)
         questions = self._store.list_questions(run_id)
         pre_decision = evaluate_termination(
@@ -203,41 +290,21 @@ class ResearchOrchestrator:
         )
         if pre_decision.should_stop:
             return pre_decision
-
         self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
-
-        pending = [
-            question
-            for question in questions
-            if question.status == ResearchQuestionStatus.PENDING
-        ]
+        pending = [q for q in questions if q.status == ResearchQuestionStatus.PENDING]
         if not pending:
             return evaluate_termination(
                 budget=run.budget,
                 consumption=self._store.get_consumption(run_id),
                 questions=self._store.list_questions(run_id),
             )
-
         question = pending[0]
         self._store.update_question_status(question.id, ResearchQuestionStatus.RESEARCHING)
-        consumption = self._store.get_consumption(run_id)
-        if consumption.tool_calls >= run.budget.max_tool_calls:
-            raise BudgetExhaustedError("Tool call budget exhausted")
-
         query = question.text[:500]
         try:
             results = self._search.search(query, max_results=3)
             self._budget.reserve_tool_call(run_id, note=f"search:{iteration}")
-        except Exception as exc:
-            self._store.save_tool_execution(
-                run_id,
-                ToolExecutionWrite(
-                    tool_name="web_search",
-                    input_summary=query,
-                    output_summary=str(exc)[:4000],
-                    status=ToolExecutionStatus.FAILED,
-                ),
-            )
+        except Exception:
             self._store.update_question_status(
                 question.id, ResearchQuestionStatus.INSUFFICIENT_EVIDENCE
             )
@@ -246,16 +313,6 @@ class ResearchOrchestrator:
                 consumption=self._store.get_consumption(run_id),
                 questions=self._store.list_questions(run_id),
             )
-
-        self._store.save_tool_execution(
-            run_id,
-            ToolExecutionWrite(
-                tool_name="web_search",
-                input_summary=query,
-                output_summary=f"{len(results)} results",
-                status=ToolExecutionStatus.SUCCESS,
-            ),
-        )
         self._store.add_search_candidates(
             run_id,
             SearchCandidateWrite(
@@ -265,16 +322,11 @@ class ResearchOrchestrator:
                 question_id=question.id,
             ),
         )
-
         for result in results:
             domain = urlparse(result.url).netloc
             _, created = self._store.add_source(
                 run_id,
-                SourceWrite(
-                    canonical_url=result.url,
-                    title=result.title,
-                    domain=domain,
-                ),
+                SourceWrite(canonical_url=result.url, title=result.title, domain=domain),
             )
             if created:
                 try:
@@ -285,25 +337,56 @@ class ResearchOrchestrator:
                         reason="budget_exhausted",
                         terminal_status=ResearchRunStatus.BUDGET_EXHAUSTED,
                     )
-                self._emit(
-                    ResearchEvent(
-                        event_type=ResearchEventType.SOURCE_DISCOVERED,
-                        run_id=run_id,
-                        payload={"url": result.url[:200]},
-                    )
-                )
-
         self._store.update_question_status(question.id, ResearchQuestionStatus.ANSWERED)
-        self._emit(
-            ResearchEvent(
-                event_type=ResearchEventType.PHASE_COMPLETED,
-                run_id=run_id,
-                phase=ResearchPhase.RESEARCH,
-                iteration=iteration,
-            )
-        )
         return evaluate_termination(
             budget=run.budget,
             consumption=self._store.get_consumption(run_id),
             questions=self._store.list_questions(run_id),
+        )
+
+    def _run_post_research_phases(self, run_id: uuid.UUID) -> None:
+        run = self._store.get_run(run_id)
+        if run is None:
+            return
+        if run.status == ResearchRunStatus.BUDGET_EXHAUSTED:
+            return
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.FETCH,
+            )
+        )
+        try:
+            fetched = fetch_sources_for_run(
+                self._store, run_id, max_sources=min(5, run.budget.max_sources)
+            )
+        except Exception:
+            logger.exception("Fetch phase failed", extra={"run_id": str(run_id)})
+            fetched = 0
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.FETCH,
+                payload={"snapshots_created": fetched},
+            )
+        )
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.REPORT,
+            )
+        )
+        report_id = generate_report(self._store, run_id)
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.REPORT,
+                payload={"report_id": str(report_id)},
+            )
         )

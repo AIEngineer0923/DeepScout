@@ -48,6 +48,73 @@ class ContradictionEvidenceStatus(StrEnum):
 class ResearchPhase(StrEnum):
     PLAN = "plan"
     RESEARCH = "research"
+    COLLECT = "collect"
+    FETCH = "fetch"
+    EXTRACT = "extract"
+    VERIFY = "verify"
+    CONTRADICTION = "contradiction"
+    CRITIC = "critic"
+    SYNTHESIS = "synthesis"
+    REPORT = "report"
+
+
+class ResearchTaskStatus(StrEnum):
+    PENDING = "pending"
+    READY = "ready"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    BLOCKED = "blocked"
+
+
+TERMINAL_RESEARCH_TASK_STATUSES: frozenset[ResearchTaskStatus] = frozenset(
+    {
+        ResearchTaskStatus.COMPLETED,
+        ResearchTaskStatus.FAILED,
+        ResearchTaskStatus.CANCELLED,
+    }
+)
+
+
+class ResearchJobType(StrEnum):
+    EXECUTE_RUN = "execute_run"
+    RESUME_RUN = "resume_run"
+
+
+class ResearchJobStatus(StrEnum):
+    PENDING = "pending"
+    CLAIMED = "claimed"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class AgentRole(StrEnum):
+    PLANNER = "planner"
+    SUPERVISOR = "supervisor"
+    RESEARCH_WORKER = "research_worker"
+    FETCH = "fetch"
+    EXTRACTOR = "extractor"
+    VERIFIER = "verifier"
+    CONTRADICTION = "contradiction"
+    CRITIC = "critic"
+    SYNTHESIS = "synthesis"
+    REPORT = "report"
+
+
+class UsageReportStatus(StrEnum):
+    UNKNOWN = "unknown"
+    PARTIAL = "partial"
+    COMPLETE = "complete"
+
+
+class CostReportStatus(StrEnum):
+    UNKNOWN = "unknown"
+    ESTIMATED = "estimated"
+    KNOWN = "known"
+
 
 class ClaimVerificationStatus(StrEnum):
     PENDING = "pending"

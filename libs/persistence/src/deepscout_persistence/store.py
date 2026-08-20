@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from deepscout_core.domain.budget import (
     BudgetConsumption,
@@ -14,8 +14,12 @@ from deepscout_core.domain.budget import (
 )
 from deepscout_core.domain.enums import (
     ClaimVerificationStatus,
+    ResearchJobStatus,
+    ResearchJobType,
     ResearchQuestionStatus,
     ResearchRunStatus,
+    ResearchTaskStatus,
+    UsageReportStatus,
 )
 from deepscout_core.domain.invariants import (
     assert_claim_verification_allowed,
@@ -37,14 +41,16 @@ from deepscout_core.domain.schemas import (
     ResearchQuestionRead,
     ResearchRunCreate,
     ResearchRunRead,
+    ResearchTaskRead,
     SearchCandidateWrite,
     SourceSnapshotWrite,
     SourceWrite,
     ToolExecutionWrite,
 )
+from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from deepscout_persistence.models import (
@@ -56,12 +62,16 @@ from deepscout_persistence.models import (
     EvidenceRow,
     ReportEvidenceRow,
     ReportRow,
+    ResearchJobRow,
     ResearchPlanRow,
     ResearchQuestionRow,
     ResearchRunRow,
+    ResearchTaskRow,
+    RunEventRow,
     SearchCandidateRow,
     SourceRow,
     SourceSnapshotRow,
+    TokenUsageRecordRow,
     ToolExecutionRow,
 )
 
@@ -128,6 +138,29 @@ class ResearchStore:
                     plan_id=plan_row.id,
                     text=question_text,
                     sort_order=index,
+                )
+            )
+        self._session.flush()
+        question_by_text = {
+            question.text: question.id
+            for question in self._session.scalars(
+                select(ResearchQuestionRow).where(ResearchQuestionRow.plan_id == plan_row.id)
+            ).all()
+        }
+        for task in plan.tasks:
+            question_id = None
+            if task.question_text and task.question_text in question_by_text:
+                question_id = question_by_text[task.question_text]
+            self._session.add(
+                ResearchTaskRow(
+                    research_run_id=run_id,
+                    question_id=question_id,
+                    task_key=task.task_key,
+                    objective=task.objective,
+                    status=ResearchTaskStatus.PENDING,
+                    priority=task.priority,
+                    depends_on=list(task.depends_on),
+                    allowed_tools=list(task.allowed_tools),
                 )
             )
         self._session.flush()
@@ -217,6 +250,64 @@ class ResearchStore:
         self._session.add(row)
         self._session.flush()
         return row, True
+
+    def list_sources(self, run_id: uuid.UUID) -> list[SourceRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(SourceRow)
+                .where(SourceRow.research_run_id == run_id)
+                .order_by(SourceRow.created_at)
+            ).all()
+        )
+
+    def list_sources_without_snapshot(
+        self, run_id: uuid.UUID, *, limit: int = 5
+    ) -> list[SourceRow]:
+        self._require_run(run_id)
+        rows = self._session.scalars(
+            select(SourceRow)
+            .outerjoin(SourceSnapshotRow, SourceSnapshotRow.source_id == SourceRow.id)
+            .where(SourceRow.research_run_id == run_id, SourceSnapshotRow.id.is_(None))
+            .limit(limit)
+        ).all()
+        return list(rows)
+
+    def list_evidence(self, run_id: uuid.UUID) -> list[EvidenceRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(EvidenceRow)
+                .join(ClaimRow, EvidenceRow.claim_id == ClaimRow.id)
+                .where(ClaimRow.research_run_id == run_id)
+                .order_by(EvidenceRow.created_at)
+            ).all()
+        )
+
+    def save_report_draft(
+        self,
+        run_id: uuid.UUID,
+        *,
+        title: str,
+        body_markdown: str,
+    ) -> ReportRow:
+        self._require_run(run_id)
+        existing = self._session.scalar(
+            select(ReportRow).where(ReportRow.research_run_id == run_id)
+        )
+        if existing is not None:
+            existing.title = title
+            existing.body_markdown = body_markdown
+            self._session.flush()
+            return existing
+        report = ReportRow(
+            research_run_id=run_id,
+            title=title,
+            body_markdown=body_markdown,
+        )
+        self._session.add(report)
+        self._session.flush()
+        return report
 
     def add_snapshot(
         self, source_id: uuid.UUID, snapshot: SourceSnapshotWrite
@@ -443,6 +534,265 @@ class ResearchStore:
         row = self._require_run(run_id)
         return _consumption_from_run(row)
 
+    def set_termination_reason(self, run_id: uuid.UUID, reason: str) -> None:
+        row = self._require_run(run_id)
+        row.termination_reason = reason
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+
+    def list_tasks(self, run_id: uuid.UUID) -> list[ResearchTaskRead]:
+        self._require_run(run_id)
+        rows = self._session.scalars(
+            select(ResearchTaskRow)
+            .where(ResearchTaskRow.research_run_id == run_id)
+            .order_by(ResearchTaskRow.priority, ResearchTaskRow.task_key)
+        ).all()
+        return [_task_to_read(row) for row in rows]
+
+    def update_task_status(
+        self,
+        task_id: uuid.UUID,
+        status: ResearchTaskStatus,
+        *,
+        worker_id: uuid.UUID | None = None,
+        error_message: str | None = None,
+    ) -> ResearchTaskRow:
+        row = self._session.get(ResearchTaskRow, task_id)
+        if row is None:
+            raise LookupError(f"ResearchTask {task_id} not found")
+        row.status = status
+        if worker_id is not None:
+            row.worker_id = worker_id
+        if error_message is not None:
+            row.error_message = error_message[:4000]
+        now = datetime.now(UTC)
+        if status == ResearchTaskStatus.RUNNING and row.started_at is None:
+            row.started_at = now
+        if status in {
+            ResearchTaskStatus.COMPLETED,
+            ResearchTaskStatus.FAILED,
+            ResearchTaskStatus.CANCELLED,
+        }:
+            row.completed_at = now
+        self._session.flush()
+        return row
+
+    def save_task_checkpoint(self, task_id: uuid.UUID, checkpoint: dict) -> None:
+        row = self._session.get(ResearchTaskRow, task_id)
+        if row is None:
+            raise LookupError(f"ResearchTask {task_id} not found")
+        row.checkpoint = checkpoint
+        self._session.flush()
+
+    def append_run_event(
+        self,
+        run_id: uuid.UUID,
+        event_type: str,
+        payload: dict | None = None,
+    ) -> RunEventRow:
+        self._require_run(run_id)
+        next_sequence = self._session.scalar(
+            select(func.coalesce(func.max(RunEventRow.sequence), 0)).where(
+                RunEventRow.research_run_id == run_id
+            )
+        )
+        row = RunEventRow(
+            research_run_id=run_id,
+            sequence=int(next_sequence or 0) + 1,
+            event_type=event_type,
+            payload=payload or {},
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row
+
+    def list_run_events(self, run_id: uuid.UUID, *, after_sequence: int = 0) -> list[RunEventRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(RunEventRow)
+                .where(
+                    RunEventRow.research_run_id == run_id,
+                    RunEventRow.sequence > after_sequence,
+                )
+                .order_by(RunEventRow.sequence)
+            ).all()
+        )
+
+    def record_token_usage(
+        self, usage: TokenUsageRecord, *, pricing_version: str | None = None
+    ) -> None:
+        row = TokenUsageRecordRow(
+            research_run_id=usage.research_run_id,
+            phase=usage.phase.value,
+            agent_role=usage.agent_role.value,
+            provider=usage.provider,
+            model=usage.model,
+            task_id=usage.task_id,
+            worker_id=usage.worker_id,
+            iteration=usage.iteration,
+            retry=usage.retry,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cached_input_tokens=usage.cached_input_tokens,
+            reasoning_tokens=usage.reasoning_tokens,
+            total_tokens=usage.total_tokens,
+            usage_report_status=usage.report_status,
+            pricing_version=pricing_version,
+        )
+        self._session.add(row)
+        run = self._require_run(usage.research_run_id)
+        if usage.total_tokens is not None:
+            current = run.consumed_total_tokens or 0
+            run.consumed_total_tokens = current + usage.total_tokens
+            run.usage_report_status = UsageReportStatus.PARTIAL
+        self._session.flush()
+
+    def get_usage_summary(self, run_id: uuid.UUID) -> RunUsageSummary:
+        row = self._require_run(run_id)
+        records = self._session.scalars(
+            select(TokenUsageRecordRow).where(TokenUsageRecordRow.research_run_id == run_id)
+        ).all()
+
+        def _sum(values: list[int | None]) -> int | None:
+            known = [value for value in values if value is not None]
+            return sum(known) if known else None
+
+        return RunUsageSummary(
+            input_tokens=_sum([record.input_tokens for record in records]),
+            output_tokens=_sum([record.output_tokens for record in records]),
+            cached_input_tokens=_sum([record.cached_input_tokens for record in records]),
+            reasoning_tokens=_sum([record.reasoning_tokens for record in records]),
+            total_tokens=row.consumed_total_tokens,
+            cost_usd=row.consumed_cost_usd if row.cost_report_status.value != "unknown" else None,
+            usage_status=row.usage_report_status,
+            cost_status=row.cost_report_status,
+            pricing_version=row.pricing_version,
+        )
+
+    def enqueue_job(
+        self,
+        run_id: uuid.UUID,
+        *,
+        job_type: ResearchJobType,
+        idempotency_key: str,
+        payload: dict | None = None,
+    ) -> ResearchJobRow:
+        self._require_run(run_id)
+        existing = self._session.scalar(
+            select(ResearchJobRow).where(ResearchJobRow.idempotency_key == idempotency_key)
+        )
+        if existing is not None:
+            return existing
+        row = ResearchJobRow(
+            research_run_id=run_id,
+            job_type=job_type,
+            status=ResearchJobStatus.PENDING,
+            idempotency_key=idempotency_key,
+            payload=payload or {},
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row
+
+    def claim_next_job(self, owner: str, *, lease_seconds: int) -> ResearchJobRow | None:
+        import secrets
+
+        now = datetime.now(UTC)
+        row = self._session.scalar(
+            select(ResearchJobRow)
+            .where(
+                ResearchJobRow.status.in_(
+                    [
+                        ResearchJobStatus.PENDING,
+                        ResearchJobStatus.CLAIMED,
+                        ResearchJobStatus.RUNNING,
+                    ]
+                ),
+                (ResearchJobRow.lease_expires_at.is_(None))
+                | (ResearchJobRow.lease_expires_at < now),
+            )
+            .order_by(ResearchJobRow.created_at)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        if row is None:
+            return None
+        row.status = ResearchJobStatus.RUNNING
+        row.lease_owner = owner
+        row.lease_token = secrets.token_hex(16)
+        row.lease_expires_at = now + timedelta(seconds=lease_seconds)
+        row.attempts += 1
+        row.started_at = row.started_at or now
+        row.updated_at = now
+        self._session.flush()
+        return row
+
+    def renew_job_lease(
+        self,
+        job_id: uuid.UUID,
+        *,
+        owner: str,
+        lease_token: str,
+        lease_seconds: int,
+    ) -> None:
+        row = self._session.get(ResearchJobRow, job_id)
+        if row is None or row.lease_owner != owner or row.lease_token != lease_token:
+            raise LookupError("Invalid job lease")
+        row.lease_expires_at = datetime.now(UTC) + timedelta(seconds=lease_seconds)
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+
+    def complete_job(self, job_id: uuid.UUID, *, owner: str, lease_token: str) -> None:
+        row = self._session.get(ResearchJobRow, job_id)
+        if row is None or row.lease_owner != owner or row.lease_token != lease_token:
+            raise LookupError("Invalid job lease")
+        row.status = ResearchJobStatus.COMPLETED
+        row.completed_at = datetime.now(UTC)
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+
+    def fail_job(
+        self,
+        job_id: uuid.UUID,
+        *,
+        owner: str,
+        lease_token: str,
+        error: str,
+        retry: bool = True,
+    ) -> None:
+        row = self._session.get(ResearchJobRow, job_id)
+        if row is None or row.lease_owner != owner or row.lease_token != lease_token:
+            raise LookupError("Invalid job lease")
+        row.last_error = error[:4000]
+        row.updated_at = datetime.now(UTC)
+        if retry and row.attempts < row.max_attempts:
+            row.status = ResearchJobStatus.PENDING
+            row.lease_owner = None
+            row.lease_token = None
+            row.lease_expires_at = None
+        else:
+            row.status = ResearchJobStatus.FAILED
+            row.completed_at = datetime.now(UTC)
+        self._session.flush()
+
+    def recover_stale_jobs(self, now: datetime) -> int:
+        rows = self._session.scalars(
+            select(ResearchJobRow).where(
+                ResearchJobRow.status == ResearchJobStatus.RUNNING,
+                ResearchJobRow.lease_expires_at.is_not(None),
+                ResearchJobRow.lease_expires_at < now,
+            )
+        ).all()
+        for row in rows:
+            row.status = ResearchJobStatus.PENDING
+            row.lease_owner = None
+            row.lease_token = None
+            row.lease_expires_at = None
+            row.updated_at = now
+        self._session.flush()
+        return len(rows)
+
     def _snapshot_run_id(self, snapshot_id: uuid.UUID) -> uuid.UUID:
         snapshot = self._session.get(SourceSnapshotRow, snapshot_id)
         if snapshot is None:
@@ -451,6 +801,15 @@ class ResearchStore:
         if source is None:
             raise LookupError(f"Source {snapshot.source_id} not found")
         return source.research_run_id
+
+    def refresh(self) -> None:
+        self._session.expire_all()
+
+    def commit(self) -> None:
+        self._session.commit()
+
+    def get_concurrency_limit(self, run_id: uuid.UUID) -> int:
+        return self._require_run(run_id).concurrency_limit
 
     def _require_run(self, run_id: uuid.UUID) -> ResearchRunRow:
         row = self._session.get(ResearchRunRow, run_id)
@@ -471,8 +830,36 @@ def _run_to_read(row: ResearchRunRow) -> ResearchRunRead:
         llm_provider=row.llm_provider,
         llm_model=row.llm_model,
         budget=_budget_from_run(row),
+        usage=_usage_summary_from_run(row),
+        termination_reason=row.termination_reason,
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+def _usage_summary_from_run(row: ResearchRunRow) -> RunUsageSummary:
+    return RunUsageSummary(
+        total_tokens=row.consumed_total_tokens,
+        cost_usd=row.consumed_cost_usd if row.cost_report_status.value != "unknown" else None,
+        usage_status=row.usage_report_status,
+        cost_status=row.cost_report_status,
+        pricing_version=row.pricing_version,
+    )
+
+
+def _task_to_read(row: ResearchTaskRow) -> ResearchTaskRead:
+    return ResearchTaskRead(
+        id=row.id,
+        task_key=row.task_key,
+        objective=row.objective,
+        status=row.status,
+        priority=row.priority,
+        depends_on=list(row.depends_on or []),
+        allowed_tools=list(row.allowed_tools or []),
+        question_id=row.question_id,
+        worker_id=row.worker_id,
+        started_at=row.started_at,
+        completed_at=row.completed_at,
     )
 
 
@@ -503,6 +890,12 @@ def _apply_budget_delta(
     metric: BudgetMetric,
     delta: float,
 ) -> BudgetConsumption:
+    total_tokens = consumption.total_tokens
+    if metric == BudgetMetric.TOKENS:
+        total_tokens = int(delta) if total_tokens is None else total_tokens + int(delta)
+    cost_usd = consumption.cost_usd
+    if metric == BudgetMetric.COST:
+        cost_usd = delta if cost_usd is None else cost_usd + delta
     return BudgetConsumption(
         iterations=consumption.iterations + int(delta)
         if metric == BudgetMetric.ITERATIONS
@@ -510,12 +903,8 @@ def _apply_budget_delta(
         wall_time_seconds=consumption.wall_time_seconds + int(delta)
         if metric == BudgetMetric.WALL_TIME
         else consumption.wall_time_seconds,
-        total_tokens=consumption.total_tokens + int(delta)
-        if metric == BudgetMetric.TOKENS
-        else consumption.total_tokens,
-        cost_usd=consumption.cost_usd + delta
-        if metric == BudgetMetric.COST
-        else consumption.cost_usd,
+        total_tokens=total_tokens,
+        cost_usd=cost_usd,
         sources=consumption.sources + int(delta)
         if metric == BudgetMetric.SOURCES
         else consumption.sources,

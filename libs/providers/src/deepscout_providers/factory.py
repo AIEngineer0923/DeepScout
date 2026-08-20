@@ -68,28 +68,29 @@ def build_chat_model(
     settings: Settings,
     *,
     options: ModelBuildOptions | None = None,
+    provider: ProviderKind | None = None,
+    model_name: str | None = None,
 ) -> BaseChatModel:
-    """Return a LangChain chat model for the configured provider."""
+    """Return a LangChain chat model for the configured or overridden provider."""
     build_options = options or DEFAULT_MODEL_BUILD_OPTIONS
-    provider = settings.llm_provider
-    model_name = settings.llm_model or DEFAULT_CHAT_MODELS[provider]
-
-    match provider:
+    resolved_provider = provider or settings.llm_provider
+    resolved_model = model_name or settings.llm_model or DEFAULT_CHAT_MODELS[resolved_provider]
+    match resolved_provider:
         case ProviderKind.GOOGLE:
             return _build_google_chat_model(
-                model_name=model_name,
+                model_name=resolved_model,
                 settings=settings,
                 options=build_options,
             )
         case ProviderKind.OPENAI:
             return _build_openai_chat_model(
-                model_name=model_name,
+                model_name=resolved_model,
                 settings=settings,
                 options=build_options,
             )
         case ProviderKind.ANTHROPIC:
             return _build_anthropic_chat_model(
-                model_name=model_name,
+                model_name=resolved_model,
                 settings=settings,
                 options=build_options,
             )

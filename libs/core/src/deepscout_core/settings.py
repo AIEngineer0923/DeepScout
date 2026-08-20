@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     research_max_wall_time_s: int = Field(default=900, alias="RESEARCH_MAX_WALL_TIME_S")
     research_max_sources: int = Field(default=40, alias="RESEARCH_MAX_SOURCES")
     research_max_tool_calls: int = Field(default=80, alias="RESEARCH_MAX_TOOL_CALLS")
+    research_workers_inline: bool = Field(default=False, alias="RESEARCH_WORKERS_INLINE")
 
     def default_research_budget(self) -> "ResearchBudget":
         from deepscout_core.domain.budget import ResearchBudget
