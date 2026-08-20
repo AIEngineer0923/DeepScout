@@ -794,6 +794,12 @@ class ResearchStore:
             raise LookupError(f"Source {snapshot.source_id} not found")
         return source.research_run_id
 
+    def refresh(self) -> None:
+        self._session.expire_all()
+
+    def commit(self) -> None:
+        self._session.commit()
+
     def get_concurrency_limit(self, run_id: uuid.UUID) -> int:
         return self._require_run(run_id).concurrency_limit
 

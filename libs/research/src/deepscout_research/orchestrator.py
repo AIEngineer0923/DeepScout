@@ -16,6 +16,7 @@ from deepscout_core.domain.enums import (
 )
 from deepscout_core.domain.events import ResearchEvent, ResearchEventType
 from deepscout_core.settings import Settings
+from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
@@ -185,6 +186,7 @@ class ResearchOrchestrator:
             budget_summary=budget_summary,
         )
         self._store.save_plan(run_id, planner_output_to_write(plan_output))
+        self._store.commit()
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
@@ -235,14 +237,18 @@ class ResearchOrchestrator:
                 tasks=self._store.list_tasks(run_id),
             )
 
+        self._store.commit()
         self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
+        self._store.commit()
         pool = ResearchWorkerPool(
-            self._store,
+            get_session_factory(self._settings.database_url),
+            self._settings,
             self._search,
-            self._budget,
             max_workers=self._store.get_concurrency_limit(run_id),
+            inline_store=self._store if self._settings.research_workers_inline else None,
         )
         results = pool.execute_batch(run_id, ready, iteration=iteration)
+        self._store.refresh()
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,

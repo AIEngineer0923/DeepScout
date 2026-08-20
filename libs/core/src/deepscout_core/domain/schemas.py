@@ -64,7 +64,6 @@ class PlannerOutput(BaseModel):
     approach: str = Field(min_length=1, max_length=4000)
     success_criteria: str = Field(min_length=1, max_length=4000)
     questions: list[PlannerQuestion] = Field(min_length=1, max_length=20)
-    tasks: list[PlannerTask] = Field(default_factory=list, max_length=20)
 
 
 class SearchResult(BaseModel):

@@ -53,7 +53,7 @@ def build_research_plan(
 def planner_output_to_write(output: PlannerOutput) -> ResearchPlanWrite:
     ordered = sorted(output.questions, key=lambda item: item.priority)
     questions = [question.text for question in ordered]
-    tasks = merge_planner_tasks(output.tasks, questions)
+    tasks = merge_planner_tasks([], questions)
     return ResearchPlanWrite(
         strategy=output.approach,
         success_criteria=output.success_criteria,

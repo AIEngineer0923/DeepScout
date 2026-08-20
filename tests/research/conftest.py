@@ -7,4 +7,8 @@ pytestmark = pytest.mark.postgres
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(_env_file=None, LLM_PROVIDER=ProviderKind.GOOGLE)
+    return Settings(
+        _env_file=None,
+        LLM_PROVIDER=ProviderKind.GOOGLE,
+        RESEARCH_WORKERS_INLINE=True,
+    )
