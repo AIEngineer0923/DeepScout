@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
+
+from deepscout_research.langsmith_env import configure_langsmith_env
 
 BASELINE_EXAMPLES = [
     {
@@ -48,9 +49,6 @@ BASELINE_EXAMPLES = [
         "outputs": {"terminal_status": "budget_exhausted"},
     },
 ]
-
-
-from deepscout_research.langsmith_env import configure_langsmith_env
 
 
 def main() -> int:

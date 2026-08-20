@@ -17,7 +17,8 @@ def test_response_to_snapshot_text_plain() -> None:
 
 
 def test_response_to_snapshot_text_strips_nul_bytes() -> None:
-    text = response_to_snapshot_text(b"Hello\x00world with enough length for snapshot.", "text/plain")
+    body = b"Hello\x00world with enough length for snapshot."
+    text = response_to_snapshot_text(body, "text/plain")
     assert "\x00" not in text
     assert "Hello" in text
 
