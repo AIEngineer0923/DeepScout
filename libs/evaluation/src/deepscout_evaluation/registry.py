@@ -122,8 +122,106 @@ BUILTIN_EVALUATOR_MATRIX: tuple[EvaluatorSpec, ...] = (
         EvaluatorApplicability.ACTIVE_NOW,
         "Duplicate work",
     ),
+    EvaluatorSpec(
+        "code_injection",
+        "1",
+        "security",
+        EvaluatorMethod.DETERMINISTIC,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Code Injection",
+    ),
+    EvaluatorSpec(
+        "toxicity",
+        "1",
+        "safety",
+        EvaluatorMethod.LLM_JUDGE,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Toxicity",
+    ),
+    EvaluatorSpec(
+        "bias_fairness",
+        "1",
+        "safety",
+        EvaluatorMethod.LLM_JUDGE,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Bias & Fairness",
+    ),
+    EvaluatorSpec(
+        "correctness",
+        "1",
+        "quality",
+        EvaluatorMethod.HYBRID,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Correctness",
+    ),
+    EvaluatorSpec(
+        "assertions",
+        "1",
+        "quality",
+        EvaluatorMethod.ASSERTION,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Assertions",
+    ),
+    EvaluatorSpec(
+        "conciseness",
+        "1",
+        "quality",
+        EvaluatorMethod.LLM_JUDGE,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Conciseness",
+    ),
+    EvaluatorSpec(
+        "answer_relevance",
+        "1",
+        "quality",
+        EvaluatorMethod.LLM_JUDGE,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Answer Relevance",
+    ),
+    EvaluatorSpec(
+        "exact_match",
+        "1",
+        "quality",
+        EvaluatorMethod.DETERMINISTIC,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Exact Match",
+    ),
+    EvaluatorSpec(
+        "tool_selection",
+        "1",
+        "trajectory",
+        EvaluatorMethod.TRAJECTORY,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Tool Selection",
+    ),
+    EvaluatorSpec(
+        "trajectory_accuracy",
+        "1",
+        "trajectory",
+        EvaluatorMethod.TRAJECTORY,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Trajectory Accuracy",
+    ),
+    EvaluatorSpec(
+        "sensitive_imagery",
+        "1",
+        "image",
+        EvaluatorMethod.NOT_APPLICABLE,
+        EvaluatorApplicability.FUTURE_MODALITY_GATED,
+        "Sensitive Imagery",
+    ),
+    EvaluatorSpec(
+        "transcription_accuracy",
+        "1",
+        "voice",
+        EvaluatorMethod.NOT_APPLICABLE,
+        EvaluatorApplicability.FUTURE_MODALITY_GATED,
+        "Transcription Accuracy",
+    ),
 )
 
 
 def deterministic_claim_has_evidence(*, evidence_count: int) -> bool:
-    return evidence_count > 0
+    from deepscout_evaluation.deterministic import eval_claim_has_evidence
+
+    return eval_claim_has_evidence(evidence_count=evidence_count)
