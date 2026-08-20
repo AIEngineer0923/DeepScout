@@ -273,6 +273,72 @@ class ResearchStore:
         ).all()
         return list(rows)
 
+    def list_search_candidates(self, run_id: uuid.UUID) -> list[SearchCandidateRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(SearchCandidateRow)
+                .where(SearchCandidateRow.research_run_id == run_id)
+                .order_by(SearchCandidateRow.created_at)
+            ).all()
+        )
+
+    def list_claims(self, run_id: uuid.UUID) -> list[ClaimRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(ClaimRow)
+                .where(ClaimRow.research_run_id == run_id)
+                .order_by(ClaimRow.created_at)
+            ).all()
+        )
+
+    def find_claim(
+        self,
+        run_id: uuid.UUID,
+        *,
+        source_id: uuid.UUID,
+        statement: str,
+    ) -> ClaimRow | None:
+        self._require_run(run_id)
+        return self._session.scalar(
+            select(ClaimRow).where(
+                ClaimRow.research_run_id == run_id,
+                ClaimRow.source_id == source_id,
+                ClaimRow.statement == statement[:8000],
+            )
+        )
+
+    def get_latest_snapshot_for_source(self, source_id: uuid.UUID) -> SourceSnapshotRow | None:
+        return self._session.scalar(
+            select(SourceSnapshotRow)
+            .where(SourceSnapshotRow.source_id == source_id)
+            .order_by(SourceSnapshotRow.retrieved_at.desc())
+            .limit(1)
+        )
+
+    def get_snapshot(self, snapshot_id: uuid.UUID) -> SourceSnapshotRow | None:
+        return self._session.get(SourceSnapshotRow, snapshot_id)
+
+    def list_evidence_for_claim(self, claim_id: uuid.UUID) -> list[EvidenceRow]:
+        return list(
+            self._session.scalars(
+                select(EvidenceRow)
+                .where(EvidenceRow.claim_id == claim_id)
+                .order_by(EvidenceRow.created_at)
+            ).all()
+        )
+
+    def evidence_exists(self, claim_id: uuid.UUID, snapshot_id: uuid.UUID, quote: str) -> bool:
+        existing = self._session.scalar(
+            select(EvidenceRow.id).where(
+                EvidenceRow.claim_id == claim_id,
+                EvidenceRow.snapshot_id == snapshot_id,
+                EvidenceRow.quote == quote[:16000],
+            )
+        )
+        return existing is not None
+
     def list_evidence(self, run_id: uuid.UUID) -> list[EvidenceRow]:
         self._require_run(run_id)
         return list(

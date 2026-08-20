@@ -81,7 +81,13 @@ def secure_fetch(
     custom transport with connection-level IP pinning.
     """
     safe_url = assert_public_target(url)
-    with httpx.Client(follow_redirects=False, timeout=timeout_s) as client:
+    with httpx.Client(
+        follow_redirects=False,
+        timeout=timeout_s,
+        headers={
+            "User-Agent": "DeepScout/1.0 (research-bot; +https://github.com/francescoveryra-dot/deepscout)"
+        },
+    ) as client:
         current = safe_url
         for _ in range(5):
             response = client.get(current)
