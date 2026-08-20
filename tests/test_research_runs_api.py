@@ -54,6 +54,24 @@ def test_create_and_get_research_run(api_client: TestClient) -> None:
     assert get.status_code == 200
     assert get.json()["id"] == run_id
 
+    summary = api_client.get(f"/api/v1/research-runs/{run_id}/summary")
+    assert summary.status_code == 200
+    summary_body = summary.json()
+    assert summary_body["run_id"] == run_id
+    assert summary_body["claim_count"] == 0
+
+
+@pytest.mark.postgres
+def test_cancel_research_run(api_client: TestClient) -> None:
+    create = api_client.post(
+        "/api/v1/research-runs",
+        json={"goal": "Cancel test"},
+    )
+    run_id = create.json()["id"]
+    cancel = api_client.post(f"/api/v1/research-runs/{run_id}/cancel")
+    assert cancel.status_code == 200
+    assert cancel.json()["status"] == "cancelled"
+
 
 @pytest.mark.postgres
 def test_get_unknown_run_returns_404(api_client: TestClient) -> None:

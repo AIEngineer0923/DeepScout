@@ -137,7 +137,7 @@ class ResearchOrchestrator:
             self._store.update_run_status(run_id, ResearchRunStatus.CANCELLED)
             self._emit(
                 ResearchEvent(
-                    event_type=ResearchEventType.RUN_COMPLETED,
+                    event_type=ResearchEventType.RUN_CANCELLED,
                     run_id=run_id,
                     payload={"reason": "cancelled"},
                 )

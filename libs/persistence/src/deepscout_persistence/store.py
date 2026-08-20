@@ -13,13 +13,13 @@ from deepscout_core.domain.budget import (
     ResearchBudget,
 )
 from deepscout_core.domain.enums import (
+    TERMINAL_RESEARCH_RUN_STATUSES,
     ClaimVerificationStatus,
     ResearchJobStatus,
     ResearchJobType,
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,
-    TERMINAL_RESEARCH_RUN_STATUSES,
     UsageReportStatus,
 )
 from deepscout_core.domain.invariants import (
