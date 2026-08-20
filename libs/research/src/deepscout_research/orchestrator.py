@@ -21,8 +21,11 @@ from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
 from deepscout_research.budget_gate import BudgetGate
+from deepscout_research.phases.contradiction import detect_contradictions_for_run
+from deepscout_research.phases.extract import extract_claims_for_run
 from deepscout_research.phases.fetch import fetch_sources_for_run
 from deepscout_research.phases.report import generate_report
+from deepscout_research.phases.verify import verify_claims_for_run
 from deepscout_research.planner import build_research_plan, planner_output_to_write
 from deepscout_research.search.protocol import WebSearchProvider
 from deepscout_research.tasks.graph import TaskGraph
@@ -371,6 +374,73 @@ class ResearchOrchestrator:
                 run_id=run_id,
                 phase=ResearchPhase.FETCH,
                 payload={"snapshots_created": fetched},
+            )
+        )
+        self._store.commit()
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.EXTRACT,
+            )
+        )
+        try:
+            extract_stats = extract_claims_for_run(self._store, run_id)
+        except Exception:
+            logger.exception("Extract phase failed", extra={"run_id": str(run_id)})
+            extract_stats = {"claims_created": 0, "evidence_created": 0}
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.EXTRACT,
+                payload=extract_stats,
+            )
+        )
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.VERIFY,
+            )
+        )
+        try:
+            verify_stats = verify_claims_for_run(self._store, run_id)
+        except Exception:
+            logger.exception("Verify phase failed", extra={"run_id": str(run_id)})
+            verify_stats = {}
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.VERIFY,
+                payload=verify_stats,
+            )
+        )
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.CONTRADICTION,
+            )
+        )
+        try:
+            contradictions = detect_contradictions_for_run(self._store, run_id)
+        except Exception:
+            logger.exception("Contradiction phase failed", extra={"run_id": str(run_id)})
+            contradictions = 0
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.CONTRADICTION,
+                payload={"contradictions_detected": contradictions},
             )
         )
 
