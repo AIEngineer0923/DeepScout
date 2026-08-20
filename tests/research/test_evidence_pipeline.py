@@ -26,19 +26,28 @@ def test_extract_and_verify_claims_from_snapshot(store, settings) -> None:
         run.id,
         SourceWrite(canonical_url="https://example.com/nmc", title="NMC", domain="example.com"),
     )
-    snippet = "NMC batteries offer higher energy density than LFP chemistry."
+    snapshot_text = (
+        "NMC batteries use nickel manganese cobalt cathodes and offer high energy density. "
+        "LFP batteries use lithium iron phosphate and emphasize safety and cycle life."
+    )
     store.add_search_candidates(
         run.id,
         SearchCandidateWrite(
             query="What is NMC?",
             provider="fake",
-            results=[SearchResult(url=source.canonical_url, title="NMC", snippet=snippet)],
+            results=[
+                SearchResult(
+                    url=source.canonical_url,
+                    title="NMC",
+                    snippet="Summary hint about nickel manganese cobalt cathodes.",
+                )
+            ],
             question_id=question.id,
         ),
     )
     store.add_snapshot(
         source.id,
-        SourceSnapshotWrite(content=f"Intro. {snippet} End.", mime_type="text/plain"),
+        SourceSnapshotWrite(content=snapshot_text, mime_type="text/plain"),
     )
 
     stats = extract_claims_for_run(store, run.id)
@@ -50,3 +59,4 @@ def test_extract_and_verify_claims_from_snapshot(store, settings) -> None:
     claims = store.list_claims(run.id)
     assert len(claims) == 1
     assert claims[0].verification_status.value == "verified"
+    assert "nickel manganese cobalt" in claims[0].statement.lower()
