@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
+from deepscout_core.domain.enums import ResearchRunStatus
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
@@ -37,7 +38,7 @@ def _completed_demo(store: ResearchStore, settings: Settings, slug: str):
         owner_principal_id=None,
     )
     row = store.get_run_row(run.id)
-    row.status = __import__("deepscout_core.domain.enums", fromlist=["ResearchRunStatus"]).ResearchRunStatus.COMPLETED
+    row.status = ResearchRunStatus.COMPLETED
     publish_demo(store, run.id, slug, require_completed=False)
     store.commit()
     return run.id

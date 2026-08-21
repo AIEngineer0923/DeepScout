@@ -7,9 +7,10 @@ from uuid import UUID
 from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_persistence.models import ResearchRunRow
 from deepscout_persistence.store import ResearchStore
+from sqlalchemy import select
+
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
 from deepscout_research.demo.sanitization import sanitize_text
-from sqlalchemy import select
 
 
 def _sanitize_run_content(store: ResearchStore, run_id: UUID) -> None:

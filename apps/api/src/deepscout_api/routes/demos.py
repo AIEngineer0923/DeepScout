@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from deepscout_core.settings import Settings, get_settings
 from deepscout_persistence.models import ResearchRunRow
-from deepscout_persistence.store import ResearchStore
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 

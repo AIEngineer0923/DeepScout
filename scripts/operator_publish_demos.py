@@ -29,12 +29,12 @@ def _run_one(store: ResearchStore, settings: Settings, owner_id, item: dict) -> 
             research_mode=mode,
             output_language="en",
             budget=ResearchBudget(
-                max_iterations=2 if mode == "deep" else 1,
-                max_wall_time_seconds=420 if mode == "deep" else 240,
-                max_total_tokens=80_000 if mode == "deep" else 50_000,
-                max_cost_usd=2.0 if mode == "deep" else 1.5,
-                max_sources=8 if mode == "deep" else 6,
-                max_tool_calls=16 if mode == "deep" else 10,
+                max_iterations=3 if mode == "deep" else 2,
+                max_wall_time_seconds=600 if mode == "deep" else 480,
+                max_total_tokens=120_000 if mode == "deep" else 80_000,
+                max_cost_usd=4.0 if mode == "deep" else 3.0,
+                max_sources=12 if mode == "deep" else 10,
+                max_tool_calls=24 if mode == "deep" else 18,
             ),
         ),
         settings,
@@ -75,7 +75,9 @@ def main() -> int:
     os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["DEEPSCOUT_DEPLOYMENT_MODE"] = "local"
     settings = Settings()
-    selected = [item for item in DEMO_CATALOG if args.only_slug is None or item["slug"] == args.only_slug]
+    selected = [
+        item for item in DEMO_CATALOG if args.only_slug is None or item["slug"] == args.only_slug
+    ]
     if args.dry_run:
         print(json.dumps({"would_run": [item["slug"] for item in selected]}, indent=2))
         return 0
