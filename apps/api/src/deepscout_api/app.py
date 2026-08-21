@@ -9,6 +9,7 @@ from redis import Redis
 from sqlalchemy import create_engine, text
 
 from deepscout_api.main import configure_observability
+from deepscout_api.routes.product import router as product_router
 from deepscout_api.routes.research_runs import router as research_runs_router
 
 
@@ -30,6 +31,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 app.include_router(research_runs_router)
+app.include_router(product_router)
 
 
 class HealthResponse(BaseModel):

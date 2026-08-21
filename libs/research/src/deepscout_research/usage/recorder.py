@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from deepscout_core.domain.enums import AgentRole, CostReportStatus, ResearchPhase
+from deepscout_core.domain.enums import AgentRole, ResearchPhase
 from deepscout_core.domain.usage import TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_persistence.store import ResearchStore
@@ -69,16 +69,12 @@ def record_model_usage(
     )
     catalog = DEFAULT_PRICING_CATALOG
     cost, cost_status = catalog.estimate_cost(usage)
-    store.record_token_usage(usage, pricing_version=catalog.version)
-    if cost is not None and cost_status != CostReportStatus.UNKNOWN:
-        from deepscout_core.domain.enums import BudgetMetric
-
-        store.record_budget_usage(
-            run_id,
-            BudgetMetric.COST,
-            cost,
-            note=f"{role.value}:{selection.model}",
-        )
+    store.record_token_usage(
+        usage,
+        pricing_version=catalog.version,
+        cost_usd=cost,
+        cost_status=cost_status,
+    )
     _ = settings  # reserved for future provider-specific normalization hooks
     _ = prompt
     return usage

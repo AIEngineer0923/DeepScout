@@ -92,3 +92,32 @@ def test_oversized_goal_is_rejected(validation_client: TestClient) -> None:
 def test_empty_goal_is_rejected(validation_client: TestClient) -> None:
     response = validation_client.post("/api/v1/research-runs", json={"goal": ""})
     assert response.status_code == 422
+
+
+@pytest.mark.postgres
+def test_list_and_overview(api_client: TestClient) -> None:
+    created = api_client.post("/api/v1/research-runs", json={"goal": "List overview research"})
+    run_id = created.json()["id"]
+    listed = api_client.get("/api/v1/research-runs")
+    assert listed.status_code == 200
+    assert listed.json()["total"] >= 1
+    overview = api_client.get("/api/v1/overview")
+    assert overview.status_code == 200
+    settings = api_client.get("/api/v1/settings")
+    assert settings.status_code == 200
+    assert "google" in settings.json()["providers"]
+    workspace = api_client.get(f"/api/v1/research-runs/{run_id}/workspace")
+    assert workspace.status_code == 200
+    assert workspace.json()["goal"] == "List overview research"
+    export = api_client.get(f"/api/v1/research-runs/{run_id}/export?format=markdown")
+    assert export.status_code == 200
+
+
+@pytest.mark.postgres
+def test_resume_cancelled_run_conflict(api_client: TestClient) -> None:
+    created = api_client.post("/api/v1/research-runs", json={"goal": "Resume guard"})
+    run_id = created.json()["id"]
+    cancel = api_client.post(f"/api/v1/research-runs/{run_id}/cancel")
+    assert cancel.status_code == 200
+    response = api_client.post(f"/api/v1/research-runs/{run_id}/resume")
+    assert response.status_code == 409

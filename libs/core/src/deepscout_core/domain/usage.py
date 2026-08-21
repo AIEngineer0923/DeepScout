@@ -57,8 +57,18 @@ class TokenUsageRecord:
             except (TypeError, ValueError):
                 return None
 
-        input_tokens = _int("input_tokens") or _int("prompt_token_count")
-        output_tokens = _int("output_tokens") or _int("candidates_token_count")
+        input_tokens = (
+            _int("input_tokens")
+            or _int("prompt_token_count")
+            or _int("prompt_tokens")
+            or _int("input_token_count")
+        )
+        output_tokens = (
+            _int("output_tokens")
+            or _int("candidates_token_count")
+            or _int("completion_tokens")
+            or _int("output_token_count")
+        )
         total = _int("total_tokens") or _int("total_token_count")
         cached = _int("cached_input_tokens") or _int("cached_content_token_count")
         reasoning = _int("reasoning_tokens") or _int("thoughts_token_count")
@@ -106,6 +116,9 @@ class RunUsageSummary:
     usage_status: UsageReportStatus = UsageReportStatus.UNKNOWN
     cost_status: CostReportStatus = CostReportStatus.UNKNOWN
     pricing_version: str | None = None
+    evaluation_total_tokens: int | None = None
+    evaluation_cost_usd: float | None = None
+    cost_unknown_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

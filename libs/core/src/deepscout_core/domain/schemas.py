@@ -1,6 +1,7 @@
 """Pydantic domain/API schemas (LangChain-independent)."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from deepscout_core.domain.usage import RunUsageSummary
 class ResearchRunCreate(BaseModel):
     goal: str = Field(min_length=1, max_length=8000)
     budget: ResearchBudget | None = None
+    research_mode: Literal["quick", "standard", "deep"] | None = None
 
 
 class ResearchRunRead(BaseModel):
@@ -33,6 +35,8 @@ class ResearchRunRead(BaseModel):
     termination_reason: str | None = None
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class PlannerTask(BaseModel):
@@ -99,6 +103,7 @@ class ResearchTaskRead(BaseModel):
     worker_id: UUID | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    retry_count: int = 0
 
 
 class SourceWrite(BaseModel):

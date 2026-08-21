@@ -15,6 +15,7 @@ from deepscout_core.domain.budget import (
 from deepscout_core.domain.enums import (
     TERMINAL_RESEARCH_RUN_STATUSES,
     ClaimVerificationStatus,
+    CostReportStatus,
     ResearchJobStatus,
     ResearchJobType,
     ResearchQuestionStatus,
@@ -83,6 +84,7 @@ class ResearchStore:
 
     def create_run(self, payload: ResearchRunCreate, settings: Settings) -> ResearchRunRead:
         budget = payload.budget or settings.default_research_budget()
+        budget = _budget_for_mode(budget, payload.research_mode)
         provider = settings.llm_provider
         model = settings.llm_model or DEFAULT_CHAT_MODELS[provider]
         row = ResearchRunRow(
@@ -104,6 +106,38 @@ class ResearchStore:
     def get_run(self, run_id: uuid.UUID) -> ResearchRunRead | None:
         row = self._session.get(ResearchRunRow, run_id)
         return _run_to_read(row) if row else None
+
+    def get_run_row(self, run_id: uuid.UUID) -> ResearchRunRow | None:
+        return self._session.get(ResearchRunRow, run_id)
+
+    def list_runs(
+        self,
+        *,
+        status: str | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[ResearchRunRow], int]:
+        stmt = select(ResearchRunRow)
+        count_stmt = select(func.count()).select_from(ResearchRunRow)
+        if status:
+            try:
+                enum_status = ResearchRunStatus(status)
+            except ValueError as exc:
+                raise ValueError(f"Invalid run status: {status}") from exc
+            stmt = stmt.where(ResearchRunRow.status == enum_status)
+            count_stmt = count_stmt.where(ResearchRunRow.status == enum_status)
+        if query:
+            like = f"%{query.strip()}%"
+            stmt = stmt.where(ResearchRunRow.goal.ilike(like))
+            count_stmt = count_stmt.where(ResearchRunRow.goal.ilike(like))
+        total = int(self._session.scalar(count_stmt) or 0)
+        rows = list(
+            self._session.scalars(
+                stmt.order_by(ResearchRunRow.created_at.desc()).limit(limit).offset(offset)
+            ).all()
+        )
+        return rows, total
 
     def update_run_status(self, run_id: uuid.UUID, status: ResearchRunStatus) -> ResearchRunRead:
         row = self._require_run(run_id)
@@ -320,6 +354,39 @@ class ResearchStore:
 
     def get_snapshot(self, snapshot_id: uuid.UUID) -> SourceSnapshotRow | None:
         return self._session.get(SourceSnapshotRow, snapshot_id)
+
+    def list_snapshots_for_run(self, run_id: uuid.UUID) -> list[SourceSnapshotRow]:
+        sources = self.list_sources(run_id)
+        snapshots: list[SourceSnapshotRow] = []
+        for source in sources:
+            snapshots.extend(
+                self._session.scalars(
+                    select(SourceSnapshotRow)
+                    .where(SourceSnapshotRow.source_id == source.id)
+                    .order_by(SourceSnapshotRow.retrieved_at.desc())
+                ).all()
+            )
+        return snapshots
+
+    def list_tool_executions(self, run_id: uuid.UUID) -> list[ToolExecutionRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(ToolExecutionRow)
+                .where(ToolExecutionRow.research_run_id == run_id)
+                .order_by(ToolExecutionRow.created_at.desc())
+            ).all()
+        )
+
+    def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(ResearchJobRow)
+                .where(ResearchJobRow.research_run_id == run_id)
+                .order_by(ResearchJobRow.created_at.desc())
+            ).all()
+        )
 
     def list_evidence_for_claim(self, claim_id: uuid.UUID) -> list[EvidenceRow]:
         return list(
@@ -799,8 +866,14 @@ class ResearchStore:
         )
 
     def record_token_usage(
-        self, usage: TokenUsageRecord, *, pricing_version: str | None = None
+        self,
+        usage: TokenUsageRecord,
+        *,
+        pricing_version: str | None = None,
+        cost_usd: float | None = None,
+        cost_status: CostReportStatus | None = None,
     ) -> None:
+        resolved_cost_status = cost_status or CostReportStatus.UNKNOWN
         row = TokenUsageRecordRow(
             research_run_id=usage.research_run_id,
             phase=usage.phase.value,
@@ -816,7 +889,9 @@ class ResearchStore:
             cached_input_tokens=usage.cached_input_tokens,
             reasoning_tokens=usage.reasoning_tokens,
             total_tokens=usage.total_tokens,
+            cost_usd=cost_usd,
             usage_report_status=usage.report_status,
+            cost_report_status=resolved_cost_status,
             pricing_version=pricing_version,
         )
         self._session.add(row)
@@ -825,6 +900,15 @@ class ResearchStore:
             current = run.consumed_total_tokens or 0
             run.consumed_total_tokens = current + usage.total_tokens
             run.usage_report_status = UsageReportStatus.PARTIAL
+        if (
+            usage.agent_role.value != "evaluator"
+            and cost_usd is not None
+            and resolved_cost_status != CostReportStatus.UNKNOWN
+        ):
+            run.consumed_cost_usd = float(run.consumed_cost_usd or 0.0) + float(cost_usd)
+            run.pricing_version = pricing_version or run.pricing_version
+            if run.cost_report_status == CostReportStatus.UNKNOWN:
+                run.cost_report_status = resolved_cost_status
         self._session.flush()
 
     def get_usage_summary(self, run_id: uuid.UUID) -> RunUsageSummary:
@@ -833,21 +917,38 @@ class ResearchStore:
             select(TokenUsageRecordRow).where(TokenUsageRecordRow.research_run_id == run_id)
         ).all()
         application = [record for record in records if record.agent_role != "evaluator"]
+        evaluation = [record for record in records if record.agent_role == "evaluator"]
 
         def _sum(values: list[int | None]) -> int | None:
             known = [value for value in values if value is not None]
             return sum(known) if known else None
 
+        def _cost(group: list[TokenUsageRecordRow]) -> tuple[float | None, CostReportStatus, str | None]:
+            if not group:
+                return None, CostReportStatus.UNKNOWN, "no_usage_records"
+            unknown = [record for record in group if record.cost_report_status.value == "unknown"]
+            known = [record.cost_usd for record in group if record.cost_usd is not None]
+            if unknown:
+                return None, CostReportStatus.UNKNOWN, "incomplete_token_split_or_unpriced_model"
+            if not known:
+                return None, CostReportStatus.UNKNOWN, "pricing_not_mapped"
+            return sum(known), CostReportStatus.ESTIMATED, None
+
+        app_cost, app_status, reason = _cost(application)
+        eval_cost, _, eval_reason = _cost(evaluation)
         return RunUsageSummary(
             input_tokens=_sum([record.input_tokens for record in application]),
             output_tokens=_sum([record.output_tokens for record in application]),
             cached_input_tokens=_sum([record.cached_input_tokens for record in application]),
             reasoning_tokens=_sum([record.reasoning_tokens for record in application]),
             total_tokens=row.consumed_total_tokens,
-            cost_usd=row.consumed_cost_usd if row.cost_report_status.value != "unknown" else None,
+            cost_usd=app_cost,
             usage_status=row.usage_report_status,
-            cost_status=row.cost_report_status,
+            cost_status=app_status,
             pricing_version=row.pricing_version,
+            evaluation_total_tokens=_sum([record.total_tokens for record in evaluation]),
+            evaluation_cost_usd=eval_cost if evaluation else None,
+            cost_unknown_reason=reason if app_status == CostReportStatus.UNKNOWN else eval_reason,
         )
 
     def list_token_usage(self, run_id: uuid.UUID) -> list[TokenUsageRecordRow]:
@@ -1017,6 +1118,28 @@ def _hash_content(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def _budget_for_mode(budget: ResearchBudget, mode: str | None) -> ResearchBudget:
+    if mode == "quick":
+        return ResearchBudget(
+            max_iterations=min(2, budget.max_iterations),
+            max_wall_time_seconds=min(300, budget.max_wall_time_seconds),
+            max_total_tokens=min(40_000, budget.max_total_tokens),
+            max_cost_usd=min(1.0, budget.max_cost_usd),
+            max_sources=min(8, budget.max_sources),
+            max_tool_calls=min(16, budget.max_tool_calls),
+        )
+    if mode == "deep":
+        return ResearchBudget(
+            max_iterations=max(5, budget.max_iterations),
+            max_wall_time_seconds=max(budget.max_wall_time_seconds, 1200),
+            max_total_tokens=max(budget.max_total_tokens, 400_000),
+            max_cost_usd=max(budget.max_cost_usd, 8.0),
+            max_sources=max(budget.max_sources, 60),
+            max_tool_calls=max(budget.max_tool_calls, 120),
+        )
+    return budget
+
+
 def _run_to_read(row: ResearchRunRow) -> ResearchRunRead:
     return ResearchRunRead(
         id=row.id,
@@ -1029,6 +1152,8 @@ def _run_to_read(row: ResearchRunRow) -> ResearchRunRead:
         termination_reason=row.termination_reason,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        started_at=row.started_at,
+        completed_at=row.completed_at,
     )
 
 
@@ -1055,6 +1180,7 @@ def _task_to_read(row: ResearchTaskRow) -> ResearchTaskRead:
         worker_id=row.worker_id,
         started_at=row.started_at,
         completed_at=row.completed_at,
+        retry_count=row.retry_count,
     )
 
 
