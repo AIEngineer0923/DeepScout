@@ -19,10 +19,10 @@ def product_overview(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    rows, total = store.list_runs(limit=8, offset=0)
-    items = [_list_item(store, row) for row in rows]
-    all_rows, _ = store.list_runs(limit=100, offset=0)
-    cards = [_list_item(store, row) for row in all_rows]
+    rows, total = store.list_runs(limit=100, offset=0)
+    metrics = store.list_run_card_metrics([row.id for row in rows])
+    cards = [_list_item(row, metrics[row.id]) for row in rows]
+    items = cards[:8]
     active = next((item for item in items if item.status in {"running", "pending"}), None)
     known_costs = [item.cost_usd for item in cards if item.cost_usd is not None]
     completed = [item for item in cards if item.status == "completed" and item.started_at and item.completed_at]

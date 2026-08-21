@@ -277,6 +277,7 @@ def assemble_workspace(
 
     return {
         "run_id": str(run.id),
+        "event_head": events[-1].sequence if events else 0,
         "status": run.status.value,
         "goal": run.goal,
         "termination_reason": run.termination_reason,

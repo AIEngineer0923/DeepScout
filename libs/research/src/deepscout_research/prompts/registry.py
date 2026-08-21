@@ -5,7 +5,7 @@ from __future__ import annotations
 from deepscout_core.domain.enums import AgentRole
 
 from deepscout_research.prompts.render import compose_system_message
-from deepscout_research.prompts.spec import PromptSpec
+from deepscout_research.prompts.spec import PromptSpec, PromptStatus
 
 PLANNER_V1 = PromptSpec(
     prompt_id="planner",
@@ -19,10 +19,44 @@ PLANNER_V1 = PromptSpec(
     termination_expectations="Return one structured plan; stop after PlannerOutput is produced.",
     evaluator_coverage=("plan_adherence", "task_decomposition", "planner_quality"),
     evaluation_baseline="deepscout-baseline-v1",
+    status=PromptStatus.ACTIVE,
     instructions=(
         "Interpret the goal. Emit 2-5 prioritized research questions with clear completion criteria. "
         "Mark parallelizable work when questions are independent. "
         "Avoid redundant tasks. Do not browse, invent sources, create evidence, or change budgets."
+    ),
+)
+
+PLANNER_V2 = PromptSpec(
+    prompt_id="planner",
+    prompt_version="2",
+    role=AgentRole.PLANNER,
+    responsibility="Emit a schedulable DAG that matches real information dependencies.",
+    input_contract="Goal, budget summary, domain constraints.",
+    output_contract=(
+        "PlannerOutput schema: decomposition plus tasks with task_key, objective, "
+        "depends_on, completion_criteria, parallel_safe, expected_output, priority."
+    ),
+    context_policy="Goal and budget only; no raw web pages, evidence, or worker history.",
+    tool_policy="No web or network tools.",
+    termination_expectations="Return one structured plan; stop after PlannerOutput is produced.",
+    evaluator_coverage=("plan_adherence", "task_decomposition", "planner_quality", "dag_quality"),
+    evaluation_baseline="deepscout-planner-quality-v1",
+    schema_version="2",
+    instructions=(
+        "Classify the goal, then emit the smallest DAG that can complete it. "
+        "decomposition=simple: one factual lookup, identifier, or small bounded question a single worker "
+        "can finish from the same sources. Emit exactly one task. "
+        "decomposition=parallel: two or more independent dimensions that do not need each other's answers. "
+        "Emit one task per dimension with empty depends_on and parallel_safe=true. "
+        "decomposition=chain: a later task needs an earlier finding (entity, identifier, date, jurisdiction, "
+        "or measured result). Put the producer task_key in depends_on. "
+        "decomposition=mixed: independent fan-out tasks plus a later fan-in task that depends_on those keys. "
+        "Do not emit extra tasks by default. A second task is allowed only if it unlocks parallelism or encodes "
+        "a real information dependency. "
+        "Each task must include completion_criteria, allowed_tools (web_search only unless already allowed), "
+        "priority, expected_output, and question_text matching the objective. "
+        "Do not browse, invent sources, create evidence, or change budgets."
     ),
 )
 
@@ -140,7 +174,21 @@ REPORT_V1 = PromptSpec(
 PROMPT_REGISTRY: dict[str, PromptSpec] = {
     spec.prompt_id: spec
     for spec in (
+        PLANNER_V2,
+        RESEARCH_WORKER_V1,
+        EXTRACTOR_V1,
+        VERIFIER_V1,
+        CRITIC_V1,
+        SYNTHESIS_V1,
+        REPORT_V1,
+    )
+}
+
+PROMPT_VERSIONS: dict[tuple[str, str], PromptSpec] = {
+    (spec.prompt_id, spec.prompt_version): spec
+    for spec in (
         PLANNER_V1,
+        PLANNER_V2,
         RESEARCH_WORKER_V1,
         EXTRACTOR_V1,
         VERIFIER_V1,
@@ -152,11 +200,14 @@ PROMPT_REGISTRY: dict[str, PromptSpec] = {
 
 
 def get_prompt(prompt_id: str, *, version: str | None = None) -> PromptSpec:
+    if version is not None:
+        spec = PROMPT_VERSIONS.get((prompt_id, version))
+        if spec is None:
+            raise KeyError(f"Prompt {prompt_id} version {version} not found")
+        return spec
     spec = PROMPT_REGISTRY.get(prompt_id)
     if spec is None:
         raise KeyError(f"Unknown prompt_id: {prompt_id}")
-    if version is not None and spec.prompt_version != version:
-        raise KeyError(f"Prompt {prompt_id} version {version} not found")
     return spec
 
 
@@ -164,7 +215,9 @@ __all__ = [
     "CRITIC_V1",
     "EXTRACTOR_V1",
     "PLANNER_V1",
+    "PLANNER_V2",
     "PROMPT_REGISTRY",
+    "PROMPT_VERSIONS",
     "REPORT_V1",
     "RESEARCH_WORKER_V1",
     "SYNTHESIS_V1",

@@ -123,4 +123,33 @@ export const api = {
     if (snapshotId) query.set("snapshot_id", snapshotId);
     return `${apiUrl}/api/v1/research-runs/${runId}/export?${query}`;
   },
+  listTemplates: () =>
+    parse<
+      Array<{
+        id: string;
+        name: string;
+        goal: string;
+        research_mode: "quick" | "standard" | "deep";
+        output_language: string;
+        created_at: string;
+        updated_at: string;
+      }>
+    >(fetch(`${apiUrl}/api/v1/research-templates`, { cache: "no-store" })),
+  createTemplate: (body: {
+    name: string;
+    goal: string;
+    research_mode: "quick" | "standard" | "deep";
+    output_language: string;
+  }) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-templates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  deleteTemplate: (templateId: string) =>
+    fetch(`${apiUrl}/api/v1/research-templates/${templateId}`, { method: "DELETE" }).then((response) => {
+      if (!response.ok && response.status !== 204) throw new Error(`Request failed (${response.status})`);
+    }),
 };

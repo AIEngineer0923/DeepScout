@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
     llm_reasoning_effort: str | None = Field(default=None, alias="LLM_REASONING_EFFORT")
     hitl_enabled: bool = Field(default=True, alias="HITL_ENABLED")
+    planner_prompt_version: str = Field(default="2", alias="PLANNER_PROMPT_VERSION")
     hitl_budget_extension_requires_review: bool = Field(
         default=True,
         alias="HITL_BUDGET_EXTENSION_REQUIRES_REVIEW",

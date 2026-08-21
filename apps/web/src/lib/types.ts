@@ -23,6 +23,7 @@ export type RunListItem = {
 
 export type Workspace = {
   run_id: string;
+  event_head?: number;
   status: string;
   goal: string;
   termination_reason: string | null;

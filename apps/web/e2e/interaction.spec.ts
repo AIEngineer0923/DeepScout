@@ -18,6 +18,24 @@ async function mockApi(page: Page) {
   await page.route(`**/api/v1/research-runs/${FIXTURE_RUN_ID}/events**`, async (route) => {
     await route.fulfill({ status: 200, body: "", headers: { "content-type": "text/event-stream" } });
   });
+  await page.route("**/api/v1/research-templates**", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        json: {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Preset",
+          goal: "Compare NMC and LFP",
+          research_mode: "standard",
+          output_language: "en",
+          created_at: "2026-08-21T10:00:00.000Z",
+          updated_at: "2026-08-21T10:00:00.000Z",
+        },
+      });
+      return;
+    }
+    await route.fulfill({ json: [] });
+  });
   await page.route("**/api/v1/research-runs?**", async (route) => {
     await route.fulfill({ json: { items: overviewFixture.recent, total: 0, limit: 8, offset: 0 } });
   });
@@ -121,5 +139,56 @@ test.describe("interaction", () => {
     await page.getByRole("tab", { name: "Completed" }).click();
     await expect(page.getByRole("tab", { name: "Completed" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
+  });
+
+  test("new research can save and apply a template", async ({ page }) => {
+    await mockApi(page);
+    const saved: Array<Record<string, unknown>> = [];
+    await page.route("**/api/v1/research-templates**", async (route) => {
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON() as Record<string, unknown>;
+        saved.push(body);
+        await route.fulfill({
+          status: 201,
+          json: {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: body.name,
+            goal: body.goal,
+            research_mode: body.research_mode,
+            output_language: body.output_language,
+            created_at: "2026-08-21T10:00:00.000Z",
+            updated_at: "2026-08-21T10:00:00.000Z",
+          },
+        });
+        return;
+      }
+      await route.fulfill({
+        json: saved.map((item, index) => ({
+          id: "22222222-2222-4222-8222-222222222222",
+          name: item.name,
+          goal: item.goal,
+          research_mode: item.research_mode,
+          output_language: item.output_language,
+          created_at: "2026-08-21T10:00:00.000Z",
+          updated_at: "2026-08-21T10:00:00.000Z",
+          _i: index,
+        })),
+      });
+    });
+    await page.goto("/research/new");
+    await expect(page.getByRole("heading", { name: "New Research" })).toBeVisible();
+    const goal = page.getByTestId("research-goal");
+    await goal.click();
+    await goal.fill("Name two common EV battery chemistries.");
+    await expect(goal).toHaveValue("Name two common EV battery chemistries.");
+    await expect(page.getByTestId("save-template")).toBeEnabled();
+    await page.getByTestId("template-name").fill("Battery lookup");
+    await page.getByTestId("save-template").click();
+    await expect(page.getByText("Template saved")).toBeVisible();
+    await expect(page.getByTestId("template-list")).toContainText("Battery lookup");
+    await goal.fill("");
+    await expect(goal).toHaveValue("");
+    await page.getByTestId("apply-template-22222222-2222-4222-8222-222222222222").click();
+    await expect(goal).toHaveValue("Name two common EV battery chemistries.");
   });
 });

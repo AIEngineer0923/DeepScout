@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Planner v2 DAG output (`decomposition`, task `depends_on` / completion criteria) with bounded plan repair and deterministic DAG evaluators (ADR-014)
+- PostgreSQL LISTEN/NOTIFY wake-up for resumable SSE (poll remains the fallback)
+- Local research templates / saved presets on New Research (ADR-016)
+- Batched run-card metrics (N+1 removal on overview/history lists)
+- Planner quality dataset `planner_quality_v1` and infra decision lab script
+
+### Changed
+
+- Default planner prompt is v2; v1 remains retrievable and ACTIVE for rollback
+- Workspace SSE reloads skip React state updates when `event_head` is unchanged
+- Snapshot listing uses one join query instead of per-source selects
+
+### Security
+
+- Template CRUD is MODE A local-only; Redis/Neo4j remain non-authoritative / not default
+
+
+### Added
+
 - ADR-010 production resilience: capability registry, optional capability/privacy-gated fallback, error taxonomy, in-process provider health, `/live`+`/ready`, engine dispose on shutdown
 - `invoke_with_resilience` helper with application-owned retry ownership; approval spoofing guards (HITL product pause still deferred)
 - Phase 5 hybrid retrieval: pgvector + PostgreSQL FTS, RRF fusion, deterministic rerank, run-scoped indexing pipeline

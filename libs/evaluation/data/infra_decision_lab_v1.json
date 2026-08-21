@@ -1,0 +1,87 @@
+{
+  "measured_at": "2026-08-21T17:51:30.174788+00:00",
+  "label": "LAB_NETWORK_SIMULATION",
+  "listen_dsn": "localhost:5432/deepscout",
+  "events": {
+    "postgres_event_poll_interval_s": 0.4,
+    "postgres_event_query_ms": 0.746,
+    "postgres_listen_notify_wait_ms": 404.099,
+    "listen_woke": false,
+    "redis": {
+      "available": true,
+      "ping_ms": 5.97,
+      "publish_ms": 0.352,
+      "durable_replay": false
+    },
+    "decision_note": "LISTEN/NOTIFY wakes SSE earlier than 0.4s poll. Redis Pub/Sub is not durable. PostgreSQL run_events remains the replay log."
+  },
+  "pgvector": {
+    "dim": 64,
+    "sizes": [
+      {
+        "n": 1000,
+        "insert_ms": 3.547,
+        "exact_top10_ms": 0.93,
+        "hnsw_build_ms": 26.169,
+        "hnsw_top10_ms": 0.815,
+        "corpus": "SYNTHETIC_UNIT_VECTORS"
+      },
+      {
+        "n": 10000,
+        "insert_ms": 1533.742,
+        "exact_top10_ms": 0.551,
+        "hnsw_build_ms": 331.477,
+        "hnsw_top10_ms": 0.777,
+        "corpus": "SYNTHETIC_UNIT_VECTORS"
+      },
+      {
+        "n": 50000,
+        "insert_ms": 8638.844,
+        "exact_top10_ms": 0.618,
+        "hnsw_build_ms": 1225.42,
+        "hnsw_top10_ms": 0.942,
+        "corpus": "SYNTHETIC_UNIT_VECTORS"
+      }
+    ],
+    "crossover_n": null,
+    "decision": "KEEP_EXACT"
+  },
+  "graph": {
+    "rows": [
+      {
+        "edges": 1000,
+        "hop_ms": {
+          "1": 0.576,
+          "2": 0.401,
+          "3": 0.435
+        },
+        "corpus": "SYNTHETIC_CHAIN"
+      },
+      {
+        "edges": 10000,
+        "hop_ms": {
+          "1": 0.702,
+          "2": 0.915,
+          "3": 1.264
+        },
+        "corpus": "SYNTHETIC_CHAIN"
+      },
+      {
+        "edges": 50000,
+        "hop_ms": {
+          "1": 99.06,
+          "2": 7.429,
+          "3": 6.663
+        },
+        "corpus": "SYNTHETIC_CHAIN"
+      }
+    ],
+    "neo4j_required": false,
+    "decision": "REJECTED_BY_MEASUREMENT"
+  },
+  "redis_decision": "REJECTED_BY_MEASUREMENT",
+  "dedicated_graph_db_decision": "REJECTED_BY_MEASUREMENT",
+  "postgres_listen_notify": "IMPLEMENTED_DEFAULT",
+  "pgvector_ann": "KEEP_EXACT",
+  "final_infrastructure": "POSTGRES_ONLY"
+}

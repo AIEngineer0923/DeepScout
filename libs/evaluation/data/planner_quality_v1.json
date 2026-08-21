@@ -1,0 +1,151 @@
+{
+  "dataset_id": "deepscout-planner-quality-v1",
+  "version": "1",
+  "notes": "Labels are structural expectations, not hardcoded planner string matching. Goals are representative, not an allowlist.",
+  "cases": [
+    {
+      "id": "simple-factual",
+      "category": "simple_factual",
+      "goal": "What is the ISO country code for Italy?",
+      "expected_decomposition": "simple",
+      "max_tasks": 1,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "simple-comparison",
+      "category": "simple_comparison",
+      "goal": "Which is denser at STP, dry air or helium?",
+      "expected_decomposition": "simple",
+      "max_tasks": 1,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "identifier-lookup",
+      "category": "identifier_lookup",
+      "goal": "What is the CAS number for ethanol?",
+      "expected_decomposition": "simple",
+      "max_tasks": 1,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "parallel-comparison",
+      "category": "parallelizable_comparison",
+      "goal": "Independently profile LFP and NMC cathode materials for energy density, then keep the profiles separate.",
+      "expected_decomposition": "parallel",
+      "max_tasks": 4,
+      "min_tasks": 2,
+      "requires_depends_on": false
+    },
+    {
+      "id": "dependent-multihop",
+      "category": "dependent_multi_hop",
+      "goal": "Identify the current UN Secretary-General, then list the official duties of that office as defined by the UN Charter framework.",
+      "expected_decomposition": "chain",
+      "max_tasks": 4,
+      "min_tasks": 2,
+      "requires_depends_on": true
+    },
+    {
+      "id": "mixed-fan",
+      "category": "mixed_fan_out_fan_in",
+      "goal": "Research LFP, NMC, and sodium-ion independently, then synthesize which chemistry fits stationary storage.",
+      "expected_decomposition": "mixed",
+      "max_tasks": 6,
+      "min_tasks": 3,
+      "requires_depends_on": true
+    },
+    {
+      "id": "contradiction",
+      "category": "contradiction",
+      "goal": "Find published claims that grid-scale LFP is both cheaper and more expensive than NMC in 2024–2026 and preserve the conflict.",
+      "expected_decomposition": "parallel",
+      "max_tasks": 4,
+      "min_tasks": 2,
+      "requires_depends_on": false
+    },
+    {
+      "id": "temporal",
+      "category": "temporal",
+      "goal": "What changed in EU battery regulation between 2023 and 2026?",
+      "expected_decomposition": "parallel",
+      "max_tasks": 4,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "scientific",
+      "category": "scientific",
+      "goal": "Summarize peer-reviewed evidence on solid-state electrolyte dendrite suppression.",
+      "expected_decomposition": "simple",
+      "max_tasks": 2,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "regulatory",
+      "category": "regulatory",
+      "goal": "Identify the EU AI Act high-risk category that would apply to an autonomous credit-scoring SaaS, then extract the corresponding obligations.",
+      "expected_decomposition": "chain",
+      "max_tasks": 4,
+      "min_tasks": 2,
+      "requires_depends_on": true
+    },
+    {
+      "id": "business",
+      "category": "business",
+      "goal": "Compare announced 2026 gigafactory capacity for two named EU battery manufacturers.",
+      "expected_decomposition": "parallel",
+      "max_tasks": 4,
+      "min_tasks": 2,
+      "requires_depends_on": false
+    },
+    {
+      "id": "technical",
+      "category": "technical",
+      "goal": "Explain how PostgreSQL HNSW differs from exact cosine scan for 768-d vectors.",
+      "expected_decomposition": "simple",
+      "max_tasks": 2,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "no-answer",
+      "category": "no_answer",
+      "goal": "Which unpublished internal memo at DeepScout decided Redis in 2019?",
+      "expected_decomposition": "simple",
+      "max_tasks": 1,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "ambiguous",
+      "category": "ambiguous",
+      "goal": "Tell me about batteries.",
+      "expected_decomposition": "simple",
+      "max_tasks": 2,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    },
+    {
+      "id": "broad",
+      "category": "broad",
+      "goal": "Map the global EV battery supply chain, policy, and recycling landscape.",
+      "expected_decomposition": "mixed",
+      "max_tasks": 8,
+      "min_tasks": 3,
+      "requires_depends_on": true
+    },
+    {
+      "id": "narrow",
+      "category": "narrow",
+      "goal": "Name two common EV battery chemistries.",
+      "expected_decomposition": "simple",
+      "max_tasks": 1,
+      "min_tasks": 1,
+      "requires_depends_on": false
+    }
+  ]
+}

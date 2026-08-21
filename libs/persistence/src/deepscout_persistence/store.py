@@ -50,6 +50,8 @@ from deepscout_core.domain.schemas import (
     ResearchRunCreate,
     ResearchRunRead,
     ResearchTaskRead,
+    ResearchTemplateCreate,
+    ResearchTemplateRead,
     SearchCandidateWrite,
     SourceSnapshotWrite,
     SourceWrite,
@@ -58,7 +60,7 @@ from deepscout_core.domain.schemas import (
 from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -79,6 +81,7 @@ from deepscout_persistence.models import (
     ResearchQuestionRow,
     ResearchRunRow,
     ResearchTaskRow,
+    ResearchTemplateRow,
     ReviewEventRow,
     ReviewRequestRow,
     RunEventRow,
@@ -164,6 +167,73 @@ class ResearchStore:
             ).all()
         )
         return rows, total
+
+    def list_run_card_metrics(self, run_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, int]]:
+        empty = {
+            "source_count": 0,
+            "evidence_count": 0,
+            "claim_count": 0,
+            "task_count": 0,
+            "completed_task_count": 0,
+        }
+        metrics = {run_id: dict(empty) for run_id in run_ids}
+        if not run_ids:
+            return metrics
+
+        def _apply(rows: list, field: str) -> None:
+            for run_id, count in rows:
+                if run_id in metrics:
+                    metrics[run_id][field] = int(count)
+
+        _apply(
+            list(
+                self._session.execute(
+                    select(SourceRow.research_run_id, func.count())
+                    .where(SourceRow.research_run_id.in_(run_ids))
+                    .group_by(SourceRow.research_run_id)
+                ).all()
+            ),
+            "source_count",
+        )
+        _apply(
+            list(
+                self._session.execute(
+                    select(ClaimRow.research_run_id, func.count())
+                    .where(ClaimRow.research_run_id.in_(run_ids))
+                    .group_by(ClaimRow.research_run_id)
+                ).all()
+            ),
+            "claim_count",
+        )
+        _apply(
+            list(
+                self._session.execute(
+                    select(ClaimRow.research_run_id, func.count())
+                    .select_from(EvidenceRow)
+                    .join(ClaimRow, EvidenceRow.claim_id == ClaimRow.id)
+                    .where(ClaimRow.research_run_id.in_(run_ids))
+                    .group_by(ClaimRow.research_run_id)
+                ).all()
+            ),
+            "evidence_count",
+        )
+        task_rows = self._session.execute(
+            select(
+                ResearchTaskRow.research_run_id,
+                func.count(),
+                func.coalesce(
+                    func.sum(case((ResearchTaskRow.status == ResearchTaskStatus.COMPLETED, 1), else_=0)),
+                    0,
+                ),
+            )
+            .where(ResearchTaskRow.research_run_id.in_(run_ids))
+            .group_by(ResearchTaskRow.research_run_id)
+        ).all()
+        for run_id, count, completed in task_rows:
+            if run_id in metrics:
+                metrics[run_id]["task_count"] = int(count)
+                metrics[run_id]["completed_task_count"] = int(completed or 0)
+        return metrics
 
     def update_run_status(self, run_id: uuid.UUID, status: ResearchRunStatus) -> ResearchRunRead:
         row = self._require_run(run_id)
@@ -394,17 +464,15 @@ class ResearchStore:
         return self._session.get(SourceSnapshotRow, snapshot_id)
 
     def list_snapshots_for_run(self, run_id: uuid.UUID) -> list[SourceSnapshotRow]:
-        sources = self.list_sources(run_id)
-        snapshots: list[SourceSnapshotRow] = []
-        for source in sources:
-            snapshots.extend(
-                self._session.scalars(
-                    select(SourceSnapshotRow)
-                    .where(SourceSnapshotRow.source_id == source.id)
-                    .order_by(SourceSnapshotRow.retrieved_at.desc())
-                ).all()
-            )
-        return snapshots
+        self._require_run(run_id)
+        return list(
+            self._session.scalars(
+                select(SourceSnapshotRow)
+                .join(SourceRow, SourceSnapshotRow.source_id == SourceRow.id)
+                .where(SourceRow.research_run_id == run_id)
+                .order_by(SourceSnapshotRow.retrieved_at.desc())
+            ).all()
+        )
 
     def list_tool_executions(self, run_id: uuid.UUID) -> list[ToolExecutionRow]:
         self._require_run(run_id)
@@ -1082,6 +1150,13 @@ class ResearchStore:
         )
         self._session.add(row)
         self._session.flush()
+        try:
+            self._session.execute(
+                text("SELECT pg_notify('deepscout_run_events', :payload)"),
+                {"payload": str(run_id)},
+            )
+        except Exception:
+            pass
         return row
 
     def list_run_events(self, run_id: uuid.UUID, *, after_sequence: int = 0) -> list[RunEventRow]:
@@ -1502,11 +1577,49 @@ class ResearchStore:
             ).all()
         )
 
+    def list_templates(self) -> list[ResearchTemplateRead]:
+        rows = self._session.scalars(
+            select(ResearchTemplateRow).order_by(ResearchTemplateRow.updated_at.desc())
+        ).all()
+        return [_template_to_read(row) for row in rows]
+
+    def create_template(self, payload: ResearchTemplateCreate) -> ResearchTemplateRead:
+        row = ResearchTemplateRow(
+            name=payload.name.strip(),
+            goal=payload.goal.strip(),
+            research_mode=payload.research_mode,
+            output_language=payload.output_language,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return _template_to_read(row)
+
+    def delete_template(self, template_id: uuid.UUID) -> bool:
+        row = self._session.get(ResearchTemplateRow, template_id)
+        if row is None:
+            return False
+        self._session.delete(row)
+        self._session.flush()
+        return True
+
     def _require_run(self, run_id: uuid.UUID) -> ResearchRunRow:
         row = self._session.get(ResearchRunRow, run_id)
         if row is None:
             raise LookupError(f"ResearchRun {run_id} not found")
         return row
+
+
+def _template_to_read(row: ResearchTemplateRow) -> ResearchTemplateRead:
+    mode = row.research_mode if row.research_mode in {"quick", "standard", "deep"} else "standard"
+    return ResearchTemplateRead(
+        id=row.id,
+        name=row.name,
+        goal=row.goal,
+        research_mode=mode,
+        output_language=row.output_language,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 def _hash_content(content: str) -> str:

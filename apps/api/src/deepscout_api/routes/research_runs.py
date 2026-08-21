@@ -7,8 +7,9 @@ from deepscout_core.security.csv import render_csv
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
 from deepscout_persistence.session import get_session_factory
-from deepscout_persistence.store import ResearchStore
+from deepscout_persistence.store import ResearchStore, _usage_summary_from_run
 from deepscout_research.jobs.service import JobService
+from deepscout_research.streaming.notify import NotifyWaiter
 from deepscout_research.streaming.policy import layer_for
 from deepscout_research.streaming.sse import (
     format_sse_comment,
@@ -91,10 +92,8 @@ def _kick_worker(background_tasks: BackgroundTasks, settings: Settings) -> None:
         background_tasks.add_task(run_worker, once=True)
 
 
-def _list_item(store, row) -> RunListItem:
-    run_id = row.id
-    tasks = store.list_tasks(run_id)
-    usage = store.get_usage_summary(run_id)
+def _list_item(row, metrics: dict[str, int]) -> RunListItem:
+    usage = _usage_summary_from_run(row)
     return RunListItem(
         id=row.id,
         goal=row.goal,
@@ -111,11 +110,11 @@ def _list_item(store, row) -> RunListItem:
         total_tokens=usage.total_tokens,
         cost_usd=usage.cost_usd,
         cost_status=usage.cost_status.value,
-        source_count=len(store.list_sources(run_id)),
-        evidence_count=len(store.list_evidence(run_id)),
-        claim_count=len(store.list_claims(run_id)),
-        task_count=len(tasks),
-        completed_task_count=sum(1 for task in tasks if task.status.value == "completed"),
+        source_count=metrics["source_count"],
+        evidence_count=metrics["evidence_count"],
+        claim_count=metrics["claim_count"],
+        task_count=metrics["task_count"],
+        completed_task_count=metrics["completed_task_count"],
     )
 
 
@@ -189,7 +188,8 @@ def list_research_runs(
         rows, total = store.list_runs(status=status, query=q, limit=limit, offset=offset)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    items = [_list_item(store, row) for row in rows]
+    metrics = store.list_run_card_metrics([row.id for row in rows])
+    items = [_list_item(row, metrics[row.id]) for row in rows]
     if format == "csv":
         body = render_csv(
             ["id", "goal", "status", "research_mode", "output_language", "tokens", "cost", "updated_at"],
@@ -252,41 +252,46 @@ def stream_run_events(
             "cancelled",
             "budget_exhausted",
         }
-        while True:
-            if await request.is_disconnected():
-                break
-            session = factory()
-            try:
-                store = ResearchStore(session)
-                events = store.list_run_events(run_id, after_sequence=last_sequence)
-                payloads = []
-                for event in events:
-                    last_sequence = event.sequence
-                    payloads.append(
-                        format_sse_event(
-                            sequence=event.sequence,
-                            event_type=event.event_type,
-                            payload={
-                                "sequence": event.sequence,
-                                "type": event.event_type,
-                                "layer": layer_for(event.event_type).value,
-                                "payload": event.payload,
-                                "created_at": event.created_at.isoformat(),
-                            },
+        waiter = NotifyWaiter(settings.database_url)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                session = factory()
+                try:
+                    store = ResearchStore(session)
+                    events = store.list_run_events(run_id, after_sequence=last_sequence)
+                    payloads = []
+                    for event in events:
+                        last_sequence = event.sequence
+                        payloads.append(
+                            format_sse_event(
+                                sequence=event.sequence,
+                                event_type=event.event_type,
+                                payload={
+                                    "sequence": event.sequence,
+                                    "type": event.event_type,
+                                    "layer": layer_for(event.event_type).value,
+                                    "payload": event.payload,
+                                    "created_at": event.created_at.isoformat(),
+                                },
+                            )
                         )
-                    )
-                run_state = store.get_run(run_id)
-                status = run_state.status.value if run_state else "failed"
-            finally:
-                session.close()
-            for frame in payloads:
-                yield frame
-            if payloads:
-                continue
-            if status in terminal:
-                break
-            yield format_sse_comment()
-            await asyncio.sleep(0.4 if status == "running" else 0.8)
+                    run_state = store.get_run(run_id)
+                    status = run_state.status.value if run_state else "failed"
+                finally:
+                    session.close()
+                for frame in payloads:
+                    yield frame
+                if payloads:
+                    continue
+                if status in terminal:
+                    break
+                yield format_sse_comment()
+                timeout = 0.4 if status == "running" else 0.8
+                await asyncio.to_thread(waiter.wait, run_id, timeout)
+        finally:
+            waiter.close()
 
     return StreamingResponse(
         event_generator(),

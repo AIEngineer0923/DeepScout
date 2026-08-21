@@ -834,3 +834,20 @@ class ContextCompactionRecordRow(Base):
     dropped_redundant: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     artifact_refs_kept: Mapped[list | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchTemplateRow(Base):
+    """Local MODE A saved research presets. Not accounts or sharing."""
+
+    __tablename__ = "research_templates"
+    __table_args__ = (Index("ix_research_templates_updated_at", "updated_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    goal: Mapped[str] = mapped_column(Text, nullable=False)
+    research_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="standard")
+    output_language: Mapped[str] = mapped_column(String(16), nullable=False, default="en")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

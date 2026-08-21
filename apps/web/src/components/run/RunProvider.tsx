@@ -29,7 +29,18 @@ export function RunProvider({ runId, children }: { runId: string; children: Reac
 
   useEffect(() => {
     const stop = connectRunEventSource(`${apiUrl}/api/v1/research-runs/${runId}/events`, () => {
-      api.workspace(runId).then(setWorkspace).catch(() => undefined);
+      api.workspace(runId).then((next) => {
+        setWorkspace((prev) => {
+          if (
+            prev &&
+            prev.event_head === next.event_head &&
+            prev.status === next.status
+          ) {
+            return prev;
+          }
+          return next;
+        });
+      }).catch(() => undefined);
     });
     return stop;
   }, [runId]);

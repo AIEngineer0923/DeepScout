@@ -40,3 +40,11 @@ def db_session(postgres_ready: None) -> Generator[Session, None, None]:
 @pytest.fixture
 def store(db_session: Session) -> ResearchStore:
     return ResearchStore(db_session)
+
+
+@pytest.fixture
+def settings():
+    from deepscout_core.settings import Settings
+    from deepscout_core.types import ProviderKind
+
+    return Settings(_env_file=None, LLM_PROVIDER=ProviderKind.GOOGLE, RESEARCH_WORKERS_INLINE=True)

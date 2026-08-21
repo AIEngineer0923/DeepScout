@@ -296,3 +296,13 @@ class HumanFeedbackTarget(StrEnum):
     EVIDENCE = "evidence"
     RETRIEVAL = "retrieval"
     OVERALL = "overall"
+
+
+class PlanDecomposition(StrEnum):
+    """Planner-declared DAG shape. unspecified preserves legacy question-only output."""
+
+    UNSPECIFIED = "unspecified"
+    SIMPLE = "simple"
+    PARALLEL = "parallel"
+    CHAIN = "chain"
+    MIXED = "mixed"

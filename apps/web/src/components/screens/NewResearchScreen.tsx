@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { rememberRunId } from "@/lib/current-run";
 import { useT } from "@/i18n/context";
 import { IconBolt, IconCheck, IconLayers, IconSpark } from "@/components/Icons";
+
+type Template = {
+  id: string;
+  name: string;
+  goal: string;
+  research_mode: "quick" | "standard" | "deep";
+  output_language: string;
+};
 
 const MODES = [
   { id: "quick" as const, titleKey: "new.mode.quick", bodyKey: "new.mode.quickBody", badgeKey: "new.mode.quickBadge", icon: IconBolt },
@@ -21,7 +29,15 @@ export function NewResearchScreen() {
   const [outputLanguage, setOutputLanguage] = useState("en");
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.listTemplates().then(setTemplates).catch(() => setTemplates([]));
+  }, []);
 
   const summary = useMemo(
     () => ({
@@ -33,6 +49,59 @@ export function NewResearchScreen() {
     }),
     [mode, outputLanguage, t],
   );
+
+  async function refreshTemplates() {
+    try {
+      setTemplates(await api.listTemplates());
+    } catch {
+      setTemplates([]);
+    }
+  }
+
+  async function saveTemplate() {
+    if (!goal.trim()) {
+      setError(t("new.templateNeedGoal"));
+      return;
+    }
+    if (!templateName.trim()) {
+      setError(t("new.templateNeedName"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api.createTemplate({
+        name: templateName.trim(),
+        goal: goal.trim(),
+        research_mode: mode,
+        output_language: outputLanguage,
+      });
+      setTemplateName("");
+      setNotice(t("new.templateSaved"));
+      await refreshTemplates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("new.startError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function applyTemplate(item: Template) {
+    setGoal(item.goal);
+    setMode(item.research_mode);
+    setOutputLanguage(item.output_language === "it" ? "it" : "en");
+    setNotice(null);
+    setError(null);
+  }
+
+  async function removeTemplate(id: string) {
+    try {
+      await api.deleteTemplate(id);
+      await refreshTemplates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("new.startError"));
+    }
+  }
 
   async function start() {
     if (!goal.trim()) return;
@@ -79,6 +148,17 @@ export function NewResearchScreen() {
               data-testid="research-goal"
             />
             <span className="muted">{goal.length} / 1000</span>
+          </div>
+          <div className="field" style={{ marginTop: 16 }}>
+            <label htmlFor="template-name">{t("new.templateName")}</label>
+            <input
+              id="template-name"
+              className="input"
+              maxLength={80}
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              data-testid="template-name"
+            />
           </div>
           <div style={{ marginTop: 20 }}>
             <div className="section-title">
@@ -165,12 +245,19 @@ export function NewResearchScreen() {
             </div>
           ) : null}
           {error ? <p className="badge bad wrap-text">{error}</p> : null}
+          {notice ? <p className="badge ok wrap-text">{notice}</p> : null}
           <div className="form-actions" style={{ marginTop: 18 }}>
             <button className="btn ghost" type="button" onClick={() => router.push("/")}>
               {t("action.cancel")}
             </button>
             <div className="row">
-              <button className="btn" type="button" disabled title={t("new.templateSoon")}>
+              <button
+                className="btn"
+                type="button"
+                disabled={saving || !goal.trim()}
+                data-testid="save-template"
+                onClick={() => void saveTemplate()}
+              >
                 {t("new.saveTemplate")}
               </button>
               <button className="btn primary" type="button" disabled={busy || !goal.trim()} data-testid="start-research" onClick={() => void start()}>
@@ -234,6 +321,32 @@ export function NewResearchScreen() {
           <div className="cost-highlight">{t("new.costUnknown")}</div>
           <p className="cost-range">{t("new.costNote")}</p>
           <div className="note-box">{t("new.costHint")}</div>
+        </section>
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>{t("new.templates")}</h2>
+          {templates.length === 0 ? (
+            <p className="muted wrap-text">{t("new.templatesEmpty")}</p>
+          ) : (
+            <ul className="kv-list" style={{ marginTop: 8 }} data-testid="template-list">
+              {templates.map((item) => (
+                <li key={item.id} className="kv-row" style={{ alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong className="wrap-text">{item.name}</strong>
+                    <div className="muted wrap-text">{item.goal}</div>
+                    <div className="muted">{item.research_mode}</div>
+                  </div>
+                  <div className="row">
+                    <button type="button" className="btn" data-testid={`apply-template-${item.id}`} onClick={() => applyTemplate(item)}>
+                      {t("new.templateApply")}
+                    </button>
+                    <button type="button" className="btn ghost" onClick={() => void removeTemplate(item.id)}>
+                      {t("new.templateDelete")}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </aside>
     </div>

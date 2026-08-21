@@ -4,11 +4,12 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from deepscout_core.domain.budget import ResearchBudget
 from deepscout_core.domain.enums import (
     ContradictionEvidenceStatus,
+    PlanDecomposition,
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,
@@ -51,6 +52,10 @@ class PlannerTask(BaseModel):
     depends_on: list[str] = Field(default_factory=list, max_length=20)
     priority: int = Field(default=3, ge=1, le=5)
     allowed_tools: list[str] = Field(default_factory=lambda: ["web_search"], max_length=10)
+    completion_criteria: str = Field(default="", max_length=2000)
+    parallel_safe: bool = True
+    expected_output: Literal["sources", "facts", "synthesis"] = "facts"
+    skill_hint: str | None = Field(default=None, max_length=64)
 
     @field_validator("allowed_tools")
     @classmethod
@@ -70,12 +75,44 @@ class PlannerQuestion(BaseModel):
     priority: int = Field(default=3, ge=1, le=5)
 
 
+class PlannerStructuredTask(BaseModel):
+    """Gemini-safe task slice. Domain PlannerTask applies stricter keys after repair."""
+
+    task_key: str
+    objective: str
+    depends_on: list[str] = Field(default_factory=list)
+    priority: int = 3
+
+
+class PlannerStructuredOutput(BaseModel):
+    """Structured planner schema sent to providers. Avoid regex/pattern/optional-null fields."""
+
+    approach: str
+    success_criteria: str
+    decomposition: str = "unspecified"
+    questions: list[PlannerQuestion]
+    tasks: list[PlannerStructuredTask] = Field(default_factory=list)
+
+
 class PlannerOutput(BaseModel):
     """Structured planner output — no free-text parsing."""
 
     approach: str = Field(min_length=1, max_length=4000)
     success_criteria: str = Field(min_length=1, max_length=4000)
-    questions: list[PlannerQuestion] = Field(min_length=1, max_length=20)
+    decomposition: PlanDecomposition = PlanDecomposition.UNSPECIFIED
+    questions: list[PlannerQuestion] = Field(default_factory=list, max_length=20)
+    tasks: list[PlannerTask] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def fill_questions_from_tasks(self) -> "PlannerOutput":
+        if not self.questions and self.tasks:
+            self.questions = [
+                PlannerQuestion(text=task.question_text or task.objective, priority=task.priority)
+                for task in self.tasks
+            ]
+        if not self.questions:
+            raise ValueError("planner output requires questions or tasks")
+        return self
 
 
 class SearchResult(BaseModel):
@@ -183,3 +220,20 @@ class ReportWrite(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     body_markdown: str = Field(min_length=1, max_length=200_000)
     cited_evidence_ids: list[UUID] = Field(min_length=1)
+
+
+class ResearchTemplateCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    goal: str = Field(min_length=1, max_length=8000)
+    research_mode: Literal["quick", "standard", "deep"] = "standard"
+    output_language: str = Field(default="en", min_length=2, max_length=16)
+
+
+class ResearchTemplateRead(BaseModel):
+    id: UUID
+    name: str
+    goal: str
+    research_mode: Literal["quick", "standard", "deep"]
+    output_language: str
+    created_at: datetime
+    updated_at: datetime

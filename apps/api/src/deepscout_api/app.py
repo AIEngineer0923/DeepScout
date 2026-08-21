@@ -11,6 +11,7 @@ from deepscout_api.probes import probe_postgres, probe_redis
 from deepscout_api.routes.product import router as product_router
 from deepscout_api.routes.research_runs import router as research_runs_router
 from deepscout_api.routes.reviews import router as reviews_router
+from deepscout_api.routes.templates import router as templates_router
 from deepscout_api.security import install_security_middleware
 
 
@@ -35,6 +36,7 @@ install_security_middleware(app, get_settings())
 app.include_router(research_runs_router)
 app.include_router(product_router)
 app.include_router(reviews_router)
+app.include_router(templates_router)
 
 
 class HealthResponse(BaseModel):

@@ -317,6 +317,49 @@ def rebuild_wiki_from_claims(session: Session, run_id: uuid.UUID) -> dict[str, i
     }
 
 
+def bounded_relation_hops(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    max_hops: int = 3,
+) -> list[tuple[int, int]]:
+    """Return (hop, edge_count) for a bounded recursive walk. max_hops is hard-capped at 3."""
+    from sqlalchemy import text
+
+    hops = min(3, max(1, int(max_hops)))
+    rows = session.execute(
+        text(
+            """
+            WITH RECURSIVE walk AS (
+                SELECT from_statement_id AS src,
+                       to_statement_id AS dst,
+                       1 AS hop
+                FROM knowledge_relations
+                WHERE research_run_id = :run_id
+                  AND from_statement_id IS NOT NULL
+                  AND to_statement_id IS NOT NULL
+                UNION ALL
+                SELECT walk.src,
+                       kr.to_statement_id,
+                       walk.hop + 1
+                FROM walk
+                JOIN knowledge_relations kr
+                  ON kr.from_statement_id = walk.dst
+                 AND kr.research_run_id = :run_id
+                WHERE walk.hop < :max_hops
+                  AND kr.to_statement_id IS NOT NULL
+            )
+            SELECT hop, count(*)::int AS n
+            FROM walk
+            GROUP BY hop
+            ORDER BY hop
+            """
+        ),
+        {"run_id": run_id, "max_hops": hops},
+    ).all()
+    return [(int(hop), int(n)) for hop, n in rows]
+
+
 def lint_wiki(session: Session, run_id: uuid.UUID, *, max_hops: int = 32) -> dict:
     pages = {page.id: page for page in list_pages_for_run(session, run_id)}
     statements = list_statements_for_run(session, run_id)

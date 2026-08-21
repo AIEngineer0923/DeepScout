@@ -149,3 +149,24 @@ def test_resume_cancelled_run_conflict(api_client: TestClient) -> None:
     assert cancel.status_code == 200
     response = api_client.post(f"/api/v1/research-runs/{run_id}/resume")
     assert response.status_code == 409
+
+
+@pytest.mark.postgres
+def test_research_templates_crud(api_client: TestClient) -> None:
+    created = api_client.post(
+        "/api/v1/research-templates",
+        json={
+            "name": "EU AI Act",
+            "goal": "Summarize obligations for a SaaS vendor",
+            "research_mode": "standard",
+            "output_language": "en",
+        },
+    )
+    assert created.status_code == 201
+    template_id = created.json()["id"]
+    listed = api_client.get("/api/v1/research-templates")
+    assert listed.status_code == 200
+    assert listed.json()[0]["name"] == "EU AI Act"
+    deleted = api_client.delete(f"/api/v1/research-templates/{template_id}")
+    assert deleted.status_code == 204
+    assert api_client.get("/api/v1/research-templates").json() == []
