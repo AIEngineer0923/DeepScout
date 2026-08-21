@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from uuid import UUID
 
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
+
+_SECRET_PATTERNS = (
+    re.compile(r"sk-[a-zA-Z0-9]{10,}"),
+    re.compile(r"\[redacted\]", re.IGNORECASE),
+)
+
+
+def _contains_secret_material(text: str) -> bool:
+    return any(pattern.search(text) for pattern in _SECRET_PATTERNS)
 
 
 def _independent_domains(sources) -> set[str]:
@@ -53,7 +63,7 @@ def review_demo_candidate(
         "SOURCES_PRESENT": len(sources) >= 1,
         "EVIDENCE_PRESENT": len(evidence) >= 1,
         "PROVENANCE_QUOTES": unresolved_quotes == 0,
-        "SECURITY_CLEAN": "[redacted]" not in report_body and "sk-" not in report_body,
+        "SECURITY_CLEAN": not _contains_secret_material(report_body),
     }
 
     reasons: list[str] = []
