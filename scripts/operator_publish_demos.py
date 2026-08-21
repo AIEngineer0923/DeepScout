@@ -11,6 +11,7 @@ import os
 
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
+from deepscout_core.settings import DeploymentMode
 from deepscout_persistence.identity import get_local_system
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
@@ -80,7 +81,14 @@ def main() -> int:
     args = parser.parse_args()
     os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["DEEPSCOUT_DEPLOYMENT_MODE"] = "local"
-    settings = Settings()
+    os.environ["RESEARCH_WORKERS_INLINE"] = "true"
+    settings = Settings().model_copy(
+        update={
+            "deployment_mode": DeploymentMode.LOCAL,
+            "research_workers_inline": True,
+            "research_use_legacy_path": False,
+        }
+    )
     selected = [
         item for item in DEMO_CATALOG if args.only_slug is None or item["slug"] == args.only_slug
     ]
