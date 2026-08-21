@@ -10,8 +10,7 @@ import json
 import os
 
 from deepscout_core.domain.schemas import ResearchRunCreate
-from deepscout_core.settings import Settings
-from deepscout_core.settings import DeploymentMode
+from deepscout_core.settings import DeploymentMode, Settings
 from deepscout_persistence.identity import get_local_system
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore

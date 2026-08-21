@@ -6,7 +6,7 @@ test.describe("production public demo smoke", () => {
   test("anonymous landing shows public shell", async ({ page }) => {
     await page.goto(`${BASE}/`);
     await expect(page.getByTestId("public-shell")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("link", { name: /explore demo|esplora demo/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /explore live demo|esplora demo live/i })).toBeVisible();
   });
 
   test("anonymous /dashboard redirects to login", async ({ page }) => {
