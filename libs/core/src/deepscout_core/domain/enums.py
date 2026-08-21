@@ -218,3 +218,48 @@ class ToolExecutionStatus(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class ReviewReasonCode(StrEnum):
+    BUDGET_EXTENSION = "budget_extension"
+    PRIVILEGED_TOOL = "privileged_tool"
+    EXTERNAL_WRITE = "external_write"
+    DESTRUCTIVE_OPERATION = "destructive_operation"
+    GLOBAL_KNOWLEDGE_PROMOTION = "global_knowledge_promotion"
+    KNOWLEDGE_DELETION = "knowledge_deletion"
+    SECURITY_SENSITIVE_ACTION = "security_sensitive_action"
+    MANUAL_USER_REQUEST = "manual_user_request"
+    HUMAN_INPUT_REQUIRED = "human_input_required"
+
+
+class ReviewRiskLevel(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ReviewRequestStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    EDITED = "edited"
+    REJECTED = "rejected"
+    RESPONDED = "responded"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+    SUPERSEDED = "superseded"
+
+
+class ReviewDecisionKind(StrEnum):
+    APPROVE = "approve"
+    EDIT = "edit"
+    REJECT = "reject"
+    RESPOND = "respond"
+
+
+class HumanFeedbackTarget(StrEnum):
+    REPORT = "report"
+    CLAIM = "claim"
+    EVIDENCE = "evidence"
+    RETRIEVAL = "retrieval"
+    OVERALL = "overall"

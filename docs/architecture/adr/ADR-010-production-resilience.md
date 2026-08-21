@@ -121,5 +121,5 @@ API lifespan disposes SQLAlchemy pooled engines via `dispose_all_engines()`.
 
 - Capability-aware routing without a gateway.
 - Measured resilience tests without new infrastructure.
-- HITL remains honest (deferred), not fake UI.
+- HITL productized in ADR-011 (budget extension + durable review control plane).
 - Future multi-instance may reconsider Redis/LiteLLM Proxy with new evidence.

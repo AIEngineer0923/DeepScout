@@ -356,7 +356,9 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
             "latest_job_status": latest_job.status.value if latest_job else None,
             "resumable": run.status.value
             in {"pending", "running", "budget_exhausted", "failed"}
-            or bool(remaining_tasks),
+            and run.status.value != "paused"
+            or (bool(remaining_tasks) and run.status.value != "paused"),
+            "awaiting_review": run.status.value == "paused",
         },
         "architecture": {
             "orchestrator": {"label": "Research Orchestrator", "kind": "deterministic"},

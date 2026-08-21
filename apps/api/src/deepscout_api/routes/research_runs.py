@@ -342,6 +342,11 @@ def resume_research_run(
         raise HTTPException(status_code=404, detail="Research run not found")
     if run.status.value in {"completed", "cancelled"}:
         raise HTTPException(status_code=409, detail="Run is terminal and cannot be resumed")
+    if run.status.value == "paused":
+        raise HTTPException(
+            status_code=409,
+            detail="Run is waiting for review — resolve the pending review instead of resume",
+        )
     jobs = JobService(store)
     job = jobs.enqueue_resume_run(run_id)
     _kick_worker(background_tasks, settings)

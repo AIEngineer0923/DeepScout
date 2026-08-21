@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     )
     llm_timeout_s: float = Field(default=60.0, alias="LLM_TIMEOUT_S")
     llm_max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
+    hitl_enabled: bool = Field(default=True, alias="HITL_ENABLED")
+    hitl_budget_extension_requires_review: bool = Field(
+        default=True,
+        alias="HITL_BUDGET_EXTENSION_REQUIRES_REVIEW",
+    )
+    hitl_default_review_expiry_hours: int | None = Field(
+        default=72,
+        alias="HITL_DEFAULT_REVIEW_EXPIRY_HOURS",
+    )
 
     def default_research_budget(self) -> "ResearchBudget":
         from deepscout_core.domain.budget import ResearchBudget

@@ -55,6 +55,55 @@ export const api = {
     parse<{ run_id: string }>(fetch(`${apiUrl}/api/v1/research-runs/${runId}/resume`, { method: "POST" })),
   restart: (runId: string) =>
     parse<{ run_id: string }>(fetch(`${apiUrl}/api/v1/research-runs/${runId}/restart`, { method: "POST" })),
+  listReviews: (status = "pending") =>
+    parse<Record<string, unknown>[]>(
+      fetch(`${apiUrl}/api/v1/reviews?status=${encodeURIComponent(status)}`, { cache: "no-store" }),
+    ),
+  listRunReviews: (runId: string) =>
+    parse<Record<string, unknown>[]>(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/reviews`, { cache: "no-store" }),
+    ),
+  approveReview: (runId: string, reviewId: string, body: { reason?: string } = {}) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/reviews/${reviewId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  editReview: (
+    runId: string,
+    reviewId: string,
+    body: {
+      requested_extra_iterations: number;
+      requested_extra_tool_calls: number;
+      requested_extra_sources: number;
+      reason?: string;
+    },
+  ) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/reviews/${reviewId}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  rejectReview: (runId: string, reviewId: string, body: { outcome?: string; reason?: string } = {}) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/reviews/${reviewId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  submitFeedback: (runId: string, body: Record<string, unknown>) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
   workspace: (runId: string) =>
     parse<Workspace>(fetch(`${apiUrl}/api/v1/research-runs/${runId}/workspace`, { cache: "no-store" })),
   snapshot: (runId: string, snapshotId: string) =>

@@ -16,11 +16,16 @@ from deepscout_core.domain.enums import (
     TERMINAL_RESEARCH_RUN_STATUSES,
     ClaimVerificationStatus,
     CostReportStatus,
+    HumanFeedbackTarget,
     ResearchJobStatus,
     ResearchJobType,
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,
+    ReviewDecisionKind,
+    ReviewReasonCode,
+    ReviewRequestStatus,
+    ReviewRiskLevel,
     UsageReportStatus,
 )
 from deepscout_core.domain.invariants import (
@@ -63,6 +68,7 @@ from deepscout_persistence.models import (
     DecisionClaimRow,
     DecisionRow,
     EvidenceRow,
+    HumanFeedbackRow,
     ReportEvidenceRow,
     ReportRow,
     ResearchJobRow,
@@ -70,6 +76,8 @@ from deepscout_persistence.models import (
     ResearchQuestionRow,
     ResearchRunRow,
     ResearchTaskRow,
+    ReviewEventRow,
+    ReviewRequestRow,
     RunEventRow,
     SearchCandidateRow,
     SourceRow,
@@ -617,8 +625,202 @@ class ResearchStore:
         for task in active_tasks:
             task.status = ResearchTaskStatus.CANCELLED
             task.completed_at = datetime.now(UTC)
+        self.cancel_pending_reviews(run_id, actor_source="system", actor_identity="cancel_run")
         self._session.flush()
         return row
+
+    def extend_run_budget(
+        self,
+        run_id: uuid.UUID,
+        *,
+        extra_iterations: int,
+        extra_tool_calls: int,
+        extra_sources: int,
+    ) -> ResearchRunRead:
+        row = self._session.scalar(
+            select(ResearchRunRow).where(ResearchRunRow.id == run_id).with_for_update()
+        )
+        if row is None:
+            raise LookupError(f"ResearchRun {run_id} not found")
+        if extra_iterations < 0 or extra_tool_calls < 0 or extra_sources < 0:
+            raise ValueError("budget extras must be non-negative")
+        row.max_iterations += int(extra_iterations)
+        row.max_tool_calls += int(extra_tool_calls)
+        row.max_sources += int(extra_sources)
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+        return _run_to_read(row)
+
+    def create_review_request(
+        self,
+        *,
+        research_run_id: uuid.UUID,
+        reason_code: ReviewReasonCode,
+        risk_level: ReviewRiskLevel,
+        title: str,
+        explanation: str,
+        proposed_action_type: str,
+        proposed_action_payload: dict,
+        payload_hash: str,
+        created_by_component: str,
+        expires_at: datetime | None,
+        policy_version: str,
+    ) -> uuid.UUID:
+        self._require_run(research_run_id)
+        row = ReviewRequestRow(
+            research_run_id=research_run_id,
+            reason_code=reason_code,
+            risk_level=risk_level,
+            title=title,
+            explanation=explanation,
+            proposed_action_type=proposed_action_type,
+            proposed_action_payload=proposed_action_payload,
+            payload_hash=payload_hash,
+            created_by_component=created_by_component,
+            expires_at=expires_at,
+            policy_version=policy_version,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def get_review_request(self, review_id: uuid.UUID) -> ReviewRequestRow | None:
+        return self._session.get(ReviewRequestRow, review_id)
+
+    def get_pending_review(
+        self, run_id: uuid.UUID, reason_code: ReviewReasonCode
+    ) -> ReviewRequestRow | None:
+        return self._session.scalar(
+            select(ReviewRequestRow).where(
+                ReviewRequestRow.research_run_id == run_id,
+                ReviewRequestRow.reason_code == reason_code,
+                ReviewRequestRow.status == ReviewRequestStatus.PENDING,
+            )
+        )
+
+    def list_reviews(
+        self,
+        *,
+        run_id: uuid.UUID | None = None,
+        status: ReviewRequestStatus | None = None,
+        limit: int = 50,
+    ) -> list[ReviewRequestRow]:
+        stmt = select(ReviewRequestRow).order_by(ReviewRequestRow.created_at.desc()).limit(limit)
+        if run_id is not None:
+            stmt = stmt.where(ReviewRequestRow.research_run_id == run_id)
+        if status is not None:
+            stmt = stmt.where(ReviewRequestRow.status == status)
+        return list(self._session.scalars(stmt).all())
+
+    def update_review_status(
+        self,
+        review_id: uuid.UUID,
+        status: ReviewRequestStatus,
+        *,
+        resolved_by: str | None = None,
+        resolved_source: str | None = None,
+        decision_kind: ReviewDecisionKind | None = None,
+        decision_payload: dict | None = None,
+        decision_reason: str | None = None,
+        rejection_outcome: str | None = None,
+    ) -> ReviewRequestRow:
+        row = self._session.get(ReviewRequestRow, review_id)
+        if row is None:
+            raise LookupError("review not found")
+        row.status = status
+        if status != ReviewRequestStatus.PENDING:
+            row.resolved_at = datetime.now(UTC)
+            row.resolved_by = resolved_by
+            row.resolved_source = resolved_source
+            row.decision_kind = decision_kind
+            if decision_payload is not None:
+                row.decision_payload = decision_payload
+            if decision_reason is not None:
+                row.decision_reason = decision_reason
+            if rejection_outcome is not None:
+                row.rejection_outcome = rejection_outcome
+        self._session.flush()
+        return row
+
+    def append_review_event(
+        self,
+        review_id: uuid.UUID,
+        run_id: uuid.UUID,
+        *,
+        event_type: str,
+        actor_source: str,
+        actor_identity: str | None = None,
+        detail: dict | None = None,
+    ) -> uuid.UUID:
+        row = ReviewEventRow(
+            review_request_id=review_id,
+            research_run_id=run_id,
+            event_type=event_type,
+            actor_source=actor_source,
+            actor_identity=actor_identity,
+            detail=detail,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def cancel_pending_reviews(
+        self,
+        run_id: uuid.UUID,
+        *,
+        actor_source: str,
+        actor_identity: str,
+    ) -> int:
+        pending = self._session.scalars(
+            select(ReviewRequestRow).where(
+                ReviewRequestRow.research_run_id == run_id,
+                ReviewRequestRow.status == ReviewRequestStatus.PENDING,
+            )
+        ).all()
+        for review in pending:
+            review.status = ReviewRequestStatus.CANCELLED
+            review.resolved_at = datetime.now(UTC)
+            review.resolved_by = actor_identity
+            review.resolved_source = actor_source
+            self._session.add(
+                ReviewEventRow(
+                    review_request_id=review.id,
+                    research_run_id=run_id,
+                    event_type="cancelled",
+                    actor_source=actor_source,
+                    actor_identity=actor_identity,
+                )
+            )
+        self._session.flush()
+        return len(pending)
+
+    def create_human_feedback(
+        self,
+        *,
+        research_run_id: uuid.UUID,
+        target_type: HumanFeedbackTarget,
+        scores: dict,
+        note: str | None = None,
+        target_id: uuid.UUID | None = None,
+        source: str = "ui",
+        created_by: str = "local_operator",
+    ) -> uuid.UUID:
+        """Evaluation feedback only — never resolves operational reviews."""
+        self._require_run(research_run_id)
+        if source in {"model_output", "wiki", "rag", "retrieved_document"}:
+            raise PermissionError("feedback source cannot authorize operations")
+        row = HumanFeedbackRow(
+            research_run_id=research_run_id,
+            target_type=target_type,
+            target_id=target_id,
+            scores=scores,
+            note=note,
+            source=source,
+            created_by=created_by,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
 
     def save_tool_execution(
         self, run_id: uuid.UUID, payload: ToolExecutionWrite
@@ -724,7 +926,7 @@ class ResearchStore:
         row = self._require_run(run_id)
         return _consumption_from_run(row)
 
-    def set_termination_reason(self, run_id: uuid.UUID, reason: str) -> None:
+    def set_termination_reason(self, run_id: uuid.UUID, reason: str | None) -> None:
         row = self._require_run(run_id)
         row.termination_reason = reason
         row.updated_at = datetime.now(UTC)

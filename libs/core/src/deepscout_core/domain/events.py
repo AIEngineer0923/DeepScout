@@ -31,6 +31,9 @@ class ResearchEventType(StrEnum):
     CRITIC_COMPLETED = "critic.completed"
     REPORT_READY = "report.ready"
     BUDGET_UPDATED = "budget.updated"
+    REVIEW_REQUESTED = "review.requested"
+    REVIEW_RESOLVED = "review.resolved"
+    RUN_PAUSED = "run.paused"
 
 
 class ResearchEvent(BaseModel):

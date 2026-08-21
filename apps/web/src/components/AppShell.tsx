@@ -157,6 +157,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {t("nav.resume")}
             </button>
           )}
+          <Link href="/reviews" className={`nav-link ${pathname === "/reviews" ? "active" : ""}`}>
+            <IconEvals />
+            {t("nav.reviews")}
+          </Link>
           <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
             <IconSettings />
             {t("nav.settings")}

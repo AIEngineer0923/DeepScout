@@ -96,6 +96,15 @@ class ResearchOrchestrator:
         if run is None:
             raise LookupError(f"ResearchRun {run_id} not found")
 
+        # Durable HITL pause: do not auto-claim or continue until review is resolved.
+        if run.status == ResearchRunStatus.PAUSED:
+            return OrchestratorResult(
+                run_id=run_id,
+                final_status=ResearchRunStatus.PAUSED,
+                iterations=0,
+                events=list(self._events),
+            )
+
         self._store.update_run_status(run_id, ResearchRunStatus.RUNNING)
         self._store.reclaim_stale_running_tasks(
             run_id, stale_after_seconds=self._settings.research_task_stale_after_s
@@ -157,6 +166,48 @@ class ResearchOrchestrator:
                 events=list(self._events),
             )
         except BudgetExhaustedError:
+            from deepscout_core.domain.enums import ReviewReasonCode
+
+            from deepscout_research.hitl import HumanReviewService, PolicyVerdict, evaluate_policy
+
+            if (
+                evaluate_policy(ReviewReasonCode.BUDGET_EXTENSION, self._settings)
+                == PolicyVerdict.REQUIRE_REVIEW
+            ):
+                service = HumanReviewService(self._store, self._settings)
+                review_id = service.create_budget_extension_review(run_id)
+                self._store.set_termination_reason(run_id, "awaiting_budget_extension")
+                self._store.update_run_status(run_id, ResearchRunStatus.PAUSED)
+                self._store.append_review_event(
+                    review_id,
+                    run_id,
+                    event_type="paused",
+                    actor_source="system",
+                    actor_identity="orchestrator",
+                )
+                self._emit(
+                    ResearchEvent(
+                        event_type=ResearchEventType.RUN_PAUSED,
+                        run_id=run_id,
+                        payload={
+                            "reason": "awaiting_budget_extension",
+                            "review_request_id": str(review_id),
+                        },
+                    )
+                )
+                self._emit(
+                    ResearchEvent(
+                        event_type=ResearchEventType.REVIEW_REQUESTED,
+                        run_id=run_id,
+                        payload={"review_request_id": str(review_id)},
+                    )
+                )
+                return OrchestratorResult(
+                    run_id=run_id,
+                    final_status=ResearchRunStatus.PAUSED,
+                    iterations=iterations,
+                    events=list(self._events),
+                )
             if self._settings.research_finalize_on_budget_exhausted:
                 try:
                     self._ensure_active(run_id)

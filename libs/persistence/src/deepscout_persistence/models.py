@@ -8,6 +8,7 @@ from deepscout_core.domain.enums import (
     ClaimVerificationStatus,
     ContradictionEvidenceStatus,
     CostReportStatus,
+    HumanFeedbackTarget,
     IndexingStatus,
     KnowledgeProvenanceKind,
     KnowledgeRelationType,
@@ -16,6 +17,10 @@ from deepscout_core.domain.enums import (
     ResearchQuestionStatus,
     ResearchRunStatus,
     ResearchTaskStatus,
+    ReviewDecisionKind,
+    ReviewReasonCode,
+    ReviewRequestStatus,
+    ReviewRiskLevel,
     SourceType,
     ToolExecutionStatus,
     UsageReportStatus,
@@ -696,4 +701,85 @@ class KnowledgeRelationRow(Base):
     claim_b_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("claims.id", ondelete="SET NULL")
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReviewRequestRow(Base):
+    __tablename__ = "review_requests"
+    __table_args__ = (
+        Index("ix_review_requests_run_id", "research_run_id"),
+        Index("ix_review_requests_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    research_task_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    reason_code: Mapped[ReviewReasonCode] = mapped_column(
+        pg_enum(ReviewReasonCode, "review_reason_code"), nullable=False
+    )
+    risk_level: Mapped[ReviewRiskLevel] = mapped_column(
+        pg_enum(ReviewRiskLevel, "review_risk_level"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    proposed_action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    proposed_action_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[ReviewRequestStatus] = mapped_column(
+        pg_enum(ReviewRequestStatus, "review_request_status"),
+        nullable=False,
+        default=ReviewRequestStatus.PENDING,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    policy_version: Mapped[str] = mapped_column(String(32), nullable=False, default="hitl-v1")
+    created_by_component: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by: Mapped[str | None] = mapped_column(String(128))
+    resolved_source: Mapped[str | None] = mapped_column(String(32))
+    decision_kind: Mapped[ReviewDecisionKind | None] = mapped_column(
+        pg_enum(ReviewDecisionKind, "review_decision_kind")
+    )
+    decision_payload: Mapped[dict | None] = mapped_column(JSONB)
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    rejection_outcome: Mapped[str | None] = mapped_column(String(64))
+
+
+class ReviewEventRow(Base):
+    __tablename__ = "review_events"
+    __table_args__ = (Index("ix_review_events_review_id", "review_request_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    review_request_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("review_requests.id", ondelete="CASCADE")
+    )
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor_identity: Mapped[str | None] = mapped_column(String(128))
+    detail: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class HumanFeedbackRow(Base):
+    __tablename__ = "human_feedback"
+    __table_args__ = (Index("ix_human_feedback_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    target_type: Mapped[HumanFeedbackTarget] = mapped_column(
+        pg_enum(HumanFeedbackTarget, "human_feedback_target"), nullable=False
+    )
+    target_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="ui")
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False, default="local_operator")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
