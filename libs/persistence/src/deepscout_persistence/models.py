@@ -8,6 +8,7 @@ from deepscout_core.domain.enums import (
     ClaimVerificationStatus,
     ContradictionEvidenceStatus,
     CostReportStatus,
+    IndexingStatus,
     ResearchJobStatus,
     ResearchJobType,
     ResearchQuestionStatus,
@@ -17,6 +18,7 @@ from deepscout_core.domain.enums import (
     ToolExecutionStatus,
     UsageReportStatus,
 )
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
     Float,
@@ -160,9 +162,21 @@ class SourceSnapshotRow(Base):
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
     content_text: Mapped[str] = mapped_column(Text, nullable=False)
     retrieval_metadata: Mapped[dict | None] = mapped_column(JSONB)
+    indexing_status: Mapped[IndexingStatus] = mapped_column(
+        pg_enum(IndexingStatus, "indexing_status"),
+        nullable=False,
+        default=IndexingStatus.PENDING,
+    )
+    indexing_error: Mapped[str | None] = mapped_column(Text)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embedding_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunking_version: Mapped[str | None] = mapped_column(String(64))
+    embedding_spec_key: Mapped[str | None] = mapped_column(String(256))
+    indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     source: Mapped[SourceRow] = relationship(back_populates="snapshots")
     evidence_items: Mapped[list["EvidenceRow"]] = relationship(back_populates="snapshot")
+    chunks: Mapped[list["DocumentChunkRow"]] = relationship(back_populates="snapshot")
 
 
 class ClaimRow(Base):
@@ -478,3 +492,71 @@ class TokenUsageRecordRow(Base):
     )
     pricing_version: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DocumentChunkRow(Base):
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_snapshot_id",
+            "chunking_version",
+            "ordinal",
+            name="uq_chunks_snapshot_version_ord",
+        ),
+        Index("ix_document_chunks_run_id", "research_run_id"),
+        Index("ix_document_chunks_snapshot_id", "source_snapshot_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE")
+    )
+    source_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("source_snapshots.id", ondelete="CASCADE")
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    section_title: Mapped[str | None] = mapped_column(String(200))
+    chunking_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    snapshot: Mapped[SourceSnapshotRow] = relationship(back_populates="chunks")
+    embeddings: Mapped[list["ChunkEmbeddingRow"]] = relationship(back_populates="chunk")
+
+
+class ChunkEmbeddingRow(Base):
+    __tablename__ = "chunk_embeddings"
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_id",
+            "provider",
+            "model",
+            "dimensions",
+            "config_version",
+            name="uq_chunk_embedding_space",
+        ),
+        Index("ix_chunk_embeddings_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("document_chunks.id", ondelete="CASCADE")
+    )
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    config_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    chunk: Mapped[DocumentChunkRow] = relationship(back_populates="embeddings")

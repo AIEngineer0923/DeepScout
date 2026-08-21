@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from deepscout_core.settings import Settings, get_settings
+from deepscout_core.types import ProviderKind
+from deepscout_providers.defaults import DEFAULT_EMBEDDING_MODELS
 from fastapi import APIRouter, Depends
 
 from deepscout_api.deps import get_research_store
@@ -66,10 +68,19 @@ def product_settings(settings: Settings = Depends(get_settings)) -> dict:
             "default_provider": settings.llm_provider.value,
             "default_model": settings.llm_model,
         },
+        "retrieval": {
+            "embedding_provider": settings.resolved_embedding_provider().value,
+            "embedding_model": settings.embedding_model
+            or DEFAULT_EMBEDDING_MODELS.get(settings.resolved_embedding_provider(), ""),
+            "embedding_dimensions": settings.embedding_dimensions,
+            "mode": settings.retrieval_mode,
+            "top_k": settings.retrieval_top_k,
+            "candidate_k": settings.retrieval_candidate_k,
+        },
         "health": {
             "api": "ok",
             "postgres": postgres,
-            "vector_store": "not_in_scope",
+            "vector_store": _vector_store_status(settings, postgres),
             "langsmith": "connected" if settings.langsmith_api_key is not None else "not_configured",
         },
         "security": {
@@ -97,3 +108,16 @@ def _langsmith_status(settings: Settings) -> dict:
         "region": region,
         "tracing": settings.langsmith_tracing,
     }
+
+
+def _vector_store_status(settings: Settings, postgres: str) -> str:
+    if postgres != "ok":
+        return "unavailable"
+    provider = settings.resolved_embedding_provider()
+    if provider not in {ProviderKind.GOOGLE, ProviderKind.OPENAI}:
+        return "embedding_provider_unsupported"
+    try:
+        settings.require_api_key(provider)
+    except ValueError:
+        return "embedding_not_configured"
+    return "pgvector_ready"

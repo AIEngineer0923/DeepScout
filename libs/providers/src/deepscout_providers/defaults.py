@@ -19,9 +19,9 @@ DEFAULT_CHAT_MODELS: dict[ProviderKind, str] = {
     ProviderKind.ANTHROPIC: "claude-haiku-4-5-20251001",
 }
 
-# Embedding models — override via EMBEDDING_MODEL env var
+# Embedding models — override via EMBEDDING_MODEL env var.
+# Anthropic has no embedding API (confirmed 2026-08-21); chat-only.
 DEFAULT_EMBEDDING_MODELS: dict[ProviderKind, str] = {
     ProviderKind.GOOGLE: "gemini-embedding-2",
     ProviderKind.OPENAI: "text-embedding-3-small",
-    ProviderKind.ANTHROPIC: "text-embedding-3-small",
 }

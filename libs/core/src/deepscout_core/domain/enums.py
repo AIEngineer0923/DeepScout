@@ -50,6 +50,7 @@ class ResearchPhase(StrEnum):
     RESEARCH = "research"
     COLLECT = "collect"
     FETCH = "fetch"
+    INDEX = "index"
     EXTRACT = "extract"
     VERIFY = "verify"
     CONTRADICTION = "contradiction"
@@ -96,6 +97,7 @@ class AgentRole(StrEnum):
     SUPERVISOR = "supervisor"
     RESEARCH_WORKER = "research_worker"
     FETCH = "fetch"
+    INDEXER = "indexer"
     EXTRACTOR = "extractor"
     VERIFIER = "verifier"
     CONTRADICTION = "contradiction"
@@ -132,6 +134,15 @@ VERIFIED_CLAIM_STATUSES: frozenset[ClaimVerificationStatus] = frozenset(
         ClaimVerificationStatus.PARTIALLY_VERIFIED,
     }
 )
+
+
+class IndexingStatus(StrEnum):
+    PENDING = "pending"
+    INDEXING = "indexing"
+    INDEXED = "indexed"
+    PARTIALLY_INDEXED = "partially_indexed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 class SourceType(StrEnum):

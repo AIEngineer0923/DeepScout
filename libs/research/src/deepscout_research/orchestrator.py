@@ -30,6 +30,9 @@ from deepscout_research.phases.report import generate_report
 from deepscout_research.phases.synthesis import synthesize_decision
 from deepscout_research.phases.verify import verify_claims_for_run
 from deepscout_research.planner import build_research_plan, planner_output_to_write
+from deepscout_research.retrieval.enabled import retrieval_enabled
+from deepscout_research.retrieval.indexer import index_snapshots_for_run
+from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.search.protocol import WebSearchProvider
 from deepscout_research.tasks.graph import TaskGraph
 from deepscout_research.termination import TerminationDecision, evaluate_termination
@@ -432,6 +435,33 @@ class ResearchOrchestrator:
         )
         self._store.commit()
 
+        retriever: RetrievalService | None = None
+        index_stats: dict[str, int] = {"indexed": 0, "failed": 0, "skipped": 0, "seen": 0}
+        if retrieval_enabled(self._settings):
+            self._ensure_active(run_id)
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.PHASE_STARTED,
+                    run_id=run_id,
+                    phase=ResearchPhase.INDEX,
+                )
+            )
+            try:
+                index_stats = index_snapshots_for_run(self._store, self._settings, run_id)
+                retriever = RetrievalService(self._store, self._settings)
+            except Exception:
+                logger.exception("Index phase failed", extra={"run_id": str(run_id)})
+                index_stats = {"indexed": 0, "failed": 0, "skipped": 0, "seen": 0}
+            self._store.commit()
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.PHASE_COMPLETED,
+                    run_id=run_id,
+                    phase=ResearchPhase.INDEX,
+                    payload=index_stats,
+                )
+            )
+
         self._ensure_active(run_id)
         self._emit(
             ResearchEvent(
@@ -441,7 +471,7 @@ class ResearchOrchestrator:
             )
         )
         try:
-            extract_stats = extract_claims_for_run(self._store, run_id)
+            extract_stats = extract_claims_for_run(self._store, run_id, retriever=retriever)
         except Exception:
             logger.exception("Extract phase failed", extra={"run_id": str(run_id)})
             extract_stats = {"claims_created": 0, "evidence_created": 0}

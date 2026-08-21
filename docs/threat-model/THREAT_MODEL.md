@@ -48,6 +48,23 @@ consumers (spreadsheet formula parsers).
 | T17 | CSV formula injection | export | spreadsheet code exec | prefix sanitization |
 | T18 | Checkpoint cross-run | forged thread id | state mix | `run_id:task_id` thread IDs; domain DB authoritative |
 | T19 | LangSmith data export | tracing left on | research text leaves host | default `LANGSMITH_TRACING=false`; key-name redaction; documented opt-in |
+| T20 | Retrieval poisoning | malicious snapshot text in index | wrong evidence / prompt injection | chunks are DATA; untrusted wrapper; injection markers flagged |
+| T21 | Cross-run vector leakage | forged run_id / chunk id | data from other runs | mandatory `research_run_id` filter in all retrieval SQL; tests |
+| T22 | Embedding denial-of-wallet | unbounded re-embed / re-retrieve | cost spike | idempotent indexing; bounded re-retrieval; usage accounting |
+| T23 | Incompatible embedding spaces | mixed models/dims | nonsense similarity | `provider+model+dimensions+config_version` unique constraint |
+| T24 | Rerank/query-rewrite injection | poisoned candidate text | policy override | no LLM reranker v1; deterministic rerank only |
+
+## RAG content rule
+
+> Retrieved chunks are DATA, never trusted instruction. Embedding rows are not evidence.
+
+Hierarchy:
+
+```text
+SYSTEM SECURITY POLICY > ROLE POLICY > TASK > DOMAIN STATE > RETRIEVED CANDIDATES > RAW EXTERNAL CONTENT
+```
+
+Retrieved text cannot grant tools, change budget, verify claims, or alter prompts.
 
 ## Content rule
 

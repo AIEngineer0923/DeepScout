@@ -91,6 +91,13 @@ BUILTIN_EVALUATOR_MATRIX: tuple[EvaluatorSpec, ...] = (
     _spec("termination_correctness", "trajectory", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.ACTIVE_NOW, "Termination correctness"),
     _spec("secret_leakage", "security", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.ACTIVE_NOW, "Secret leakage in traces"),
     _spec("ssrf_url", "security", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.ACTIVE_NOW, "Malicious/private URL"),
+    _spec("retrieval_recall_at_k", "retrieval", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.OFFLINE_ONLY, "Recall@K on labeled chunk references"),
+    _spec("retrieval_precision_at_k", "retrieval", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.OFFLINE_ONLY, "Precision@K on labeled chunk references"),
+    _spec("retrieval_mrr", "retrieval", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.OFFLINE_ONLY, "Mean reciprocal rank"),
+    _spec("retrieval_duplicate_rate", "retrieval", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.ACTIVE_NOW, "Duplicate snapshot candidate rate"),
+    _spec("retrieval_cross_run_isolation", "retrieval", EvaluatorMethod.DETERMINISTIC_CODE, EvaluatorApplicability.ACTIVE_NOW, "Cross-run retrieval isolation"),
+    _spec("ragas_context_precision", "retrieval", EvaluatorMethod.LLM_AS_JUDGE, EvaluatorApplicability.OFFLINE_ONLY, "RAGAS context precision when ground truth exists"),
+    _spec("ragas_faithfulness", "grounding", EvaluatorMethod.LLM_AS_JUDGE, EvaluatorApplicability.OFFLINE_ONLY, "RAGAS faithfulness when references exist"),
 )
 
 

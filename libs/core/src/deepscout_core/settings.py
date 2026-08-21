@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     llm_model: str | None = Field(default=None, alias="LLM_MODEL")
     embedding_provider: ProviderKind | None = Field(default=None, alias="EMBEDDING_PROVIDER")
     embedding_model: str | None = Field(default=None, alias="EMBEDDING_MODEL")
+    embedding_dimensions: int = Field(default=768, alias="EMBEDDING_DIMENSIONS")
+    retrieval_mode: str = Field(default="hybrid", alias="RETRIEVAL_MODE")
+    retrieval_top_k: int = Field(default=8, alias="RETRIEVAL_TOP_K")
+    retrieval_candidate_k: int = Field(default=20, alias="RETRIEVAL_CANDIDATE_K")
 
     google_api_key: SecretStr | None = Field(default=None, alias="GOOGLE_API_KEY")
     openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")

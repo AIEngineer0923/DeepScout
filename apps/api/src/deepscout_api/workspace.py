@@ -203,6 +203,10 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
                 "content_hash": snapshot.content_hash,
                 "word_count": len(snapshot.content_text.split()) if snapshot.content_text else 0,
                 "evidence_count": len(related),
+                "indexing_status": snapshot.indexing_status.value,
+                "chunk_count": snapshot.chunk_count,
+                "embedding_count": snapshot.embedding_count,
+                "indexed_at": _iso(snapshot.indexed_at),
             }
         )
 

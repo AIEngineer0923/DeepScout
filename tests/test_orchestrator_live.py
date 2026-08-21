@@ -23,7 +23,7 @@ def _live_settings() -> Settings | None:
 
 @pytest.mark.integration
 @pytest.mark.postgres
-def test_live_orchestrator_low_budget_run(store, settings) -> None:
+def test_live_orchestrator_low_budget_run(store) -> None:
     live = _live_settings()
     if live is None:
         pytest.skip("GOOGLE_API_KEY and TAVILY_API_KEY required for live orchestrator test")
