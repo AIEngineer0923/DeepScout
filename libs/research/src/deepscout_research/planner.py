@@ -51,6 +51,10 @@ def build_research_plan(
         phase_instructions="Create 2-5 prioritized research questions.",
         domain_state={"budget": budget_summary, "output_language": language_note},
     )
+    if settings.agent_skills_auto:
+        from deepscout_research.skills.loader import skill_catalog_for_prompt
+
+        context.domain_state["skill_catalog"] = skill_catalog_for_prompt()
     messages = [
         SystemMessage(content=compose_system_message(PLANNER_V1)),
         HumanMessage(content=context.render_user_content()),

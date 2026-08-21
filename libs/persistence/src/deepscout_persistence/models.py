@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from deepscout_core.domain.enums import (
+    AgentNoteKind,
     BudgetMetric,
     ClaimVerificationStatus,
     ContradictionEvidenceStatus,
@@ -94,6 +95,12 @@ class ResearchRunRow(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    config_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    parent_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL")
+    )
+    fork_reason: Mapped[str | None] = mapped_column(String(128))
+    replans_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     plan: Mapped["ResearchPlanRow | None"] = relationship(back_populates="run", uselist=False)
     sources: Mapped[list["SourceRow"]] = relationship(back_populates="run")
@@ -782,4 +789,48 @@ class HumanFeedbackRow(Base):
     note: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="ui")
     created_by: Mapped[str] = mapped_column(String(128), nullable=False, default="local_operator")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentNoteRow(Base):
+    __tablename__ = "agent_notes"
+    __table_args__ = (Index("ix_agent_notes_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    research_task_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    kind: Mapped[AgentNoteKind] = mapped_column(pg_enum(AgentNoteKind, "agent_note_kind"), nullable=False)
+    body: Mapped[str] = mapped_column(String(2000), nullable=False)
+    artifact_ref: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RunSkillBindingRow(Base):
+    __tablename__ = "run_skill_bindings"
+    __table_args__ = (Index("ix_run_skill_bindings_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    research_task_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_version: Mapped[str] = mapped_column(String(32), nullable=False, default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ContextCompactionRecordRow(Base):
+    __tablename__ = "context_compaction_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    chars_before: Mapped[int] = mapped_column(Integer, nullable=False)
+    chars_after: Mapped[int] = mapped_column(Integer, nullable=False)
+    dropped_redundant: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    artifact_refs_kept: Mapped[list | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

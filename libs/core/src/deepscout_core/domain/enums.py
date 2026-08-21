@@ -108,6 +108,39 @@ class AgentRole(StrEnum):
     EVALUATOR = "evaluator"
 
 
+class AgentNoteKind(StrEnum):
+    DECISION = "decision"
+    OPEN_QUESTION = "open_question"
+    FACT_REFERENCE = "fact_reference"
+    FAILED_APPROACH = "failed_approach"
+    NEXT_ACTION = "next_action"
+    CONSTRAINT = "constraint"
+    RISK = "risk"
+
+
+class AllocationClass(StrEnum):
+    SEQUENTIAL_SINGLE = "sequential_single"
+    SINGLE_AGENT = "single_agent"
+    SMALL_PARALLEL = "small_parallel"
+    WIDE_PARALLEL = "wide_parallel"
+
+
+class SufficiencyAction(StrEnum):
+    CONTINUE = "continue"
+    TARGET_SPECIFIC_GAP = "target_specific_gap"
+    VERIFY = "verify"
+    REPLAN = "replan"
+    FINALIZE = "finalize"
+    REQUEST_HUMAN = "request_human"
+
+
+class ToolSideEffectClass(StrEnum):
+    NONE = "none"
+    READ_NETWORK = "read_network"
+    WRITE_EXTERNAL = "write_external"
+    DESTRUCTIVE = "destructive"
+
+
 class UsageReportStatus(StrEnum):
     UNKNOWN = "unknown"
     PARTIAL = "partial"

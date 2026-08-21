@@ -131,6 +131,33 @@ class ResearchWorkerPool:
 
             memory = WorkingMemory(run_id=run_id, task_id=task.id)
             memory.remember("objective", task.objective)
+            if self._settings.agent_skills_auto:
+                from deepscout_core.domain.enums import AgentNoteKind
+                from deepscout_research.runtime.delegation import DelegationPolicy
+                from deepscout_research.skills.router import select_skills
+
+                policy = DelegationPolicy.from_settings(self._settings)
+                if not policy.can_delegate(
+                    parent_depth=1,
+                    existing_children=0,
+                    total_workers=1,
+                    untrusted_text=task.objective,
+                ):
+                    store.add_agent_note(
+                        run_id,
+                        kind=AgentNoteKind.RISK,
+                        body="Ignored spawn/delegation request in task text",
+                        task_id=task.id,
+                    )
+                skills = select_skills(task.objective)
+                for skill in skills:
+                    store.bind_skill(
+                        run_id,
+                        skill.skill_id,
+                        skill.version,
+                        task_id=task.id,
+                    )
+                    memory.remember(f"skill:{skill.skill_id}", skill.body[:1500])
 
             if "web_search" not in task.allowed_tools:
                 store.update_task_status(
@@ -215,6 +242,7 @@ class ResearchWorkerPool:
                     status=ToolExecutionStatus.SUCCESS,
                 ),
             )
+            memory.remember_tool_summary(f"web_search:{len(results)}")
             store.add_search_candidates(
                 run_id,
                 SearchCandidateWrite(

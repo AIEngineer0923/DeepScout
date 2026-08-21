@@ -350,11 +350,34 @@ class ResearchOrchestrator:
         self._store.commit()
         self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
         self._store.commit()
+        remaining_tools = max(0, run.budget.max_tool_calls - consumption.tool_calls)
+        from deepscout_research.runtime.allocation import allocate_workers
+
+        allocation = allocate_workers(
+            tasks,
+            settings=self._settings,
+            concurrency_limit=self._store.get_concurrency_limit(run_id),
+            remaining_tool_calls=remaining_tools,
+        )
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.WORKERS_ALLOCATED,
+                run_id=run_id,
+                phase=ResearchPhase.RESEARCH,
+                iteration=iteration,
+                payload={
+                    "class": allocation.allocation_class.value,
+                    "max_workers": allocation.max_workers,
+                    "ready_count": allocation.ready_count,
+                    "reason": allocation.reason,
+                },
+            )
+        )
         pool = ResearchWorkerPool(
             get_session_factory(self._settings.database_url),
             self._settings,
             self._search,
-            max_workers=self._store.get_concurrency_limit(run_id),
+            max_workers=allocation.max_workers,
             inline_store=self._store if self._settings.research_workers_inline else None,
         )
         results = pool.execute_batch(run_id, ready, iteration=iteration)
@@ -368,12 +391,54 @@ class ResearchOrchestrator:
                 payload={"workers": len(results), "ready_tasks": len(ready)},
             )
         )
-        return evaluate_termination(
+        refreshed_tasks = self._store.list_tasks(run_id)
+        evidence_count = len(self._store.list_evidence(run_id))
+        from deepscout_research.runtime.replan import evaluate_replan
+        from deepscout_research.runtime.sufficiency import evaluate_sufficiency
+
+        row = self._store.get_run_row(run_id)
+        replans_used = int(getattr(row, "replans_used", 0) or 0) if row else 0
+        last_sources = sum(item.sources_added for item in results)
+        replan = evaluate_replan(
+            settings=self._settings,
+            replans_used=replans_used,
+            tasks=refreshed_tasks,
+            last_batch_sources=last_sources,
+            evidence_count=evidence_count,
+        )
+        if replan.apply:
+            added = self._store.append_tasks(run_id, list(replan.new_tasks))
+            self._store.increment_replans(run_id)
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.REPLAN_APPLIED,
+                    run_id=run_id,
+                    payload={"added": added, "reason": replan.reason},
+                )
+            )
+        sufficiency = evaluate_sufficiency(
+            tasks=self._store.list_tasks(run_id),
+            batch=results,
+            remaining_iterations=max(0, run.budget.max_iterations - iteration),
+            evidence_count=evidence_count,
+        )
+        terminal = evaluate_termination(
             budget=run.budget,
             consumption=self._store.get_consumption(run_id),
             questions=self._store.list_questions(run_id),
             tasks=self._store.list_tasks(run_id),
         )
+        if (
+            not terminal.should_stop
+            and sufficiency.action.value == "finalize"
+            and sufficiency.reason == "low_marginal_yield"
+        ):
+            return TerminationDecision(
+                should_stop=True,
+                reason="sufficient_evidence",
+                terminal_status=ResearchRunStatus.COMPLETED,
+            )
+        return terminal
 
     def _legacy_single_question_iteration(
         self, run_id: uuid.UUID, *, iteration: int

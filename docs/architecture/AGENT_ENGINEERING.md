@@ -6,13 +6,13 @@ Public project document. Status: **IMPLEMENTED** | **FOUNDATION** | **DEFERRED**
 
 | Technique | Status | Why |
 |---|---|---|
-| Context engineering | FOUNDATION | `ContextAssembly` selects phase-scoped inputs only |
+| Context engineering | IMPLEMENTED | `ContextAssembly` budgets, isolation, compaction |
 | Working memory | FOUNDATION | `WorkingMemory` bounds recent tool summaries per run |
 | Long-term memory | DEFERRED | Postgres holds run state; no generic memory table yet |
 | Semantic memory | DEFERRED | Requires validated write pipeline |
 | Episodic memory | DEFERRED | Future cross-run learning |
-| Procedural memory | DEFERRED | Prompts live in code, not self-modifying store |
-| History compaction | DEFERRED | LangSmith audit trail; compaction later |
+| Procedural memory | FOUNDATION | Builtin SKILL.md catalog; router selects, never self-promotes |
+| History compaction | FOUNDATION | Deterministic retrieved-blob compaction; never evidence-as-summary |
 | Prompt/context caching | FOUNDATION | Provider capability hooks; no blind caching |
 | Application caching | REJECTED (MODE A) | Redis probe-only; Postgres owns jobs/checkpoints |
 | Token accounting | IMPLEMENTED | Provider metadata recorded; UNKNOWN never coerced to 0; evaluator usage excluded from application totals |
@@ -27,13 +27,13 @@ Public project document. Status: **IMPLEMENTED** | **FOUNDATION** | **DEFERRED**
 | Retries | IMPLEMENTED | Central `retry.py` for transient 429/5xx/network; security failures never retry |
 | Reflection | DEFERRED | No automatic policy mutation |
 | Trace-driven learning | DEFERRED | LangSmith traces captured; eval loop later |
-| Retrieval optimization | DEFERRED | pgvector Phase 5 — blocked this gate |
-| Reranking | DEFERRED | Pipeline hook planned |
-| Knowledge compaction / wiki memory | DEFERRED | Documented alternative to raw RAG |
+| Retrieval optimization | IMPLEMENTED | Phase 5 hybrid FTS + pgvector |
+| Reranking | IMPLEMENTED | Deterministic rerank + RRF |
+| Knowledge compaction / wiki memory | IMPLEMENTED | Run-scoped compiled Wiki (ADR-009) |
 | Confidence calibration | DEFERRED | Qualitative statuses preferred over fake floats |
 | Uncertainty | FOUNDATION | `insufficient_evidence` terminal question state |
 | Multi-agent specialization | IMPLEMENTED | Planner vs research worker vs critic/synthesis/report |
-| HITL | DEFERRED | Approval spoofing blocked; product pause/API not shipped for normal research |
+| HITL | IMPLEMENTED | ADR-011 durable reviews; budget-extension pause |
 | Observability | IMPLEMENTED | LangSmith phases + typed domain events |
 | Fallback models | IMPLEMENTED_OPTIONAL | Capability + privacy + health gated; no silent downgrade |
 

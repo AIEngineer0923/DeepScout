@@ -83,8 +83,18 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
                 "snapshot_count": 0,
                 "evidence_count": 0,
                 "retries": task.retry_count,
+                "skills": [],
             }
         )
+    bindings = []
+    if hasattr(store, "list_skill_bindings"):
+        bindings = store.list_skill_bindings(run_id)
+    skills_by_task: dict[str, list[str]] = {}
+    for binding in bindings:
+        key = str(binding.research_task_id) if binding.research_task_id else "_run"
+        skills_by_task.setdefault(key, []).append(binding.skill_id)
+    for worker in workers:
+        worker["skills"] = skills_by_task.get(worker["task_id"], skills_by_task.get("_run", []))
 
     snapshot_by_source = {}
     for snapshot in snapshots:
@@ -359,6 +369,17 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
             and run.status.value != "paused"
             or (bool(remaining_tasks) and run.status.value != "paused"),
             "awaiting_review": run.status.value == "paused",
+        },
+        "runtime": {
+            "parent_run_id": str(row.parent_run_id) if row and row.parent_run_id else None,
+            "fork_reason": row.fork_reason if row else None,
+            "replans_used": int(row.replans_used or 0) if row else 0,
+            "config_schema_version": (row.config_snapshot or {}).get("state_schema_version")
+            if row and row.config_snapshot
+            else None,
+            "max_delegation_depth": (row.config_snapshot or {}).get("max_delegation_depth")
+            if row and row.config_snapshot
+            else 1,
         },
         "architecture": {
             "orchestrator": {"label": "Research Orchestrator", "kind": "deterministic"},

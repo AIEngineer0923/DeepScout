@@ -17,6 +17,12 @@ from deepscout_api.workspace import assemble_workspace, snapshot_detail
 router = APIRouter(prefix="/api/v1/research-runs", tags=["research-runs"])
 
 
+def _snapshot(settings: Settings) -> dict:
+    from deepscout_research.runtime.config_snapshot import build_config_snapshot
+
+    return build_config_snapshot(settings)
+
+
 class ExecuteResponse(BaseModel):
     run_id: UUID
     status: str
@@ -159,7 +165,7 @@ def create_research_run(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> ResearchRunRead:
-    return store.create_run(body, settings)
+    return store.create_run(body, settings, config_snapshot=_snapshot(settings))
 
 
 @router.get("", response_model=None)
@@ -371,6 +377,40 @@ def restart_research_run(
             output_language=run.output_language,
         ),
         settings,
+        config_snapshot=_snapshot(settings),
+    )
+    jobs = JobService(store)
+    job = jobs.enqueue_execute_run(created.id)
+    _kick_worker(background_tasks, settings)
+    return ExecuteResponse(run_id=created.id, status="accepted", job_id=job.id)
+
+
+class ForkBody(BaseModel):
+    reason: str = "operator_fork"
+
+
+@router.post("/{run_id}/fork", response_model=ExecuteResponse, status_code=202)
+def fork_research_run(
+    run_id: UUID,
+    body: ForkBody,
+    background_tasks: BackgroundTasks,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> ExecuteResponse:
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    created = store.create_run(
+        ResearchRunCreate(
+            goal=run.goal,
+            budget=run.budget,
+            research_mode=run.research_mode,
+            output_language=run.output_language,
+        ),
+        settings,
+        config_snapshot=_snapshot(settings),
+        parent_run_id=run_id,
+        fork_reason=body.reason[:128],
     )
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(created.id)

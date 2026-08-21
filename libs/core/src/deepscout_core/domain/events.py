@@ -34,6 +34,11 @@ class ResearchEventType(StrEnum):
     REVIEW_REQUESTED = "review.requested"
     REVIEW_RESOLVED = "review.resolved"
     RUN_PAUSED = "run.paused"
+    SKILL_SELECTED = "skill.selected"
+    WORKERS_ALLOCATED = "workers.allocated"
+    REPLAN_APPLIED = "replan.applied"
+    CONTEXT_COMPACTED = "context.compacted"
+    RUN_FORKED = "run.forked"
 
 
 class ResearchEvent(BaseModel):

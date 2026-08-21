@@ -188,6 +188,8 @@ export function WorkersScreen() {
                   <div className="kv-row">
                     <dt>{t("workers.allowed")}</dt>
                     <dd>{worker.allowed_tools.join(", ") || "—"}</dd>
+                    <dt>{t("workers.skills")}</dt>
+                    <dd>{(worker.skills ?? []).join(", ") || "—"}</dd>
                   </div>
                 </dl>
               </div>

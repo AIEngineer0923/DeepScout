@@ -80,6 +80,14 @@ export function ResumeScreen() {
         <button className="btn" onClick={() => void doRestart()}>
           {t("action.restart")}
         </button>
+        <button
+          className="btn"
+          onClick={() =>
+            void api.fork(workspace.run_id).then((created) => router.push(`/research/${created.run_id}`))
+          }
+        >
+          {t("action.fork")}
+        </button>
         {["running", "pending", "paused"].includes(workspace.status) ? (
           <button className="btn danger" onClick={() => void api.cancel(workspace.run_id).then(reload)}>
             {t("action.cancelResearch")}

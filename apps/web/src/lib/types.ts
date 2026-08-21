@@ -98,6 +98,7 @@ export type Workspace = {
     completed_at: string | null;
     allowed_tools: string[];
     retries: number;
+    skills?: string[];
   }>;
   sources: Array<{
     id: string;

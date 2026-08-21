@@ -14,6 +14,7 @@ from deepscout_core.domain.budget import (
 )
 from deepscout_core.domain.enums import (
     TERMINAL_RESEARCH_RUN_STATUSES,
+    AgentNoteKind,
     ClaimVerificationStatus,
     CostReportStatus,
     HumanFeedbackTarget,
@@ -62,8 +63,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from deepscout_persistence.models import (
+    AgentNoteRow,
     BudgetLedgerEntryRow,
     ClaimRow,
+    ContextCompactionRecordRow,
     ContradictionRow,
     DecisionClaimRow,
     DecisionRow,
@@ -79,6 +82,7 @@ from deepscout_persistence.models import (
     ReviewEventRow,
     ReviewRequestRow,
     RunEventRow,
+    RunSkillBindingRow,
     SearchCandidateRow,
     SourceRow,
     SourceSnapshotRow,
@@ -91,7 +95,15 @@ class ResearchStore:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def create_run(self, payload: ResearchRunCreate, settings: Settings) -> ResearchRunRead:
+    def create_run(
+        self,
+        payload: ResearchRunCreate,
+        settings: Settings,
+        *,
+        config_snapshot: dict | None = None,
+        parent_run_id: uuid.UUID | None = None,
+        fork_reason: str | None = None,
+    ) -> ResearchRunRead:
         budget = payload.budget or settings.default_research_budget()
         budget = _budget_for_mode(budget, payload.research_mode)
         provider = settings.llm_provider
@@ -109,6 +121,9 @@ class ResearchStore:
             max_cost_usd=budget.max_cost_usd,
             max_sources=budget.max_sources,
             max_tool_calls=budget.max_tool_calls,
+            config_snapshot=config_snapshot,
+            parent_run_id=parent_run_id,
+            fork_reason=fork_reason,
         )
         self._session.add(row)
         self._session.flush()
@@ -1344,6 +1359,106 @@ class ResearchStore:
 
     def get_concurrency_limit(self, run_id: uuid.UUID) -> int:
         return self._require_run(run_id).concurrency_limit
+
+    def append_tasks(self, run_id: uuid.UUID, tasks: list) -> int:
+        self._require_run(run_id)
+        added = 0
+        existing = {row.task_key for row in self._session.scalars(
+            select(ResearchTaskRow).where(ResearchTaskRow.research_run_id == run_id)
+        ).all()}
+        for task in tasks:
+            if task.task_key in existing:
+                continue
+            self._session.add(
+                ResearchTaskRow(
+                    research_run_id=run_id,
+                    task_key=task.task_key,
+                    objective=task.objective,
+                    status=ResearchTaskStatus.PENDING,
+                    priority=task.priority,
+                    depends_on=list(task.depends_on),
+                    allowed_tools=list(task.allowed_tools),
+                )
+            )
+            added += 1
+        self._session.flush()
+        return added
+
+    def increment_replans(self, run_id: uuid.UUID) -> int:
+        row = self._require_run(run_id)
+        row.replans_used = int(row.replans_used or 0) + 1
+        self._session.flush()
+        return row.replans_used
+
+    def add_agent_note(
+        self,
+        run_id: uuid.UUID,
+        *,
+        kind: AgentNoteKind,
+        body: str,
+        task_id: uuid.UUID | None = None,
+        artifact_ref: str | None = None,
+    ) -> uuid.UUID:
+        self._require_run(run_id)
+        row = AgentNoteRow(
+            research_run_id=run_id,
+            research_task_id=task_id,
+            kind=kind,
+            body=body[:2000],
+            artifact_ref=artifact_ref,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def bind_skill(
+        self,
+        run_id: uuid.UUID,
+        skill_id: str,
+        skill_version: str,
+        *,
+        task_id: uuid.UUID | None = None,
+    ) -> uuid.UUID:
+        self._require_run(run_id)
+        row = RunSkillBindingRow(
+            research_run_id=run_id,
+            research_task_id=task_id,
+            skill_id=skill_id[:64],
+            skill_version=skill_version[:32],
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def record_compaction(
+        self,
+        run_id: uuid.UUID,
+        *,
+        phase: str,
+        chars_before: int,
+        chars_after: int,
+        dropped_redundant: int,
+        artifact_refs_kept: list[str] | None,
+    ) -> uuid.UUID:
+        self._require_run(run_id)
+        row = ContextCompactionRecordRow(
+            research_run_id=run_id,
+            phase=phase,
+            chars_before=chars_before,
+            chars_after=chars_after,
+            dropped_redundant=dropped_redundant,
+            artifact_refs_kept=artifact_refs_kept,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def list_skill_bindings(self, run_id: uuid.UUID) -> list[RunSkillBindingRow]:
+        return list(
+            self._session.scalars(
+                select(RunSkillBindingRow).where(RunSkillBindingRow.research_run_id == run_id)
+            ).all()
+        )
 
     def _require_run(self, run_id: uuid.UUID) -> ResearchRunRow:
         row = self._session.get(ResearchRunRow, run_id)

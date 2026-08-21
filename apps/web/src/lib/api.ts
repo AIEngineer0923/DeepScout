@@ -55,6 +55,14 @@ export const api = {
     parse<{ run_id: string }>(fetch(`${apiUrl}/api/v1/research-runs/${runId}/resume`, { method: "POST" })),
   restart: (runId: string) =>
     parse<{ run_id: string }>(fetch(`${apiUrl}/api/v1/research-runs/${runId}/restart`, { method: "POST" })),
+  fork: (runId: string, reason = "operator_fork") =>
+    parse<{ run_id: string }>(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/fork`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }),
+    ),
   listReviews: (status = "pending") =>
     parse<Record<string, unknown>[]>(
       fetch(`${apiUrl}/api/v1/reviews?status=${encodeURIComponent(status)}`, { cache: "no-store" }),

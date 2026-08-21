@@ -85,6 +85,13 @@ class Settings(BaseSettings):
         default=72,
         alias="HITL_DEFAULT_REVIEW_EXPIRY_HOURS",
     )
+    agent_max_delegation_depth: int = Field(default=1, alias="AGENT_MAX_DELEGATION_DEPTH")
+    agent_max_replans: int = Field(default=1, alias="AGENT_MAX_REPLANS")
+    agent_max_new_tasks_per_replan: int = Field(default=3, alias="AGENT_MAX_NEW_TASKS_PER_REPLAN")
+    agent_max_total_workers: int = Field(default=12, alias="AGENT_MAX_TOTAL_WORKERS")
+    agent_skills_auto: bool = Field(default=True, alias="AGENT_SKILLS_AUTO")
+    context_compaction_char_limit: int = Field(default=12000, alias="CONTEXT_COMPACTION_CHAR_LIMIT")
+    research_straggler_timeout_s: int = Field(default=120, alias="RESEARCH_STRAGGLER_TIMEOUT_S")
 
     def default_research_budget(self) -> "ResearchBudget":
         from deepscout_core.domain.budget import ResearchBudget
