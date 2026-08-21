@@ -295,6 +295,7 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
             "evaluation_total_tokens": usage.evaluation_total_tokens,
             "evaluation_cost_usd": usage.evaluation_cost_usd,
             "cost_unknown_reason": usage.cost_unknown_reason,
+            "by_role": store.get_usage_by_role(run_id),
         },
         "counts": {
             "tasks": len(tasks),

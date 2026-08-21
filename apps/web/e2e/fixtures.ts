@@ -170,6 +170,7 @@ export const workspaceFixture = {
       completed_at: "2026-08-21T10:01:00.000Z",
       allowed_tools: ["web_search"],
       retries: 0,
+      skills: ["citation-audit"],
     },
     {
       index: 2,

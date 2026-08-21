@@ -12,3 +12,7 @@
 | R8 | Cost amplification | Allocation capped by budget + max_total_workers |
 | R9 | Unbounded replan | agent_max_replans + duplicate detection |
 | R10 | Nested agents inherit authority | Children (if ever enabled) get sliced tools/budget/depth |
+| R11 | Skill binding from Wiki/tool/note text | SkillRouter trusted channel = `task_objective` only |
+| R12 | Cache-read inferred as zero | Missing provider cache metadata stays UNKNOWN/None |
+| R13 | Isolated worker inherits parent retrieved DATA | `isolate_worker` starts empty retrieved/working state |
+| R14 | Unknown privileged tools | ToolRegistry classifies unknown names as DENY |

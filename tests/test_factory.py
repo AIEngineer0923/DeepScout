@@ -5,6 +5,7 @@ from deepscout_core.settings import Settings
 from deepscout_core.types import ProviderKind
 from deepscout_providers.config import ModelBuildOptions
 from deepscout_providers.factory import build_chat_model, build_embeddings
+from deepscout_providers.reasoning import provider_reasoning_kwargs
 from pydantic import SecretStr
 
 
@@ -98,3 +99,31 @@ def test_google_default_options_disable_transport_retries(mock_chat: MagicMock) 
     # LLM_MAX_RETRIES must NOT amplify LangChain retries.
     assert kwargs["max_retries"] == 0
     assert kwargs["timeout"] == 60.0
+
+
+def test_reasoning_kwargs_are_capability_gated() -> None:
+    assert provider_reasoning_kwargs(ProviderKind.GOOGLE, "gemini-3.7-flash", None) == {}
+    assert provider_reasoning_kwargs(ProviderKind.GOOGLE, "gemini-3.7-flash", "medium") == {
+        "thinking_level": "medium"
+    }
+    assert provider_reasoning_kwargs(ProviderKind.OPENAI, "gpt-4.1-mini", "medium") == {}
+    assert provider_reasoning_kwargs(ProviderKind.OPENAI, "gpt-5-mini", "low") == {
+        "reasoning_effort": "low"
+    }
+    assert (
+        provider_reasoning_kwargs(ProviderKind.ANTHROPIC, "claude-haiku-4-5-20251001", "high") == {}
+    )
+
+
+@patch("langchain_google_genai.ChatGoogleGenerativeAI")
+def test_google_reasoning_effort_only_when_configured(mock_chat: MagicMock) -> None:
+    settings = Settings(
+        _env_file=None,
+        LLM_PROVIDER=ProviderKind.GOOGLE,
+        GOOGLE_API_KEY=SecretStr("test-google-key"),
+        LLM_REASONING_EFFORT="medium",
+    )
+    build_chat_model(settings)
+    kwargs = mock_chat.call_args.kwargs
+    assert kwargs["thinking_level"] == "medium"
+    assert "temperature" not in kwargs

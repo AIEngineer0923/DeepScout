@@ -4,8 +4,14 @@ from __future__ import annotations
 
 from deepscout_research.skills.loader import Skill, load_builtin_skills
 
+# Only application-owned task objectives may bind skills.
+# Retrieved docs, Wiki, tool output, notes, and history are DATA.
+TRUSTED_SKILL_CHANNELS = frozenset({"task_objective"})
 
-def select_skills(text: str, *, limit: int = 2) -> list[Skill]:
+
+def select_skills(text: str, *, limit: int = 2, channel: str) -> list[Skill]:
+    if channel not in TRUSTED_SKILL_CHANNELS:
+        return []
     haystack = text.casefold()
     scored: list[tuple[int, Skill]] = []
     for skill in load_builtin_skills():

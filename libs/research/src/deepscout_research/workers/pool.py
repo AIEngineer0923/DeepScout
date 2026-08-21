@@ -149,7 +149,7 @@ class ResearchWorkerPool:
                         body="Ignored spawn/delegation request in task text",
                         task_id=task.id,
                     )
-                skills = select_skills(task.objective)
+                skills = select_skills(task.objective, channel="task_objective")
                 for skill in skills:
                     store.bind_skill(
                         run_id,

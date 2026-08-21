@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     )
     llm_timeout_s: float = Field(default=60.0, alias="LLM_TIMEOUT_S")
     llm_max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
+    llm_reasoning_effort: str | None = Field(default=None, alias="LLM_REASONING_EFFORT")
     hitl_enabled: bool = Field(default=True, alias="HITL_ENABLED")
     hitl_budget_extension_requires_review: bool = Field(
         default=True,

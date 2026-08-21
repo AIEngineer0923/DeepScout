@@ -13,6 +13,27 @@ from deepscout_core.domain.enums import (
 )
 
 
+def flatten_usage_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    """Lift provider-nested cache/reasoning fields without inventing zeros."""
+    flat: dict[str, object] = dict(metadata)
+    for nested_key in (
+        "input_token_details",
+        "output_token_details",
+        "prompt_tokens_details",
+        "completion_tokens_details",
+        "usage",
+    ):
+        nested = metadata.get(nested_key)
+        if isinstance(nested, dict):
+            for key, value in nested.items():
+                flat.setdefault(key, value)
+            cache_read = nested.get("cache_read") or nested.get("cached_tokens")
+            if cache_read is not None:
+                flat.setdefault("cache_read_input_tokens", cache_read)
+                flat.setdefault("cached_input_tokens", cache_read)
+    return flat
+
+
 @dataclass(frozen=True, slots=True)
 class TokenUsageRecord:
     """Provider-reported token usage for one model call."""
@@ -48,8 +69,10 @@ class TokenUsageRecord:
         iteration: int | None = None,
         retry: int = 0,
     ) -> TokenUsageRecord:
+        flat = flatten_usage_metadata(metadata)
+
         def _int(key: str) -> int | None:
-            value = metadata.get(key)
+            value = flat.get(key)
             if value is None:
                 return None
             try:
@@ -70,8 +93,17 @@ class TokenUsageRecord:
             or _int("output_token_count")
         )
         total = _int("total_tokens") or _int("total_token_count")
-        cached = _int("cached_input_tokens") or _int("cached_content_token_count")
-        reasoning = _int("reasoning_tokens") or _int("thoughts_token_count")
+        cached = (
+            _int("cached_input_tokens")
+            or _int("cached_content_token_count")
+            or _int("cache_read_input_tokens")
+            or _int("cached_tokens")
+        )
+        reasoning = (
+            _int("reasoning_tokens")
+            or _int("thoughts_token_count")
+            or _int("reasoning_output_tokens")
+        )
 
         known_fields = [v for v in (input_tokens, output_tokens, total) if v is not None]
         if not known_fields:

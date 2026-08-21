@@ -55,6 +55,13 @@ export type Workspace = {
     evaluation_total_tokens: number | null;
     evaluation_cost_usd: number | null;
     cost_unknown_reason: string | null;
+    by_role?: Record<string, {
+      input_tokens: number | null;
+      output_tokens: number | null;
+      cached_input_tokens: number | null;
+      reasoning_tokens: number | null;
+      total_tokens: number | null;
+    }>;
   };
   counts: {
     tasks: number;

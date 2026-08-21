@@ -12,8 +12,14 @@ SPAWN_PATTERNS = (
     "spawn 100 agents",
     "create more workers",
     "delegate recursively",
+    "delegate this recursively",
     "ignore delegation policy",
     "max_delegation_depth",
+    "increase max_depth",
+    "ignore max depth",
+    "create children until",
+    "budget does not matter",
+    "ignore budget",
 )
 
 

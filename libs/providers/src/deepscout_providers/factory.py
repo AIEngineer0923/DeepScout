@@ -7,6 +7,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from deepscout_providers.config import ModelBuildOptions, options_from_settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS, DEFAULT_EMBEDDING_MODELS
+from deepscout_providers.reasoning import provider_reasoning_kwargs
 
 
 def _apply_build_options(kwargs: dict[str, Any], options: ModelBuildOptions) -> dict[str, Any]:
@@ -29,8 +30,9 @@ def _build_google_chat_model(
         "model": model_name,
         "google_api_key": settings.require_api_key(ProviderKind.GOOGLE),
     }
-    # Gemini 3.7 uses thinking levels (default: medium). Do not pass temperature or
-    # thinking_level here — let the model and LangChain integration apply defaults.
+    kwargs.update(
+        provider_reasoning_kwargs(ProviderKind.GOOGLE, model_name, options.reasoning_effort)
+    )
     return ChatGoogleGenerativeAI(**_apply_build_options(kwargs, options))
 
 
@@ -46,6 +48,9 @@ def _build_openai_chat_model(
         "model": model_name,
         "api_key": settings.require_api_key(ProviderKind.OPENAI),
     }
+    kwargs.update(
+        provider_reasoning_kwargs(ProviderKind.OPENAI, model_name, options.reasoning_effort)
+    )
     return ChatOpenAI(**_apply_build_options(kwargs, options))
 
 
@@ -61,6 +66,12 @@ def _build_anthropic_chat_model(
         "model": model_name,
         "api_key": settings.require_api_key(ProviderKind.ANTHROPIC),
     }
+    # Anthropic thinking/budget_tokens is a different object; do not invent a
+    # universal mapping from effort strings. Leave unset unless a future
+    # provider-specific control is explicitly registered.
+    kwargs.update(
+        provider_reasoning_kwargs(ProviderKind.ANTHROPIC, model_name, options.reasoning_effort)
+    )
     return ChatAnthropic(**_apply_build_options(kwargs, options))
 
 

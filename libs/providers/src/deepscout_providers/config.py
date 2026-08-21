@@ -21,11 +21,13 @@ class ModelBuildOptions:
     """Cross-provider options with stable semantics.
 
     Sampling parameters (temperature, thinking level, reasoning effort) are
-    intentionally omitted — each provider applies its own defaults in the factory.
+    omitted unless ``reasoning_effort`` is explicitly set. Unsupported
+    provider/model combinations still receive no extra kwargs.
     """
 
     timeout: float | None = None
     max_retries: int | None = None
+    reasoning_effort: str | None = None
 
 
 DEFAULT_MODEL_BUILD_OPTIONS = ModelBuildOptions(
@@ -43,6 +45,7 @@ def options_from_settings(settings: Settings) -> ModelBuildOptions:
     return ModelBuildOptions(
         timeout=float(settings.llm_timeout_s),
         max_retries=PROVIDER_TRANSPORT_MAX_RETRIES,
+        reasoning_effort=settings.llm_reasoning_effort,
     )
 
 

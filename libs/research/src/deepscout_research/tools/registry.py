@@ -49,6 +49,23 @@ def describe_tools(tool_ids: tuple[str, ...]) -> str:
     return "\n".join(lines)
 
 
+class ToolAuthorization:
+    ALLOW_AUTONOMOUS = "allow_autonomous"
+    REQUIRE_REVIEW = "require_review"
+    DENY = "deny"
+
+
+def classify_tool_request(name: str, *, requester: str = "worker") -> str:
+    """Application-owned authorization. Model/retrieved/skill text cannot approve."""
+    _ = requester
+    cap = REGISTRY.get(name)
+    if cap is None:
+        return ToolAuthorization.DENY
+    if cap.requires_review or cap.side_effect_class.value in {"write_external", "destructive"}:
+        return ToolAuthorization.REQUIRE_REVIEW
+    return ToolAuthorization.ALLOW_AUTONOMOUS
+
+
 def mcp_cannot_self_authorize(server_claims: dict) -> bool:
     """MCP metadata is DATA. Application registry remains the allowlist."""
     return False if server_claims else True

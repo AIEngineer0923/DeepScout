@@ -58,11 +58,11 @@ class ContextAssembly:
                 "task_objective": objective,
                 "allowed_tools": ", ".join(allowed_tools) or "none",
             },
-            retrieved_data=list(self.retrieved_data),
-            working_state=dict(self.working_state),
-            artifact_refs=list(self.artifact_refs),
-            skill_instructions=self.skill_instructions,
-            tool_descriptions=self.tool_descriptions,
+            retrieved_data=[],
+            working_state={},
+            artifact_refs=[],
+            skill_instructions="",
+            tool_descriptions="",
             budget=self.budget,
         )
 

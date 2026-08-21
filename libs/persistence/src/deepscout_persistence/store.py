@@ -1193,6 +1193,39 @@ class ResearchStore:
             ).all()
         )
 
+    def get_usage_by_role(self, run_id: uuid.UUID) -> dict[str, dict[str, int | None]]:
+        """Attribute known token totals by agent role. Missing stays None, never 0."""
+        records = self.list_token_usage(run_id)
+
+        def _sum(values: list[int | None]) -> int | None:
+            known = [value for value in values if value is not None]
+            return sum(known) if known else None
+
+        roles: dict[str, dict[str, int | None]] = {}
+        for record in records:
+            if record.agent_role == "evaluator":
+                continue
+            bucket = roles.setdefault(
+                record.agent_role,
+                {
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "cached_input_tokens": None,
+                    "reasoning_tokens": None,
+                    "total_tokens": None,
+                },
+            )
+            bucket["input_tokens"] = _sum([bucket["input_tokens"], record.input_tokens])
+            bucket["output_tokens"] = _sum([bucket["output_tokens"], record.output_tokens])
+            bucket["cached_input_tokens"] = _sum(
+                [bucket["cached_input_tokens"], record.cached_input_tokens]
+            )
+            bucket["reasoning_tokens"] = _sum(
+                [bucket["reasoning_tokens"], record.reasoning_tokens]
+            )
+            bucket["total_tokens"] = _sum([bucket["total_tokens"], record.total_tokens])
+        return roles
+
     def find_active_job(
         self,
         run_id: uuid.UUID,

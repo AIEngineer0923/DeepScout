@@ -22,7 +22,7 @@ def test_retrieved_spawn_and_skill_and_tool_grants_fail() -> None:
         untrusted_text=page,
     )
     assert refuse_document_skill_promotion(page)
-    assert select_skills(page) == [] or all(
-        skill.skill_id != "shell-exec" for skill in select_skills(page)
-    )
+    assert select_skills(page, channel="retrieved_document") == []
+    assert select_skills(page, channel="wiki") == []
+    assert select_skills(page, channel="tool_result") == []
     assert resolve_tools(["filesystem", "shell"]) == ()
