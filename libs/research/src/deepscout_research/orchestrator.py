@@ -237,6 +237,7 @@ class ResearchOrchestrator:
             run_id=run_id,
             goal=goal,
             budget_summary=budget_summary,
+            output_language=run.output_language,
             store=self._store,
         )
         self._store.save_plan(run_id, planner_output_to_write(plan_output))

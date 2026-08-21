@@ -7,9 +7,11 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { ExternalLink } from "@/components/ExternalLink";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useT } from "@/i18n/context";
 
 export function SnapshotScreen({ snapshotId }: { snapshotId: string }) {
   const { workspace } = useRun();
+  const t = useT();
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [highlight, setHighlight] = useState(true);
   useEffect(() => {
@@ -33,23 +35,23 @@ export function SnapshotScreen({ snapshotId }: { snapshotId: string }) {
     parts.push({ text: remaining, id: null });
     return parts.length ? parts : [{ text, id: null }];
   }, [text, evidence, highlight]);
-  if (!workspace) return <p className="empty">Loading snapshot…</p>;
+  if (!workspace) return <p className="empty">{t("snapshot.loading")}</p>;
   return (
     <div>
       <RunHeader workspace={workspace} />
       <div className="grid cols-2">
         <section className="card">
-          <h2 className="wrap-text">{snapshot?.source_title ?? "Source snapshot"}</h2>
+          <h2 className="wrap-text">{snapshot?.source_title ?? t("snapshot.sourceTitle")}</h2>
           {snapshot?.url ? <p><ExternalLink href={snapshot.url}>{snapshot.url}</ExternalLink></p> : null}
           <div className="grid cols-metrics">
-            <article className="metric"><div className="k">Fetched</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.retrieved_at ?? "—"}</div></article>
-            <article className="metric"><div className="k">Type</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.mime_type ?? "—"}</div></article>
-            <article className="metric"><div className="k">Size</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.byte_size ?? "—"}</div></article>
-            <article className="metric"><div className="k">Hash</div><div className="v mono" style={{ fontSize: 12 }}>{snapshot?.content_hash?.slice(0, 12) ?? "—"}</div></article>
+            <article className="metric"><div className="k">{t("snapshot.fetched")}</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.retrieved_at ?? "—"}</div></article>
+            <article className="metric"><div className="k">{t("snapshot.type")}</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.mime_type ?? "—"}</div></article>
+            <article className="metric"><div className="k">{t("snapshot.size")}</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.byte_size ?? "—"}</div></article>
+            <article className="metric"><div className="k">{t("snapshot.hash")}</div><div className="v mono" style={{ fontSize: 12 }}>{snapshot?.content_hash?.slice(0, 12) ?? "—"}</div></article>
           </div>
           <div className="toolbar">
-            <label className="row"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> Highlight evidence</label>
-            {snapshot ? <a className="btn" href={api.exportUrl(workspace.run_id, "snapshot-text", snapshotId)}>Download text</a> : null}
+            <label className="row"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> {t("snapshot.highlight")}</label>
+            {snapshot ? <a className="btn" href={api.exportUrl(workspace.run_id, "snapshot-text", snapshotId)}>{t("snapshot.download")}</a> : null}
           </div>
           <pre className="wrap-text" style={{ maxHeight: 480, overflow: "auto", background: "#f8fafc", padding: 12, borderRadius: 8 }}>
             {highlighted.map((part, index) => (
@@ -58,15 +60,15 @@ export function SnapshotScreen({ snapshotId }: { snapshotId: string }) {
           </pre>
         </section>
         <aside className="drawer">
-          <h2>Evidence from this snapshot</h2>
+          <h2>{t("snapshot.evidence")}</h2>
           {evidence.map((item) => (
             <article key={item.id} style={{ marginBottom: 12 }}>
               <Link href={`/research/${workspace.run_id}/claims?claim=${item.claim_id}`}>{item.id.slice(0, 8)}</Link>
               <p className="wrap-text muted">“{item.quote}”</p>
             </article>
           ))}
-          {!evidence.length ? <p className="empty">No evidence linked yet.</p> : null}
-          <Link href={`/research/${workspace.run_id}/claims`}>View in evidence tab</Link>
+          {!evidence.length ? <p className="empty">{t("snapshot.noneEvidence")}</p> : null}
+          <Link href={`/research/${workspace.run_id}/claims`}>{t("snapshot.openEvidence")}</Link>
         </aside>
       </div>
     </div>

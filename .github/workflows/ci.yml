@@ -104,7 +104,7 @@ jobs:
   web:
     name: Frontend build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -120,5 +120,7 @@ jobs:
         working-directory: apps/web
         run: |
           npm ci
+          npx playwright install --with-deps chromium firefox webkit
           npm test
           npm run build
+          npm run test:e2e

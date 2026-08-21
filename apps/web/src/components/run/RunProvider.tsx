@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, apiUrl } from "@/lib/api";
+import { rememberRunId } from "@/lib/current-run";
 import type { Workspace } from "@/lib/types";
 
 type Ctx = {
@@ -21,8 +22,9 @@ export function RunProvider({ runId, children }: { runId: string; children: Reac
   }, [runId]);
 
   useEffect(() => {
+    rememberRunId(runId);
     reload();
-  }, [reload]);
+  }, [reload, runId]);
 
   useEffect(() => {
     const source = new EventSource(`${apiUrl}/api/v1/research-runs/${runId}/events`);

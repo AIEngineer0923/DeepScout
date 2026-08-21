@@ -47,6 +47,8 @@ class ResearchRunRow(Base):
     )
     llm_provider: Mapped[str] = mapped_column(String(32), nullable=False)
     llm_model: Mapped[str] = mapped_column(String(128), nullable=False)
+    research_mode: Mapped[str | None] = mapped_column(String(16))
+    output_language: Mapped[str] = mapped_column(String(16), nullable=False, default="en")
     max_iterations: Mapped[int] = mapped_column(Integer, nullable=False)
     max_wall_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     max_total_tokens: Mapped[int] = mapped_column(Integer, nullable=False)

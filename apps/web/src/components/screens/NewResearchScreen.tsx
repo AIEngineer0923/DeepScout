@@ -3,34 +3,33 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { rememberRunId } from "@/lib/current-run";
+import { useT } from "@/i18n/context";
+import { IconBolt, IconCheck, IconLayers, IconSpark } from "@/components/Icons";
 
 const MODES = [
-  { id: "quick", title: "Quick", body: "Fast overview, essential sources, lower cost." },
-  { id: "standard", title: "Standard", body: "Balanced, verifiable research." },
-  { id: "deep", title: "Deep", body: "Comprehensive analysis, higher cost." },
-] as const;
+  { id: "quick" as const, titleKey: "new.mode.quick", bodyKey: "new.mode.quickBody", badgeKey: "new.mode.quickBadge", icon: IconBolt },
+  { id: "standard" as const, titleKey: "new.mode.standard", bodyKey: "new.mode.standardBody", badgeKey: "new.mode.standardBadge", icon: IconLayers },
+  { id: "deep" as const, titleKey: "new.mode.deep", bodyKey: "new.mode.deepBody", badgeKey: "new.mode.deepBadge", icon: IconSpark },
+];
 
 export function NewResearchScreen() {
   const router = useRouter();
+  const t = useT();
   const [goal, setGoal] = useState("");
   const [mode, setMode] = useState<"quick" | "standard" | "deep">("standard");
-  const [language, setLanguage] = useState("English");
-  const [freshness, setFreshness] = useState("Last 12 months");
-  const [excluded, setExcluded] = useState("");
+  const [outputLanguage, setOutputLanguage] = useState("en");
   const [advanced, setAdvanced] = useState(false);
-  const [maxSources, setMaxSources] = useState("20");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const summary = useMemo(
     () => ({
       mode,
-      language,
-      freshness,
+      outputLanguage,
       sources: mode === "quick" ? "4–8" : mode === "deep" ? "20–60" : "8–20",
-      cost: "Unknown until the run reports usage",
     }),
-    [mode, language, freshness],
+    [mode, outputLanguage],
   );
 
   async function start() {
@@ -38,11 +37,16 @@ export function NewResearchScreen() {
     setBusy(true);
     setError(null);
     try {
-      const created = await api.createRun({ goal: goal.trim(), research_mode: mode });
+      const created = await api.createRun({
+        goal: goal.trim(),
+        research_mode: mode,
+        output_language: outputLanguage,
+      });
+      rememberRunId(created.id);
       await api.execute(created.id);
       router.push(`/research/${created.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start research");
+      setError(err instanceof Error ? err.message : t("new.startError"));
     } finally {
       setBusy(false);
     }
@@ -51,60 +55,130 @@ export function NewResearchScreen() {
   return (
     <div className="grid cols-2">
       <div>
-        <h1 className="page-title">New Research</h1>
-        <p className="page-sub">Define a research goal. DeepScout plans tasks dynamically from that goal.</p>
+        <h1 className="page-title">{t("new.title")}</h1>
+        <p className="page-sub">{t("new.subtitle")}</p>
         <div className="card" style={{ marginTop: 16 }}>
           <div className="field">
-            <label htmlFor="goal">1. What do you want to research?</label>
-            <textarea id="goal" className="textarea" maxLength={1000} value={goal} onChange={(e) => setGoal(e.target.value)} />
+            <label htmlFor="goal">{t("new.step1")}</label>
+            <textarea
+              id="goal"
+              className="textarea"
+              maxLength={1000}
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              data-testid="research-goal"
+            />
             <span className="muted">{goal.length} / 1000</span>
           </div>
           <div style={{ marginTop: 16 }}>
-            <div className="muted">2. Research mode</div>
-            <div className="mode-grid" style={{ marginTop: 8 }}>
-              {MODES.map((item) => (
-                <button key={item.id} type="button" className={`mode ${mode === item.id ? "selected" : ""}`} onClick={() => setMode(item.id)}>
-                  <strong>{item.title}</strong>
-                  <div className="muted">{item.body}</div>
-                </button>
-              ))}
+            <div className="muted">{t("new.step2")}</div>
+            <div className="mode-grid" style={{ marginTop: 8 }} role="radiogroup" aria-label={t("new.step2")}>
+              {MODES.map((item) => {
+                const selected = mode === item.id;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    data-testid={`mode-${item.id}`}
+                    className={`mode ${selected ? "selected" : ""}`}
+                    onClick={() => setMode(item.id)}
+                  >
+                    {selected ? (
+                      <span className="mode-check">
+                        <IconCheck />
+                      </span>
+                    ) : null}
+                    <span className="mode-icon">
+                      <Icon />
+                    </span>
+                    <strong>{t(item.titleKey)}</strong>
+                    <div className="muted">{t(item.bodyKey)}</div>
+                    <span className="mode-badge">{t(item.badgeKey)}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <div className="grid cols-2" style={{ marginTop: 16 }}>
-            <div className="field"><label>Language</label><input className="input" value={language} onChange={(e) => setLanguage(e.target.value)} /></div>
-            <div className="field"><label>Source freshness</label><input className="input" value={freshness} onChange={(e) => setFreshness(e.target.value)} /></div>
-            <div className="field"><label>Excluded domains</label><input className="input" value={excluded} onChange={(e) => setExcluded(e.target.value)} placeholder="None" /></div>
-            <div className="field"><label>Region focus</label><input className="input" value="Any region" readOnly /></div>
+          <div style={{ marginTop: 16 }}>
+            <div className="muted">{t("new.step3")}</div>
+            <div className="grid cols-2" style={{ marginTop: 8 }}>
+              <div className="field">
+                <label htmlFor="output-language">{t("new.outputLanguage")}</label>
+                <select
+                  id="output-language"
+                  className="select"
+                  value={outputLanguage}
+                  onChange={(e) => setOutputLanguage(e.target.value)}
+                  data-testid="output-language"
+                >
+                  <option value="en">{t("lang.en")}</option>
+                  <option value="it">{t("lang.it")}</option>
+                </select>
+                <span className="muted">{t("new.outputLanguageHelp")}</span>
+              </div>
+              <div className="field">
+                <label htmlFor="freshness">{t("new.freshness")}</label>
+                <select id="freshness" className="select" disabled aria-disabled="true" title={t("new.unsupportedFilter")}>
+                  <option>{t("freshness.live")}</option>
+                </select>
+                <span className="muted">{t("new.unsupportedFilter")}</span>
+              </div>
+              <div className="field">
+                <label htmlFor="excluded">{t("new.excluded")}</label>
+                <input id="excluded" className="input" disabled aria-disabled="true" placeholder="—" title={t("new.unsupportedFilter")} />
+                <span className="muted">{t("new.unsupportedFilter")}</span>
+              </div>
+              <div className="field">
+                <label htmlFor="region">{t("new.region")}</label>
+                <input id="region" className="input" value={t("new.regionAny")} readOnly title={t("new.unsupportedFilter")} />
+                <span className="muted">{t("new.unsupportedFilter")}</span>
+              </div>
+            </div>
           </div>
           <button type="button" className="btn ghost" style={{ marginTop: 12 }} onClick={() => setAdvanced(!advanced)}>
-            {advanced ? "Hide" : "Show"} advanced settings
+            {advanced ? t("action.hideAdvanced") : t("action.showAdvanced")}
           </button>
           {advanced ? (
             <div className="field" style={{ marginTop: 8 }}>
-              <label>Max sources (hint — actual limit comes from server budget for this mode)</label>
-              <input className="input" value={maxSources} onChange={(e) => setMaxSources(e.target.value)} />
+              <label htmlFor="max-sources">{t("new.maxSources")}</label>
+              <input id="max-sources" className="input" value={summary.sources} readOnly title={t("new.budgetByMode")} />
+              <span className="muted">{t("new.budgetByMode")}</span>
             </div>
           ) : null}
           {error ? <p className="badge bad wrap-text">{error}</p> : null}
-          <div className="row" style={{ marginTop: 16, justifyContent: "space-between" }}>
-            <button className="btn" type="button" onClick={() => router.push("/")}>Cancel</button>
-            <button className="btn primary" type="button" disabled={busy || !goal.trim()} onClick={() => void start()}>Start research →</button>
+          <div className="form-actions" style={{ marginTop: 16 }}>
+            <button className="btn" type="button" onClick={() => router.push("/")}>
+              {t("action.cancel")}
+            </button>
+            <button className="btn primary" type="button" disabled={busy || !goal.trim()} data-testid="start-research" onClick={() => void start()}>
+              {t("action.start")} →
+            </button>
           </div>
         </div>
       </div>
       <aside>
         <section className="card">
-          <h2>Research summary</h2>
-          <p className="wrap-text">{goal || "Goal will appear here as you type."}</p>
-          <p>Mode: {summary.mode}</p>
-          <p>Expected sources: {summary.sources}</p>
-          <p>Language: {summary.language}</p>
-          <p>Freshness: {summary.freshness}</p>
+          <h2>{t("new.summary")}</h2>
+          <p className="wrap-text">{goal || t("new.summaryEmpty")}</p>
+          <p>
+            {t("new.step2")}: <strong data-testid="summary-mode">{summary.mode}</strong>
+          </p>
+          <p>
+            {t("new.expectedSources")}: {summary.sources}
+          </p>
+          <p>
+            {t("new.outputLanguage")}: {summary.outputLanguage === "it" ? t("lang.it") : t("lang.en")}
+          </p>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>Resource estimate</h2>
-          <p>Estimated cost: <strong>{summary.cost}</strong></p>
-          <p className="muted">DeepScout does not invent token or dollar estimates before a run. Cost is shown after real usage is mapped to the pricing catalog, otherwise Unknown.</p>
+          <h2>{t("new.resources")}</h2>
+          <p>
+            {t("provider.appCost")}: <strong>{t("new.costUnknown")}</strong>
+          </p>
+          <p className="muted">{t("new.costNote")}</p>
         </section>
       </aside>
     </div>

@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRun } from "@/components/run/RunProvider";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useT } from "@/i18n/context";
 
 export function ResumeScreen() {
   const { workspace, reload } = useRun();
+  const t = useT();
   const router = useRouter();
-  if (!workspace) return <p className="empty">Loading resume state…</p>;
+  if (!workspace) return <p className="empty">{t("resume.loading")}</p>;
   const resume = workspace.resume;
   async function doResume() {
     await api.resume(workspace!.run_id);
@@ -21,34 +23,34 @@ export function ResumeScreen() {
   }
   return (
     <div>
-      <h1 className="page-title">Resume research</h1>
-      <p className="page-sub">PostgreSQL domain state is authoritative. LangGraph checkpoints store worker execution snapshots only.</p>
+      <h1 className="page-title">{t("resume.title")}</h1>
+      <p className="page-sub">{t("resume.subtitle")}</p>
       <div className="row" style={{ margin: "16px 0" }}>
-        <button className="btn primary" disabled={!resume.resumable} onClick={() => void doResume()}>Resume research</button>
-        <button className="btn" onClick={() => void doRestart()}>Restart from beginning</button>
+        <button className="btn primary" disabled={!resume.resumable} onClick={() => void doResume()}>{t("action.resume")}</button>
+        <button className="btn" onClick={() => void doRestart()}>{t("action.restart")}</button>
         {["running", "pending"].includes(workspace.status) ? (
-          <button className="btn danger" onClick={() => void api.cancel(workspace.run_id).then(reload)}>Cancel research</button>
+          <button className="btn danger" onClick={() => void api.cancel(workspace.run_id).then(reload)}>{t("action.cancelResearch")}</button>
         ) : null}
       </div>
       <p className="wrap-text"><strong>{workspace.goal}</strong></p>
       <StatusBadge status={workspace.status} />
       <div className="grid cols-3" style={{ marginTop: 16 }}>
         <article className="card">
-          <h2>Last persisted state</h2>
+          <h2>{t("resume.lastState")}</h2>
           <p>Current phase: {resume.current_phase}</p>
           <p>Latest job: {resume.latest_job_type ?? "—"} ({resume.latest_job_status ?? "none"})</p>
           <p>Checkpoint role: {resume.checkpoint_role.replaceAll("_", " ")}</p>
         </article>
         <article className="card">
-          <h2>What’s been completed</h2>
-          <p>{resume.completed_task_count} completed tasks</p>
-          <p>{resume.preserved_sources} sources preserved</p>
-          <p>{resume.preserved_evidence} evidence items preserved</p>
+          <h2>{t("resume.completed")}</h2>
+          <p>{t("resume.completedTasks", { count: resume.completed_task_count })}</p>
+          <p>{t("resume.sources", { count: resume.preserved_sources })}</p>
+          <p>{t("resume.evidence", { count: resume.preserved_evidence })}</p>
         </article>
         <article className="card">
-          <h2>Remaining work</h2>
-          <p>{resume.remaining_task_count} recoverable / remaining tasks</p>
-          <p className="muted">Resume continues the existing run. Restart creates a new run with the same goal.</p>
+          <h2>{t("resume.remaining")}</h2>
+          <p>{t("resume.remainingTasks", { count: resume.remaining_task_count })}</p>
+          <p className="muted">{t("resume.note")}</p>
         </article>
       </div>
     </div>

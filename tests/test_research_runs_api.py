@@ -114,6 +114,21 @@ def test_list_and_overview(api_client: TestClient) -> None:
 
 
 @pytest.mark.postgres
+def test_create_run_persists_mode_and_language(api_client: TestClient) -> None:
+    created = api_client.post(
+        "/api/v1/research-runs",
+        json={"goal": "Deep mode Italian report", "research_mode": "deep", "output_language": "it"},
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["research_mode"] == "deep"
+    assert body["output_language"] == "it"
+    workspace = api_client.get(f"/api/v1/research-runs/{body['id']}/workspace")
+    assert workspace.json()["research_mode"] == "deep"
+    assert workspace.json()["output_language"] == "it"
+
+
+@pytest.mark.postgres
 def test_resume_cancelled_run_conflict(api_client: TestClient) -> None:
     created = api_client.post("/api/v1/research-runs", json={"goal": "Resume guard"})
     run_id = created.json()["id"]

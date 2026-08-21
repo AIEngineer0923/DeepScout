@@ -22,6 +22,7 @@ class ResearchRunCreate(BaseModel):
     goal: str = Field(min_length=1, max_length=8000)
     budget: ResearchBudget | None = None
     research_mode: Literal["quick", "standard", "deep"] | None = None
+    output_language: str = Field(default="en", min_length=2, max_length=16)
 
 
 class ResearchRunRead(BaseModel):
@@ -33,6 +34,8 @@ class ResearchRunRead(BaseModel):
     budget: ResearchBudget
     usage: RunUsageSummary | None = None
     termination_reason: str | None = None
+    research_mode: Literal["quick", "standard", "deep"] | None = None
+    output_language: str = "en"
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None

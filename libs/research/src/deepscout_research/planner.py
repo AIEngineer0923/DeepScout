@@ -32,17 +32,22 @@ def build_research_plan(
     goal: str,
     budget_summary: str,
     store: ResearchStore | None = None,
+    output_language: str = "en",
 ) -> PlannerOutput:
     router = ModelRouter(settings)
     model, selection = router.build_chat_model(AgentRole.PLANNER)
     structured_model = model.with_structured_output(PlannerOutput, include_raw=True)
+    language_note = (
+        f"Write planner approach, success criteria, and research questions in {output_language}. "
+        "This is the research output language, not the product UI language."
+    )
     context = ContextAssembly(
         run_id=run_id,
         phase=ResearchPhase.PLAN,
         goal=goal,
         system_policy=compose_system_message(PLANNER_V1),
         phase_instructions="Create 2-5 prioritized research questions.",
-        domain_state={"budget": budget_summary},
+        domain_state={"budget": budget_summary, "output_language": language_note},
     )
     messages = [
         SystemMessage(content=compose_system_message(PLANNER_V1)),

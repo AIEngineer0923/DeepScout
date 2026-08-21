@@ -6,7 +6,14 @@ async function parse<T>(responsePromise: Promise<Response>): Promise<T> {
   const response = await responsePromise;
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed (${response.status})`);
+    let message = text || `Request failed (${response.status})`;
+    try {
+      const parsed = JSON.parse(text) as { detail?: string };
+      if (typeof parsed.detail === "string" && parsed.detail) message = parsed.detail;
+    } catch {
+      /* keep raw text */
+    }
+    throw new Error(message);
   }
   return (await response.json()) as T;
 }
@@ -23,8 +30,15 @@ export const api = {
       fetch(`${apiUrl}/api/v1/research-runs?${query}`, { cache: "no-store" }),
     );
   },
-  createRun: (body: { goal: string; research_mode?: string }) =>
-    parse<{ id: string }>(
+  historyCsvUrl: (params: Record<string, string | number | undefined> = {}) => {
+    const query = new URLSearchParams({ format: "csv", limit: "100" });
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.set(key, String(value));
+    });
+    return `${apiUrl}/api/v1/research-runs?${query}`;
+  },
+  createRun: (body: { goal: string; research_mode?: string; output_language?: string }) =>
+    parse<{ id: string; research_mode?: string; output_language?: string }>(
       fetch(`${apiUrl}/api/v1/research-runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -1,13 +1,13 @@
 const ACTIVE = new Set(["running", "pending", "researching"]);
 
-export function formatCost(value: number | null | undefined, status?: string): string {
-  if (value == null || status === "unknown") return "Unknown";
+export function formatCost(value: number | null | undefined, status?: string, unknownLabel = "Unknown"): string {
+  if (value == null || status === "unknown") return unknownLabel;
   if (value < 0.01) return `$${value.toFixed(4)}`;
   return `$${value.toFixed(2)}`;
 }
 
-export function formatTokens(value: number | null | undefined): string {
-  if (value == null) return "Unknown";
+export function formatTokens(value: number | null | undefined, unknownLabel = "Unknown"): string {
+  if (value == null) return unknownLabel;
   return value.toLocaleString();
 }
 
@@ -24,17 +24,17 @@ export function statusTone(status: string): "ok" | "run" | "warn" | "bad" | "mut
   return "muted";
 }
 
-export function relativeTime(iso: string | null | undefined): string {
+export function relativeTime(iso: string | null | undefined, locale = "en"): string {
   if (!iso) return "—";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
   const delta = Date.now() - then;
   const minutes = Math.round(delta / 60000);
-  if (Math.abs(minutes) < 1) return "just now";
-  if (Math.abs(minutes) < 60) return `${minutes}m ago`;
+  if (Math.abs(minutes) < 1) return locale === "it" ? "adesso" : "just now";
+  if (Math.abs(minutes) < 60) return locale === "it" ? `${minutes} min fa` : `${minutes}m ago`;
   const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 24) return `${hours}h ago`;
-  return new Date(iso).toLocaleString();
+  if (Math.abs(hours) < 24) return locale === "it" ? `${hours} h fa` : `${hours}h ago`;
+  return new Date(iso).toLocaleString(locale === "it" ? "it-IT" : "en-US");
 }
 
 export function elapsed(from: string | null, to?: string | null): string {

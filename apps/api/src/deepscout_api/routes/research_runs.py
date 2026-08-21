@@ -28,6 +28,8 @@ class RunListItem(BaseModel):
     status: str
     llm_provider: str
     llm_model: str
+    research_mode: str | None = None
+    output_language: str = "en"
     termination_reason: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -84,6 +86,8 @@ def _list_item(store, row) -> RunListItem:
         status=row.status.value,
         llm_provider=row.llm_provider,
         llm_model=row.llm_model,
+        research_mode=row.research_mode,
+        output_language=row.output_language,
         termination_reason=row.termination_reason,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -157,24 +161,30 @@ def create_research_run(
     return store.create_run(body, settings)
 
 
-@router.get("", response_model=RunListResponse)
+@router.get("", response_model=None)
 def list_research_runs(
     store=Depends(get_research_store),
     status: str | None = Query(default=None),
     q: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-) -> RunListResponse:
+    format: str | None = Query(default=None),
+) -> RunListResponse | PlainTextResponse:
     try:
         rows, total = store.list_runs(status=status, query=q, limit=limit, offset=offset)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return RunListResponse(
-        items=[_list_item(store, row) for row in rows],
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+    items = [_list_item(store, row) for row in rows]
+    if format == "csv":
+        lines = ["id,goal,status,research_mode,output_language,tokens,cost,updated_at"]
+        for item in items:
+            goal = item.goal.replace('"', "'")
+            lines.append(
+                f"{item.id},\"{goal}\",{item.status},{item.research_mode or ''},"
+                f"{item.output_language},{item.total_tokens or ''},{item.cost_usd or ''},{item.updated_at.isoformat()}"
+            )
+        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/csv")
+    return RunListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{run_id}", response_model=ResearchRunRead)
@@ -327,7 +337,15 @@ def restart_research_run(
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    created = store.create_run(ResearchRunCreate(goal=run.goal, budget=run.budget), settings)
+    created = store.create_run(
+        ResearchRunCreate(
+            goal=run.goal,
+            budget=run.budget,
+            research_mode=run.research_mode,
+            output_language=run.output_language,
+        ),
+        settings,
+    )
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(created.id)
     _kick_worker(background_tasks, settings)
@@ -376,7 +394,7 @@ def get_run_evaluations(
 def export_research_run(
     run_id: UUID,
     store=Depends(get_research_store),
-    format: str = Query(default="markdown", pattern="^(markdown|json|csv|pdf|sources-csv|evals-json|snapshot-text)$"),
+    format: str = Query(default="markdown", pattern="^(markdown|json|csv|pdf|sources-csv|evals-json|evals-csv|snapshot-text)$"),
     snapshot_id: UUID | None = None,
 ):
     if store.get_run(run_id) is None:
@@ -387,6 +405,17 @@ def export_research_run(
         return workspace
     if format == "evals-json":
         return {"run_id": str(run_id), "evaluations": workspace["evaluations"]}
+    if format == "evals-csv":
+        lines = ["evaluator_id,version,category,method,applicability,value"]
+        for item in workspace["evaluations"]:
+            value = str(item.get("value") or "").replace('"', "'")
+            lines.append(
+                f"{item['evaluator_id']},{item['version']},{item['category']},"
+                f"{item['method']},{item['applicability']},\"{value}\""
+            )
+        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/csv")
+    if format == "history-csv":
+        raise HTTPException(status_code=400, detail="history-csv is a list export, not a run export")
     if format == "csv" or format == "sources-csv":
         lines = ["title,domain,url,status,claims,evidence"]
         for source in workspace["sources"]:
@@ -405,27 +434,126 @@ def export_research_run(
     markdown = report.get("body_markdown") or f"# {workspace['goal']}\n\nReport is not available yet.\n"
     if format == "markdown":
         return PlainTextResponse(markdown, media_type="text/markdown")
-    return Response(content=_simple_pdf(workspace["goal"], markdown), media_type="application/pdf")
+    return Response(content=_report_pdf(workspace["goal"], markdown), media_type="application/pdf")
 
 
-def _simple_pdf(title: str, body: str) -> bytes:
-    safe_title = title.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")[:120]
-    lines = [line[:90] for line in body.replace("\r", "").split("\n")[:80]]
-    stream_lines = ["BT", "/F1 12 Tf", "72 720 Td", f"({safe_title}) Tj", "0 -18 Td"]
-    for line in lines:
-        escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        stream_lines.append(f"({escaped}) Tj")
-        stream_lines.append("0 -14 Td")
-    stream_lines.append("ET")
-    stream = "\n".join(stream_lines).encode("latin-1", errors="replace")
-    objects = [
+def _pdf_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _wrap_pdf_line(text: str, width: int = 92) -> list[str]:
+    if not text:
+        return [""]
+    words = text.split(" ")
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = word if not current else f"{current} {word}"
+        if len(candidate) <= width:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+        while len(word) > width:
+            lines.append(word[:width])
+            word = word[width:]
+        current = word
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
+def _report_pdf(title: str, body: str) -> bytes:
+    """Simple multi-page Helvetica PDF with wrapping, margins, and heading hierarchy."""
+    page_width = 612
+    page_height = 792
+    margin = 54
+    y_start = page_height - margin
+    line_height = 13
+    title_size = 16
+    body_size = 11
+    heading_size = 13
+
+    pages: list[list[tuple[int, str]]] = []
+    current: list[tuple[int, str]] = []
+    y = y_start
+
+    def add_line(size: int, text: str) -> None:
+        nonlocal y, current
+        if y < margin + line_height:
+            pages.append(current)
+            current = []
+            y = y_start
+        current.append((size, text))
+        y -= 22 if size >= 15 else (18 if size >= 13 else line_height)
+
+    add_line(title_size, title[:180] or "DeepScout report")
+    add_line(body_size, "")
+    for raw in body.replace("\r", "").split("\n"):
+        stripped = raw.strip()
+        if stripped.startswith("# "):
+            add_line(heading_size, stripped[2:])
+            continue
+        if stripped.startswith("## "):
+            add_line(heading_size, stripped[3:])
+            continue
+        if stripped.startswith("### "):
+            add_line(body_size, stripped[4:])
+            continue
+        if not stripped:
+            add_line(body_size, "")
+            continue
+        for wrapped in _wrap_pdf_line(stripped, 88):
+            add_line(body_size, wrapped)
+    if current:
+        pages.append(current)
+
+    content_objects: list[bytes] = []
+    for page in pages:
+        commands = ["BT", f"{margin} {y_start} Td"]
+        last_size = 0
+        for size, text in page:
+            if size != last_size:
+                font = "F2" if size >= 13 else "F1"
+                commands.append(f"/{font} {size} Tf")
+                last_size = size
+            commands.append(f"({_pdf_escape(text[:200])}) Tj")
+            gap = -22 if size >= 15 else (-18 if size >= 13 else -line_height)
+            commands.append(f"0 {gap} Td")
+        commands.append("ET")
+        stream = "\n".join(commands).encode("latin-1", errors="replace")
+        content_objects.append(stream)
+
+    objects: list[bytes] = [
         b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n",
-        b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n",
-        b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n",
-        b"4 0 obj << /Length " + str(len(stream)).encode() + b" >> stream\n" + stream + b"\nendstream endobj\n",
-        b"5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n",
     ]
-    xref_positions = []
+    page_ids = [4 + index * 2 for index in range(len(content_objects) or 1)]
+    if not content_objects:
+        content_objects = [b"BT /F1 11 Tf 54 738 Td (Empty report) Tj ET"]
+    kids = " ".join(f"{pid} 0 R" for pid in page_ids)
+    objects.append(
+        f"2 0 obj << /Type /Pages /Kids [{kids}] /Count {len(page_ids)} >> endobj\n".encode()
+    )
+    objects.append(
+        b"3 0 obj << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> "
+        b"/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> endobj\n"
+    )
+    for index, stream in enumerate(content_objects):
+        page_id = 4 + index * 2
+        content_id = page_id + 1
+        objects.append(
+            (
+                f"{page_id} 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 {page_width} {page_height}] "
+                f"/Contents {content_id} 0 R /Resources 3 0 R >> endobj\n"
+            ).encode()
+        )
+        objects.append(
+            f"{content_id} 0 obj << /Length {len(stream)} >> stream\n".encode()
+            + stream
+            + b"\nendstream endobj\n"
+        )
+
+    xref_positions: list[int] = []
     output = bytearray(b"%PDF-1.4\n")
     for obj in objects:
         xref_positions.append(len(output))

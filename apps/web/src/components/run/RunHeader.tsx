@@ -7,21 +7,24 @@ import { elapsed, formatCost, formatTokens } from "@/lib/format";
 import type { Workspace } from "@/lib/types";
 import { PhaseStepper } from "./PhaseStepper";
 import { StatusBadge } from "../StatusBadge";
+import { useT } from "@/i18n/context";
 
 const TABS = [
-  { href: "", label: "Overview" },
-  { href: "/plan", label: "Plan / DAG" },
-  { href: "/workers", label: "Workers" },
-  { href: "/sources", label: "Sources" },
-  { href: "/claims", label: "Evidence" },
-  { href: "/quality", label: "Quality" },
-  { href: "/report", label: "Report" },
-  { href: "/evaluations", label: "Evaluations" },
+  { href: "", key: "tab.overview" },
+  { href: "/plan", key: "tab.plan" },
+  { href: "/workers", key: "tab.workers" },
+  { href: "/sources", key: "tab.sources" },
+  { href: "/snapshots", key: "tab.snapshot" },
+  { href: "/claims", key: "tab.evidence" },
+  { href: "/quality", key: "tab.quality" },
+  { href: "/report", key: "tab.report" },
+  { href: "/evaluations", key: "tab.evaluations" },
 ];
 
 export function RunHeader({ workspace }: { workspace: Workspace }) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   const base = `/research/${workspace.run_id}`;
   const running = ["running", "pending"].includes(workspace.status);
 
@@ -37,25 +40,33 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
           <h1 className="page-title wrap-text">{workspace.goal}</h1>
           <div className="row" style={{ marginTop: 8 }}>
             <StatusBadge status={workspace.status} />
-            <span className="muted">Started {elapsed(workspace.started_at ?? workspace.created_at)}</span>
-            <span className="mono muted">Research ID: {workspace.run_id}</span>
+            <span className="muted">
+              {elapsed(workspace.started_at ?? workspace.created_at)}
+            </span>
+            <span className="mono muted">{workspace.run_id}</span>
+            {workspace.research_mode ? <span className="chip selected">{workspace.research_mode}</span> : null}
+            {workspace.output_language ? <span className="chip">{workspace.output_language}</span> : null}
           </div>
         </div>
         {running ? (
-          <button className="btn danger" onClick={() => void cancel()}>Cancel research</button>
+          <button className="btn danger" onClick={() => void cancel()}>
+            {t("action.cancelResearch")}
+          </button>
         ) : null}
       </div>
       <PhaseStepper completed={workspace.completed_phases} status={workspace.status} />
       <div className="muted" style={{ marginBottom: 8 }}>
-        {workspace.llm_provider} · {workspace.llm_model} · tokens {formatTokens(workspace.usage.total_tokens)} · cost {formatCost(workspace.usage.cost_usd, workspace.usage.cost_status)}
+        {workspace.llm_provider} · {workspace.llm_model} · {t("provider.tokens")}{" "}
+        {formatTokens(workspace.usage.total_tokens, t("cost.unknown"))} · {t("provider.appCost")}{" "}
+        {formatCost(workspace.usage.cost_usd, workspace.usage.cost_status, t("cost.unknown"))}
       </div>
-      <nav className="tabs" aria-label="Research sections">
+      <nav className="tabs" aria-label={t("nav.research")}>
         {TABS.map((tab) => {
           const href = `${base}${tab.href}`;
           const active = tab.href === "" ? pathname === base : pathname.startsWith(href);
           return (
-            <Link key={tab.href || "overview"} href={href} className={`tab ${active ? "active" : ""}`}>
-              {tab.label}
+            <Link key={tab.href || "overview"} href={href} className={`tab ${active ? "active" : ""}`} aria-current={active ? "page" : undefined}>
+              {t(tab.key)}
             </Link>
           );
         })}

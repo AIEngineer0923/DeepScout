@@ -1,0 +1,134 @@
+{
+  "dataset_id": "deepscout-semantic-offline-v1",
+  "version": "1",
+  "cases": [
+    {
+      "id": "known-good-relevance",
+      "judge": "answer_relevance",
+      "goal": "Compare NMC and LFP battery chemistries for electric vehicles.",
+      "output": "NMC offers higher energy density; LFP offers longer cycle life and better thermal stability.",
+      "reference": "NMC vs LFP is an EV chemistry comparison.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-relevance",
+      "judge": "answer_relevance",
+      "goal": "Compare NMC and LFP battery chemistries for electric vehicles.",
+      "output": "The weather in Rome is sunny and gelato is popular.",
+      "reference": "NMC vs LFP is an EV chemistry comparison.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-hallucination",
+      "judge": "hallucination",
+      "goal": "State one LFP advantage.",
+      "output": "LFP generally has better thermal stability than NMC.",
+      "reference": "LFP has better thermal stability than NMC.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-hallucination",
+      "judge": "hallucination",
+      "goal": "State one LFP advantage.",
+      "output": "LFP cells are made of unobtainium and never degrade.",
+      "reference": "LFP has better thermal stability than NMC.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-plan",
+      "judge": "plan_quality",
+      "goal": "Compare GDPR and the EU AI Act for a SaaS vendor.",
+      "output": "Tasks: map GDPR duties; map AI Act risk class; compare overlap for SaaS logging.",
+      "reference": "Plan should split regulation mapping from product impact.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-plan",
+      "judge": "plan_quality",
+      "goal": "Compare GDPR and the EU AI Act for a SaaS vendor.",
+      "output": "Tasks: bake a cake; list Pokémon types.",
+      "reference": "Plan should split regulation mapping from product impact.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-report",
+      "judge": "report_completeness",
+      "goal": "Summarize open-source vector databases.",
+      "output": "Goal: survey vector DBs.\nFindings: pgvector, Qdrant, Milvus differ in ops model.\nCaveats: this is not a benchmark.",
+      "reference": "Report needs goal, findings, caveats.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-report",
+      "judge": "report_completeness",
+      "goal": "Summarize open-source vector databases.",
+      "output": "TODO",
+      "reference": "Report needs goal, findings, caveats.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-correctness",
+      "judge": "correctness",
+      "goal": "Name the EU regulation that classifies high-risk AI systems.",
+      "output": "The EU AI Act classifies certain AI systems as high-risk.",
+      "reference": "The EU AI Act is the high-risk classification regulation.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-correctness",
+      "judge": "correctness",
+      "goal": "Name the EU regulation that classifies high-risk AI systems.",
+      "output": "GDPR is the regulation that classifies high-risk AI systems.",
+      "reference": "The EU AI Act is the high-risk classification regulation.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-task-completion",
+      "judge": "task_completion",
+      "goal": "List two LLM inference market dimensions: price and latency.",
+      "output": "Price varies by token and reserved capacity. Latency depends on hardware and batching.",
+      "reference": "Must cover price and latency.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-task-completion",
+      "judge": "task_completion",
+      "goal": "List two LLM inference market dimensions: price and latency.",
+      "output": "Some vendors exist.",
+      "reference": "Must cover price and latency.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-conciseness",
+      "judge": "conciseness",
+      "goal": "State one LFP safety advantage in one sentence.",
+      "output": "LFP is generally more thermally stable than NMC.",
+      "reference": "One compact sentence is enough.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-conciseness",
+      "judge": "conciseness",
+      "goal": "State one LFP safety advantage in one sentence.",
+      "output": "As we all know, in the grand tapestry of electrochemical history, one might perhaps begin by noting, with abundant caveats, that LFP, which of course stands for lithium iron phosphate, could maybe in some cases be considered relatively speaking more thermally stable, although this paragraph continues far beyond the requested one sentence and then repeats itself again.",
+      "reference": "One compact sentence is enough.",
+      "expected": "fail"
+    },
+    {
+      "id": "known-good-synthesis",
+      "judge": "synthesis_quality",
+      "goal": "Synthesize EV battery tradeoffs.",
+      "output": "Sources agree LFP is safer; NMC sources claim higher range. Uncertainty remains on pack-level cost at volume.",
+      "reference": "Synthesis should compare sources and state uncertainty.",
+      "expected": "pass"
+    },
+    {
+      "id": "known-bad-synthesis",
+      "judge": "synthesis_quality",
+      "goal": "Synthesize EV battery tradeoffs.",
+      "output": "Quote 1: batteries. Quote 2: cars. Quote 3: charging.",
+      "reference": "Synthesis should compare sources and state uncertainty.",
+      "expected": "fail"
+    }
+  ]
+}

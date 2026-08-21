@@ -4,6 +4,8 @@ export type RunListItem = {
   status: string;
   llm_provider: string;
   llm_model: string;
+  research_mode?: string | null;
+  output_language?: string;
   termination_reason: string | null;
   created_at: string;
   updated_at: string;
@@ -26,6 +28,8 @@ export type Workspace = {
   termination_reason: string | null;
   llm_provider: string;
   llm_model: string;
+  research_mode?: string | null;
+  output_language?: string;
   created_at: string;
   updated_at: string;
   started_at: string | null;

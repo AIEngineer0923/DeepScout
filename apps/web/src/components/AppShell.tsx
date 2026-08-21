@@ -1,105 +1,203 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-
-const NAV = [
-  { href: "/", label: "Overview" },
-  { href: "/research/new", label: "New Research" },
-];
+import { parseRunId, readLastRunId, rememberRunId } from "@/lib/current-run";
+import { useI18n } from "@/i18n/context";
+import {
+  IconClaims,
+  IconEvals,
+  IconHistory,
+  IconHome,
+  IconLive,
+  IconPlan,
+  IconPlus,
+  IconQuality,
+  IconReport,
+  IconResume,
+  IconSettings,
+  IconSnapshot,
+  IconSources,
+  IconWorkers,
+} from "./Icons";
 
 const RESEARCH = [
-  { href: "live", label: "Live Research" },
-  { href: "plan", label: "Plan / DAG" },
-  { href: "workers", label: "Workers" },
-  { href: "sources", label: "Sources" },
-  { href: "snapshot", label: "Snapshot" },
-  { href: "claims", label: "Claims / Evidence" },
-  { href: "quality", label: "Quality / Contradictions" },
-  { href: "report", label: "Final Report" },
-  { href: "evaluations", label: "Evaluations" },
-];
+  { id: "live", icon: IconLive },
+  { id: "plan", icon: IconPlan },
+  { id: "workers", icon: IconWorkers },
+  { id: "sources", icon: IconSources },
+  { id: "snapshot", icon: IconSnapshot },
+  { id: "claims", icon: IconClaims },
+  { id: "quality", icon: IconQuality },
+  { id: "report", icon: IconReport },
+  { id: "evaluations", icon: IconEvals },
+] as const;
 
-function runIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/\/research\/([0-9a-f-]{36})/i) || pathname.match(/\/resume\/([0-9a-f-]{36})/i);
-  return match?.[1] ?? null;
+function hrefFor(item: (typeof RESEARCH)[number]["id"], runId: string) {
+  if (item === "live") return `/research/${runId}`;
+  if (item === "snapshot") return `/research/${runId}/snapshots`;
+  return `/research/${runId}/${item}`;
+}
+
+function isCurrent(item: (typeof RESEARCH)[number]["id"], pathname: string, runId: string | null) {
+  if (!runId) return false;
+  if (item === "live") return pathname === `/research/${runId}`;
+  if (item === "snapshot") return pathname.includes("/snapshots");
+  return pathname.startsWith(`/research/${runId}/${item}`);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const runId = runIdFromPath(pathname);
+  const router = useRouter();
+  const { t, locale, setLocale } = useI18n();
+  const pathRunId = parseRunId(pathname);
+  const [storedRunId, setStoredRunId] = useState<string | null>(null);
   const [langsmith, setLangsmith] = useState<{ connected: boolean; project: string; region: string } | null>(null);
 
   useEffect(() => {
-    api.settings().then((data) => {
-      const value = data.langsmith as { connected: boolean; project: string; region: string };
-      setLangsmith(value);
-    }).catch(() => setLangsmith(null));
+    if (pathRunId) rememberRunId(pathRunId);
+    setStoredRunId(pathRunId ?? readLastRunId());
+  }, [pathRunId]);
+
+  useEffect(() => {
+    api
+      .settings()
+      .then((data) => {
+        const value = data.langsmith as { connected: boolean; project: string; region: string };
+        setLangsmith(value);
+      })
+      .catch(() => setLangsmith(null));
+    api
+      .overview()
+      .then((data) => {
+        if (!readLastRunId() && data.active?.id) rememberRunId(data.active.id);
+        setStoredRunId(parseRunId(window.location.pathname) ?? readLastRunId() ?? data.active?.id ?? null);
+      })
+      .catch(() => undefined);
   }, []);
+
+  const runId = pathRunId ?? storedRunId;
+
+  const researchItems = useMemo(
+    () =>
+      RESEARCH.map((item) => ({
+        ...item,
+        label: t(`nav.${item.id}`),
+        href: runId ? hrefFor(item.id, runId) : "/research/select",
+        enabled: Boolean(runId),
+        current: isCurrent(item.id, pathname, runId),
+      })),
+    [pathname, runId, t],
+  );
 
   return (
     <div className="shell">
-      <a className="skip-link" href="#content">Skip to content</a>
-      <aside className="sidebar" aria-label="Primary">
-        <Link href="/" className="brand"><span className="brand-mark">S</span>DeepScout</Link>
+      <a className="skip-link" href="#content">
+        {t("nav.skip")}
+      </a>
+      <aside className="sidebar" aria-label={t("nav.primary")}>
+        <Link href="/" className="brand">
+          <span className="brand-mark">S</span>
+          {t("brand.name")}
+        </Link>
         <nav className="nav">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link" aria-current={pathname === item.href ? "page" : undefined}>
-              {item.label}
-            </Link>
-          ))}
-          <div className="nav-section">RESEARCH</div>
-          {RESEARCH.map((item) => {
-            const href = runId
-              ? item.href === "live"
-                ? `/research/${runId}`
-                : item.href === "snapshot"
-                  ? `/research/${runId}/sources`
-                  : `/research/${runId}/${item.href}`
-              : item.href === "live"
-                ? "/history"
-                : "/research/new";
-            const current =
-              (item.href === "live" && pathname === `/research/${runId}`) ||
-              pathname.endsWith(`/${item.href}`);
-            return (
-              <Link key={item.href} href={href} className={`nav-link ${current ? "active" : ""}`}>
+          <Link href="/" className={`nav-link ${pathname === "/" ? "active" : ""}`} aria-current={pathname === "/" ? "page" : undefined}>
+            <IconHome />
+            {t("nav.overview")}
+          </Link>
+          <Link
+            href="/research/new"
+            className={`nav-link ${pathname === "/research/new" ? "active" : ""}`}
+            aria-current={pathname === "/research/new" ? "page" : undefined}
+          >
+            <IconPlus />
+            {t("nav.newResearch")}
+          </Link>
+          <div className="nav-section">{t("nav.section.research")}</div>
+          {researchItems.map((item) =>
+            item.enabled ? (
+              <Link key={item.id} href={item.href} className={`nav-link ${item.current ? "active" : ""}`} aria-current={item.current ? "page" : undefined}>
+                <item.icon />
                 {item.label}
-                {item.href === "live" && runId ? <span className="nav-dot" /> : null}
+                {item.id === "live" ? <span className="nav-dot" /> : null}
               </Link>
-            );
-          })}
-          <Link href="/history" className={`nav-link ${pathname === "/history" ? "active" : ""}`}>History</Link>
-          <Link href={runId ? `/resume/${runId}` : "/history"} className={`nav-link ${pathname.startsWith("/resume") ? "active" : ""}`}>Resume</Link>
-          <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>Settings</Link>
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                className="nav-link is-disabled"
+                title={t("nav.needsRun")}
+                aria-disabled="true"
+                onClick={() => router.push("/research/select")}
+              >
+                <item.icon />
+                {item.label}
+              </button>
+            ),
+          )}
+          <Link href="/history" className={`nav-link ${pathname === "/history" ? "active" : ""}`}>
+            <IconHistory />
+            {t("nav.history")}
+          </Link>
+          {runId ? (
+            <Link href={`/resume/${runId}`} className={`nav-link ${pathname.startsWith("/resume") ? "active" : ""}`}>
+              <IconResume />
+              {t("nav.resume")}
+            </Link>
+          ) : (
+            <button type="button" className="nav-link is-disabled" title={t("nav.needsRun")} aria-disabled="true" onClick={() => router.push("/research/select")}>
+              <IconResume />
+              {t("nav.resume")}
+            </button>
+          )}
+          <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
+            <IconSettings />
+            {t("nav.settings")}
+          </Link>
         </nav>
         <div className="sidebar-foot">
           <div className="status-card">
-            <div className="row"><span className={`dot ${langsmith?.connected ? "ok" : "muted"}`} /> LangSmith · {langsmith?.connected ? "Connected" : "Not configured"}</div>
-            <div className="muted" style={{ marginTop: 6 }}>{langsmith?.project ?? "deepscout-dev"} ({langsmith?.region ?? "EU"})</div>
+            <div className="row">
+              <span className={`dot ${langsmith?.connected ? "ok" : "muted"}`} />
+              LangSmith · {langsmith?.connected ? t("langsmith.connected") : t("langsmith.notConfigured")}
+            </div>
+            <div className="muted" style={{ marginTop: 6 }}>
+              {langsmith?.project ?? "deepscout-dev"} ({langsmith?.region ?? "EU"})
+            </div>
           </div>
           <div className="identity-card">
-            <strong>Local workspace</strong>
-            <div className="muted">Operator</div>
+            <strong>{t("identity.label")}</strong>
+            <div className="muted">{t("identity.role")}</div>
           </div>
         </div>
       </aside>
       <div className="main-wrap">
         <header className="topbar">
-          <Link href={runId ? `/research/${runId}` : "/"} className="muted">← Back to research</Link>
-          <div className="row" aria-label="Utilities">
-            <span className="muted">DeepScout</span>
+          <Link href={runId ? `/research/${runId}` : "/"} className="muted">
+            ← {t("nav.back")}
+          </Link>
+          <div className="row" aria-label={t("uiLanguage.label")}>
+            <div className="lang-switch">
+              <button type="button" className={locale === "en" ? "active" : ""} data-testid="ui-lang-en" aria-label="English" onClick={() => setLocale("en")}>
+                EN
+              </button>
+              <button type="button" className={locale === "it" ? "active" : ""} data-testid="ui-lang-it" aria-label="Italiano" onClick={() => setLocale("it")}>
+                IT
+              </button>
+            </div>
           </div>
         </header>
-        <div id="content" className="content">{children}</div>
+        <div id="content" className="content">
+          {children}
+        </div>
         <nav className="mobile-nav" aria-label="Mobile">
-          <Link href="/">Overview</Link>
-          <Link href="/research/new">New</Link>
-          <Link href={runId ? `/research/${runId}` : "/history"}>Run</Link>
-          <Link href="/history">History</Link>
-          <Link href="/settings">Settings</Link>
+          <Link href="/">{t("nav.overview")}</Link>
+          <Link href="/research/new">{t("nav.mobile.new")}</Link>
+          <Link href={runId ? `/research/${runId}` : "/research/select"}>{t("nav.mobile.run")}</Link>
+          <Link href="/history">{t("nav.history")}</Link>
+          <Link href="/settings">{t("nav.settings")}</Link>
         </nav>
       </div>
     </div>

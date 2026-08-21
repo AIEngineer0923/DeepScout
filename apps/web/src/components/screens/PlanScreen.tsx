@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useT } from "@/i18n/context";
 
 export function PlanScreen() {
   const { workspace } = useRun();
+  const t = useT();
   const [selected, setSelected] = useState<string | null>(null);
-  if (!workspace) return <p className="empty">Loading plan…</p>;
+  if (!workspace) return <p className="empty">{t("plan.loading")}</p>;
   const task = workspace.tasks.find((item) => item.id === selected) ?? workspace.tasks[0];
   const independent = workspace.tasks.filter((item) => item.depends_on.length === 0);
   const dependent = workspace.tasks.filter((item) => item.depends_on.length > 0);
@@ -18,7 +20,7 @@ export function PlanScreen() {
       <RunHeader workspace={workspace} />
       <div className="grid cols-3">
         <section className="card">
-          <h2>Research plan ({workspace.tasks.length} tasks)</h2>
+          <h2>{t("plan.title", { count: workspace.tasks.length })}</h2>
           {workspace.tasks.map((item) => (
             <button key={item.id} type="button" className={`mode ${task?.id === item.id ? "selected" : ""}`} onClick={() => setSelected(item.id)}>
               <strong className="wrap-text">{item.objective}</strong>
@@ -28,8 +30,8 @@ export function PlanScreen() {
           ))}
         </section>
         <section className="card">
-          <h2>Task dependency graph</h2>
-          <p className="wrap-text muted">Research goal: {workspace.goal}</p>
+          <h2>{t("plan.graph")}</h2>
+          <p className="wrap-text muted">{t("plan.goal")}: {workspace.goal}</p>
           <div className="dag">
             <div className="dag-row">
               {independent.map((item) => (
@@ -61,17 +63,17 @@ export function PlanScreen() {
               <p>Worker: {task.display_name}</p>
               <p>Retries: {task.retries}</p>
               <p>Tools: {task.allowed_tools.join(", ") || "—"}</p>
-              <Link className="btn" href={`/research/${workspace.run_id}/workers`}>Open worker details →</Link>
+              <Link className="btn" href={`/research/${workspace.run_id}/workers`}>{t("plan.openWorker")} →</Link>
             </>
           ) : (
-            <p className="empty">No tasks yet.</p>
+            <p className="empty">{t("plan.empty")}</p>
           )}
           <div style={{ marginTop: 16 }}>
-            <h3>Plan summary</h3>
-            <p>Total {workspace.tasks.length}</p>
-            <p>Completed {workspace.tasks.filter((t) => t.status === "completed").length}</p>
-            <p>In progress {workspace.tasks.filter((t) => t.status === "running").length}</p>
-            <p>Pending {workspace.tasks.filter((t) => t.status === "pending" || t.status === "ready").length}</p>
+            <h3>{t("plan.summary")}</h3>
+            <p>{t("plan.total", { count: workspace.tasks.length })}</p>
+            <p>{t("plan.completedCount", { count: workspace.tasks.filter((task) => task.status === "completed").length })}</p>
+            <p>{t("plan.inProgress", { count: workspace.tasks.filter((task) => task.status === "running").length })}</p>
+            <p>{t("plan.pendingCount", { count: workspace.tasks.filter((task) => task.status === "pending" || task.status === "ready").length })}</p>
           </div>
         </aside>
       </div>
