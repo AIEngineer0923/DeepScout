@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from deepscout_core.domain.budget import ResearchBudget
+
 
 class DemoCatalogEntry(TypedDict):
     slug: str
@@ -15,84 +17,101 @@ class DemoCatalogEntry(TypedDict):
     research_mode: str
 
 
+def curated_demo_budget(mode: str) -> ResearchBudget:
+    """Bounded operator profile — same orchestrator, higher ceilings than quick runs."""
+    if mode == "deep":
+        return ResearchBudget(
+            max_iterations=3,
+            max_wall_time_seconds=720,
+            max_total_tokens=140_000,
+            max_cost_usd=4.0,
+            max_sources=14,
+            max_tool_calls=28,
+        )
+    return ResearchBudget(
+        max_iterations=2,
+        max_wall_time_seconds=540,
+        max_total_tokens=100_000,
+        max_cost_usd=3.0,
+        max_sources=12,
+        max_tool_calls=22,
+    )
+
+
 DEMO_CATALOG: tuple[DemoCatalogEntry, ...] = (
     {
-        "slug": "rag-architectures-2026",
+        "slug": "rag-architecture-2026",
         "goal": (
-            "Compare RAG, GraphRAG, and long-context retrieval architectures for a production "
-            "knowledge assistant in 2026, including retrieval quality, operational complexity, "
-            "evaluation, scalability, and appropriate use cases. Prefer primary technical "
-            "documentation and authoritative research sources."
+            "Compare hybrid RAG, GraphRAG, and long-context retrieval architectures for a "
+            "production knowledge assistant in 2026. Evaluate retrieval quality, provenance, "
+            "update cost, operational complexity, latency, security, evaluation strategy, and "
+            "the workloads for which each architecture is most appropriate. Prefer original "
+            "papers and official framework or vendor documentation."
         ),
         "category": "technical",
-        "title": "RAG vs GraphRAG vs long-context (2026)",
-        "summary": "Architecture comparison for production knowledge assistants.",
-        "why_interesting": "Shows evidence-heavy technical synthesis from primary docs.",
+        "title": "Hybrid RAG vs GraphRAG vs long-context (2026)",
+        "summary": "Architecture trade-offs for production knowledge assistants.",
+        "why_interesting": "Technical synthesis from primary documentation and papers.",
         "research_mode": "standard",
     },
     {
-        "slug": "battery-chemistry-tradeoffs",
+        "slug": "multi-hop-research",
         "goal": (
-            "Research the trade-offs between NMC and LFP battery chemistries for grid storage, "
-            "including energy density, cycle life, thermal safety, cost trends, and supply-chain "
-            "constraints. Task B must depend on the quantitative comparison produced in Task A."
+            "Identify who currently serves as President of the European Commission, then "
+            "determine what concrete general-purpose AI model obligations the European "
+            "Commission has published guidance on for providers in 2026. The second task "
+            "must depend on correctly identifying the office holder in the first task. Use "
+            "only official EU institutional sources."
         ),
         "category": "multi-hop",
-        "title": "NMC vs LFP: multi-hop dependency chain",
-        "summary": "Planner DAG with semantic depends_on between quantitative tasks.",
-        "why_interesting": "Demonstrates real multi-hop decomposition and critical path.",
+        "title": "True multi-hop EU institutional research",
+        "summary": "Semantic dependency between identification and policy research tasks.",
+        "why_interesting": "Demonstrates planner DAG with depends_on edges.",
         "research_mode": "standard",
     },
     {
-        "slug": "vaccine-efficacy-uncertainty",
+        "slug": "ev-battery-evidence",
         "goal": (
-            "Summarize scientific evidence on seasonal influenza vaccine effectiveness across "
-            "age groups, highlighting methodological differences, confidence intervals, and "
-            "contradictory findings between observational and randomized studies."
-        ),
-        "category": "contradiction",
-        "title": "Vaccine effectiveness under uncertainty",
-        "summary": "Contradictory evidence and uncertainty across study designs.",
-        "why_interesting": "Shows contradiction detection without forced conclusions.",
-        "research_mode": "standard",
-    },
-    {
-        "slug": "eu-ai-act-gpai-providers",
-        "goal": (
-            "Explain how the EU AI Act classifies general-purpose AI systems for providers as of "
-            "2026, including obligations, timelines, and official guidance. Use current regulatory "
-            "sources and institutional publications."
-        ),
-        "category": "regulatory",
-        "title": "EU AI Act GPAI provider obligations",
-        "summary": "Current regulatory synthesis with provenance to official sources.",
-        "why_interesting": "Demonstrates fresh web research with institutional sources.",
-        "research_mode": "quick",
-    },
-    {
-        "slug": "transformer-attention-evidence",
-        "goal": (
-            "Review peer-reviewed evidence on scaling laws for transformer attention in large "
-            "language models, citing primary papers, official datasets, and "
-            "reproducible benchmarks."
+            "Compare the current evidence on LFP and high-nickel NMC battery chemistries for "
+            "passenger EVs, focusing on cycle life, energy density, thermal safety, cost "
+            "drivers, and how pack-level engineering changes the practical trade-off. Prefer "
+            "peer-reviewed work, DOE or national lab reports, and credible manufacturer "
+            "engineering data."
         ),
         "category": "scientific",
-        "title": "Transformer scaling evidence review",
-        "summary": "Paper-first evidence chain with quote resolution.",
-        "why_interesting": "Evidence-heavy scientific workflow with citations.",
-        "research_mode": "deep",
+        "title": "LFP vs NMC evidence for passenger EVs",
+        "summary": "Evidence-heavy comparison of battery chemistries.",
+        "why_interesting": "Scientific sources with provenance and citations.",
+        "research_mode": "standard",
     },
     {
-        "slug": "event-driven-research-runtime",
+        "slug": "eu-ai-act-gpai-2026",
         "goal": (
-            "Compare event-driven workers versus request/response APIs for long-running research "
-            "jobs, focusing on reliability, backpressure, observability, and operational cost."
+            "Explain the obligations that the EU AI Act imposes in 2026 on providers of "
+            "general-purpose AI models, distinguishing obligations already applicable from "
+            "later obligations, and identify authoritative Commission or EU sources "
+            "supporting each conclusion. Prioritize EUR-Lex, European Commission, and EU AI "
+            "Office publications."
         ),
-        "category": "technical",
-        "title": "Event-driven vs request/response runtimes",
-        "summary": "Systems research on async job orchestration patterns.",
-        "why_interesting": "Shows engineering trade-off analysis with diverse sources.",
-        "research_mode": "quick",
+        "category": "regulatory",
+        "title": "EU AI Act GPAI provider obligations (2026)",
+        "summary": "Regulatory synthesis from official EU sources.",
+        "why_interesting": "Current institutional web research with provenance.",
+        "research_mode": "standard",
+    },
+    {
+        "slug": "ev-lifecycle-evidence",
+        "goal": (
+            "Compare credible estimates of the lifecycle greenhouse-gas impact of "
+            "battery-electric vehicles versus comparable combustion vehicles in Europe, and "
+            "explain why reputable studies produce different break-even estimates. Prefer "
+            "ICCT, IEA, peer-reviewed research, and European institutional sources."
+        ),
+        "category": "contradiction",
+        "title": "EV lifecycle GHG evidence under uncertainty",
+        "summary": "Methodological differences across authoritative lifecycle studies.",
+        "why_interesting": "Uncertainty and contradiction without forced conclusions.",
+        "research_mode": "standard",
     },
 )
 
