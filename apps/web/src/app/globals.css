@@ -829,7 +829,20 @@ html, body { overflow-x: hidden; }
   display: grid;
   gap: 8px;
 }
-@media (max-width: 720px) {
-  .public-header { padding: 12px 16px; }
-  .public-main { padding: 20px 16px 32px; }
+.demo-run-nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 24px 12px;
+  border-bottom: 1px solid var(--ds-line);
+  background: #fff;
+}
+.demo-run-nav a {
+  color: var(--ds-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+.demo-run-nav a.active,
+.demo-run-nav a:hover {
+  color: var(--ds-text);
 }

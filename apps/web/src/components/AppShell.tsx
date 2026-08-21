@@ -116,7 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="shell">
+    <div className="shell" data-testid="app-shell">
       <a className="skip-link" href="#content">
         {t("nav.skip")}
       </a>

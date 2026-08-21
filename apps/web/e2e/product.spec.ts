@@ -166,6 +166,7 @@ test.describe("product completion flows", () => {
     await mockProduct(page);
     await page.goto("/monitors");
     await page.getByPlaceholder(/Research goal|Obiettivo/).fill("Track battery regs");
+    await expect(page.getByTestId("monitor-create")).toBeEnabled();
     await page.getByTestId("monitor-create").click();
     await expect(page.getByTestId("monitor-create")).toBeVisible();
   });
