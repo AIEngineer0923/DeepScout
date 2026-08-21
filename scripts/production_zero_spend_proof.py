@@ -5,12 +5,10 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
-
-from sqlalchemy import text
 
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
+from sqlalchemy import text
 
 DEMOS = [
     "eu-ai-act-gpai-2026",
