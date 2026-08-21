@@ -8,6 +8,7 @@ import type { Workspace } from "@/lib/types";
 import { PhaseStepper } from "./PhaseStepper";
 import { StatusBadge } from "../StatusBadge";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 
 const TABS = [
   { href: "", key: "tab.overview" },
@@ -25,6 +26,7 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   const base = `/research/${workspace.run_id}`;
   const running = ["running", "pending"].includes(workspace.status);
 
@@ -46,14 +48,18 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
             {workspace.output_language ? <span className="chip">{workspace.output_language}</span> : null}
           </div>
         </div>
-        {running ? (
+        {running && !demoReadOnly ? (
           <button className="btn danger" onClick={() => void cancel()}>
             {t("action.cancelResearch")}
           </button>
+        ) : demoReadOnly ? (
+          <Link href="/login" className="btn primary">
+            {t("demo.cta")}
+          </Link>
         ) : null}
       </div>
       <PhaseStepper completed={workspace.completed_phases} status={workspace.status} />
-      <div className="info-banner">{t("live.banner")}</div>
+      <div className="info-banner">{demoReadOnly ? t("demo.replayBanner") : t("live.banner")}</div>
       <div className="muted" style={{ marginBottom: 8, fontSize: 13 }}>
         {workspace.llm_provider} · {workspace.llm_model} · {t("provider.tokens")}{" "}
         {formatTokens(workspace.usage.total_tokens, t("cost.unknown"))} · {t("provider.appCost")}{" "}

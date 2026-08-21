@@ -23,6 +23,15 @@ export type RunListItem = {
   completed_task_count: number;
 };
 
+export type DemoCatalogItem = RunListItem & {
+  public_slug: string | null;
+  is_public_demo: boolean;
+  demo_category?: string | null;
+  demo_title?: string | null;
+  demo_summary?: string | null;
+  demo_why?: string | null;
+};
+
 export type Workspace = {
   run_id: string;
   event_head?: number;
@@ -33,6 +42,8 @@ export type Workspace = {
   llm_model: string;
   research_mode?: string | null;
   output_language?: string;
+  is_public_demo?: boolean;
+  public_slug?: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;
