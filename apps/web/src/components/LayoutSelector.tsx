@@ -39,10 +39,7 @@ export function LayoutSelector({ children }: { children: ReactNode }) {
 
         setShell("app");
       })
-      .catch(() => {
-        if (isDemoRunPath(pathname)) setShell("demo");
-        else setShell("app");
-      });
+      .catch(() => setShell("app"));
   }, [pathname]);
 
   if (shell === "loading") {
