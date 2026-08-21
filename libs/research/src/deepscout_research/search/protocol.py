@@ -14,4 +14,6 @@ class WebSearchProvider(Protocol):
         *,
         max_results: int = 5,
         timeout_s: float = 15.0,
+        days: int | None = None,
+        topic: str | None = None,
     ) -> list[SearchResult]: ...

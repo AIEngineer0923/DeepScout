@@ -32,11 +32,15 @@ class MonitorPatch(BaseModel):
 
 def _serialize(store: ResearchStore, row) -> dict:
     running = store.monitor_has_active_run(row.id)
-    return _monitor_to_read(row, status=monitor_status(row, child_running=running)).model_dump(mode="json")
+    return _monitor_to_read(row, status=monitor_status(row, child_running=running)).model_dump(
+        mode="json"
+    )
 
 
 @router.get("")
-def list_monitors(request: Request, store=Depends(get_research_store), settings: Settings = Depends(get_settings)) -> list[dict]:
+def list_monitors(
+    request: Request, store=Depends(get_research_store), settings: Settings = Depends(get_settings)
+) -> list[dict]:
     access = load_access(request, store._session, settings)
     owner = None if access.is_local else access.principal_id
     if settings.is_hosted() and access.principal is None:

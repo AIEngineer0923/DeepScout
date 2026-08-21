@@ -221,7 +221,7 @@ export type Overview = {
     cost_status: string;
     avg_completion_seconds: number | null;
   };
-  identity: { label: string; role: string };
+  identity: { label: string; role: string; mode?: string };
   langsmith: { connected: boolean; project: string; region: string; tracing: boolean };
   providers: Record<string, { configured: boolean; model?: string }>;
 };

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Public landing at `/` separated from authenticated dashboard at `/dashboard`
+- Geo-aware EN/IT default locale with persistent manual override (Italy signals → Italian)
+- Research preferences API: geographic focus, freshness, model policy, excluded domains
+- Preferences persisted in `config_snapshot` and applied to search/retrieval runtime
 - Production hosting split: Vercel frontend + persistent FastAPI/worker + managed Postgres/pgvector
 - Same-origin `/api` rewrite from Vercel to the persistent API (`API_REWRITE_ORIGIN`)
 - Operator CLI `scripts/publish_demo.py` and `scripts/operator_publish_demos.py`
@@ -17,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- New Research UX: functional geo/freshness/exclusions, separate template save dialog, provider readiness on hosted
+- Hosted `/settings` and `/overview` provider status reflects user BYOK vault when authenticated
 - Production CSP `connect-src` no longer includes localhost
 - Browser API base URL is same-origin in production unless `NEXT_PUBLIC_API_URL` is set
 - Docker entrypoint selects api vs worker via `DEEPSCOUT_PROCESS_ROLE`

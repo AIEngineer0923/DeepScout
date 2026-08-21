@@ -43,12 +43,16 @@ def get_page_by_slug(session: Session, run_id: uuid.UUID, slug: str) -> WikiPage
 
 
 def list_pages_for_run(session: Session, run_id: uuid.UUID) -> list[WikiPageRow]:
-    return list(session.scalars(select(WikiPageRow).where(WikiPageRow.research_run_id == run_id)).all())
+    return list(
+        session.scalars(select(WikiPageRow).where(WikiPageRow.research_run_id == run_id)).all()
+    )
 
 
 def list_statements_for_run(session: Session, run_id: uuid.UUID) -> list[WikiStatementRow]:
     return list(
-        session.scalars(select(WikiStatementRow).where(WikiStatementRow.research_run_id == run_id)).all()
+        session.scalars(
+            select(WikiStatementRow).where(WikiStatementRow.research_run_id == run_id)
+        ).all()
     )
 
 
@@ -363,7 +367,9 @@ def bounded_relation_hops(
 def lint_wiki(session: Session, run_id: uuid.UUID, *, max_hops: int = 32) -> dict:
     pages = {page.id: page for page in list_pages_for_run(session, run_id)}
     statements = list_statements_for_run(session, run_id)
-    links = list(session.scalars(select(WikiLinkRow).where(WikiLinkRow.research_run_id == run_id)).all())
+    links = list(
+        session.scalars(select(WikiLinkRow).where(WikiLinkRow.research_run_id == run_id)).all()
+    )
     broken_links = []
     for link in links:
         if link.from_page_id not in pages or link.to_page_id not in pages:
@@ -372,7 +378,11 @@ def lint_wiki(session: Session, run_id: uuid.UUID, *, max_hops: int = 32) -> dic
     for link in links:
         if link.to_page_id in inbound:
             inbound[link.to_page_id] += 1
-    orphan_pages = [str(page_id) for page_id, count in inbound.items() if count == 0 and pages[page_id].slug != "run-findings"]
+    orphan_pages = [
+        str(page_id)
+        for page_id, count in inbound.items()
+        if count == 0 and pages[page_id].slug != "run-findings"
+    ]
     missing_provenance = [
         str(row.id) for row in statements if row.claim_id is None or row.evidence_id is None
     ]

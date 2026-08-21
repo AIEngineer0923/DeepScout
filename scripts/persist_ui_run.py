@@ -16,10 +16,14 @@ from deepscout_research.search.tavily import TavilyWebSearchProvider
 
 def main() -> int:
     settings = configure_langsmith_env()
-    settings = settings.model_copy(update={"research_workers_inline": True, "research_use_legacy_path": False})
+    settings = settings.model_copy(
+        update={"research_workers_inline": True, "research_use_legacy_path": False}
+    )
     session = get_session_factory(settings.database_url)()
     store = ResearchStore(session)
-    goal = sys.argv[1] if len(sys.argv) > 1 else "Compare NMC and LFP EV batteries in one paragraph."
+    goal = (
+        sys.argv[1] if len(sys.argv) > 1 else "Compare NMC and LFP EV batteries in one paragraph."
+    )
     run = store.create_run(
         ResearchRunCreate(
             goal=goal,

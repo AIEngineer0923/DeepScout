@@ -27,8 +27,17 @@ def settings() -> Settings:
 def test_rebuild_wiki_requires_evidence_and_is_idempotent(store, settings, db_session) -> None:
     run = store.create_run(ResearchRunCreate(goal="wiki compile"), settings)
     source, _ = store.add_source(run.id, SourceWrite(canonical_url="https://ex.test/a", title="A"))
-    snapshot = store.add_snapshot(source.id, SourceSnapshotWrite(content="Solid-state batteries improve safety margins significantly."))
-    claim = store.add_claim(run.id, ClaimWrite(statement="Solid-state batteries improve safety margins significantly.", source_id=source.id))
+    snapshot = store.add_snapshot(
+        source.id,
+        SourceSnapshotWrite(content="Solid-state batteries improve safety margins significantly."),
+    )
+    claim = store.add_claim(
+        run.id,
+        ClaimWrite(
+            statement="Solid-state batteries improve safety margins significantly.",
+            source_id=source.id,
+        ),
+    )
     store.attach_evidence(
         claim.id,
         EvidenceWrite(
@@ -66,9 +75,20 @@ def test_rebuild_wiki_requires_evidence_and_is_idempotent(store, settings, db_se
 def test_cross_run_statement_rejected(store, settings, db_session) -> None:
     run_a = store.create_run(ResearchRunCreate(goal="run a"), settings)
     run_b = store.create_run(ResearchRunCreate(goal="run b"), settings)
-    source, _ = store.add_source(run_a.id, SourceWrite(canonical_url="https://ex.test/b", title="B"))
-    snapshot = store.add_snapshot(source.id, SourceSnapshotWrite(content="Enough text for a quote about energy density improvements."))
-    claim = store.add_claim(run_a.id, ClaimWrite(statement="Enough text for a quote about energy density improvements.", source_id=source.id))
+    source, _ = store.add_source(
+        run_a.id, SourceWrite(canonical_url="https://ex.test/b", title="B")
+    )
+    snapshot = store.add_snapshot(
+        source.id,
+        SourceSnapshotWrite(content="Enough text for a quote about energy density improvements."),
+    )
+    claim = store.add_claim(
+        run_a.id,
+        ClaimWrite(
+            statement="Enough text for a quote about energy density improvements.",
+            source_id=source.id,
+        ),
+    )
     evidence = store.attach_evidence(
         claim.id,
         EvidenceWrite(
@@ -108,10 +128,18 @@ def test_lint_bounds_cycles(store, settings, db_session) -> None:
         db_session, run_id=run.id, slug="b", title="B", page_type=WikiPageType.TOPIC
     )
     knowledge_store.add_link(
-        db_session, run_id=run.id, from_page_id=a.id, to_page_id=b.id, link_type=WikiLinkType.RELATED_TO
+        db_session,
+        run_id=run.id,
+        from_page_id=a.id,
+        to_page_id=b.id,
+        link_type=WikiLinkType.RELATED_TO,
     )
     knowledge_store.add_link(
-        db_session, run_id=run.id, from_page_id=b.id, to_page_id=a.id, link_type=WikiLinkType.RELATED_TO
+        db_session,
+        run_id=run.id,
+        from_page_id=b.id,
+        to_page_id=a.id,
+        link_type=WikiLinkType.RELATED_TO,
     )
     store.commit()
     lint = knowledge_store.lint_wiki(db_session, run.id, max_hops=8)

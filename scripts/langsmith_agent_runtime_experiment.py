@@ -45,9 +45,13 @@ def main() -> int:
 
     client = Client()
     existing = list(client.list_datasets(dataset_name=DATASET))
-    dataset = existing[0] if existing else client.create_dataset(
-        DATASET,
-        description="DeepScout agent-runtime structural cases v1",
+    dataset = (
+        existing[0]
+        if existing
+        else client.create_dataset(
+            DATASET,
+            description="DeepScout agent-runtime structural cases v1",
+        )
     )
     if not existing:
         for case in payload["cases"]:

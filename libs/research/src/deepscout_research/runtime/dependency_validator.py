@@ -29,7 +29,9 @@ MAX_VALIDATOR_TASKS = 8
 LAST_DIAGNOSTICS: dict = {}
 
 
-def apply_validator_output(base: PlannerOutput, validated: DependencyValidatorOutput) -> PlannerOutput:
+def apply_validator_output(
+    base: PlannerOutput, validated: DependencyValidatorOutput
+) -> PlannerOutput:
     """Merge validator DAG onto planner output. Structural repair still runs after this."""
     try:
         decomposition = PlanDecomposition(validated.decomposition.strip().lower())
@@ -40,7 +42,9 @@ def apply_validator_output(base: PlannerOutput, validated: DependencyValidatorOu
     by_key = {task.task_key: task for task in base.tasks}
     merged: list[PlannerTask] = []
     for index, item in enumerate(validated.tasks[:MAX_VALIDATOR_TASKS], start=1):
-        key = "".join(ch for ch in item.task_key.lower() if ch.isalnum() or ch in "_-") or f"t{index}"
+        key = (
+            "".join(ch for ch in item.task_key.lower() if ch.isalnum() or ch in "_-") or f"t{index}"
+        )
         existing = by_key.get(key)
         objective = item.objective or (existing.objective if existing else key)
         merged.append(
@@ -49,14 +53,20 @@ def apply_validator_output(base: PlannerOutput, validated: DependencyValidatorOu
                 objective=objective,
                 question_text=objective,
                 depends_on=[dep[:64] for dep in item.depends_on],
-                priority=min(5, max(1, int(item.priority or (existing.priority if existing else 3)))),
+                priority=min(
+                    5, max(1, int(item.priority or (existing.priority if existing else 3)))
+                ),
                 dependency_reason=(item.dependency_reason or "")[:500],
                 parallel_safe=bool(item.parallel_safe),
             )
         )
     if not merged:
         merged = list(base.tasks)
-        if validated.false_simple and decomposition == PlanDecomposition.SIMPLE and len(merged) == 1:
+        if (
+            validated.false_simple
+            and decomposition == PlanDecomposition.SIMPLE
+            and len(merged) == 1
+        ):
             decomposition = PlanDecomposition.CHAIN
     return base.model_copy(
         update={

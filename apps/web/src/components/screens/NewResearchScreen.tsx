@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { COUNTRY_OPTIONS, countryLabel } from "@/lib/countries";
 import { rememberRunId } from "@/lib/current-run";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
 import { IconBolt, IconCheck, IconLayers, IconSpark } from "@/components/Icons";
 
 type Template = {
@@ -15,29 +16,78 @@ type Template = {
   output_language: string;
 };
 
+type ModelPolicyMode = "automatic" | "quality" | "balanced" | "speed" | "cost" | "manual";
+type GeoMode = "automatic" | "global" | "regions";
+type FreshnessMode = "automatic" | "explicit";
+type FreshnessPolicy = "any" | "24h" | "7d" | "30d" | "1y";
+
 const MODES = [
   { id: "quick" as const, titleKey: "new.mode.quick", bodyKey: "new.mode.quickBody", badgeKey: "new.mode.quickBadge", icon: IconBolt },
   { id: "standard" as const, titleKey: "new.mode.standard", bodyKey: "new.mode.standardBody", badgeKey: "new.mode.standardBadge", icon: IconLayers },
   { id: "deep" as const, titleKey: "new.mode.deep", bodyKey: "new.mode.deepBody", badgeKey: "new.mode.deepBadge", icon: IconSpark },
 ];
 
+function parseDomains(raw: string): string[] {
+  return raw
+    .split(/[\s,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function NewResearchScreen() {
   const router = useRouter();
   const t = useT();
+  const { locale } = useI18n();
   const [goal, setGoal] = useState("");
   const [mode, setMode] = useState<"quick" | "standard" | "deep">("standard");
-  const [outputLanguage, setOutputLanguage] = useState("en");
+  const [outputLanguage, setOutputLanguage] = useState(locale === "it" ? "it" : "en");
+  const [modelPolicy, setModelPolicy] = useState<ModelPolicyMode>("automatic");
+  const [geoMode, setGeoMode] = useState<GeoMode>("automatic");
+  const [geoRegions, setGeoRegions] = useState<string[]>([]);
+  const [geoQuery, setGeoQuery] = useState("");
+  const [freshnessMode, setFreshnessMode] = useState<FreshnessMode>("automatic");
+  const [freshnessPolicy, setFreshnessPolicy] = useState<FreshnessPolicy>("any");
+  const [excludedDomains, setExcludedDomains] = useState("");
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("");
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [providerReady, setProviderReady] = useState(true);
+  const [hosted, setHosted] = useState(false);
 
   useEffect(() => {
     api.listTemplates().then(setTemplates).catch(() => setTemplates([]));
+    Promise.all([api.settings(), api.me().catch(() => ({ mode: "local" }))])
+      .then(([settings, me]) => {
+        const identity = settings.identity as { mode?: string } | undefined;
+        const isHosted = me.mode === "hosted" || identity?.mode === "hosted";
+        setHosted(isHosted);
+        if (!isHosted) {
+          setProviderReady(true);
+          return;
+        }
+        const providers = settings.providers as Record<string, { configured?: boolean }>;
+        const llmReady = Boolean(providers.google?.configured || providers.openai?.configured || providers.anthropic?.configured);
+        const searchReady = Boolean(providers.tavily?.configured);
+        setProviderReady(llmReady && searchReady);
+      })
+      .catch(() => setProviderReady(true));
   }, []);
+
+  const filteredCountries = useMemo(() => {
+    const q = geoQuery.trim().toLowerCase();
+    if (!q) return COUNTRY_OPTIONS;
+    return COUNTRY_OPTIONS.filter(
+      (item) =>
+        item.en.toLowerCase().includes(q) ||
+        item.it.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q),
+    );
+  }, [geoQuery]);
 
   const summary = useMemo(
     () => ({
@@ -49,6 +99,21 @@ export function NewResearchScreen() {
     }),
     [mode, outputLanguage, t],
   );
+
+  function buildPreferences() {
+    return {
+      geographic_focus: {
+        mode: geoMode,
+        regions: geoMode === "regions" ? geoRegions : [],
+      },
+      freshness: {
+        mode: freshnessMode,
+        policy: freshnessMode === "automatic" ? "any" : freshnessPolicy,
+      },
+      model_policy: { mode: modelPolicy, provider: null, model: null },
+      excluded_domains: parseDomains(excludedDomains),
+    };
+  }
 
   async function refreshTemplates() {
     try {
@@ -77,6 +142,7 @@ export function NewResearchScreen() {
         output_language: outputLanguage,
       });
       setTemplateName("");
+      setShowTemplateDialog(false);
       setNotice(t("new.templateSaved"));
       await refreshTemplates();
     } catch (err) {
@@ -103,8 +169,18 @@ export function NewResearchScreen() {
     }
   }
 
+  function toggleRegion(name: string) {
+    setGeoRegions((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+    );
+  }
+
   async function start() {
     if (!goal.trim()) return;
+    if (hosted && !providerReady) {
+      setError(t("new.providerMissing"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -112,6 +188,7 @@ export function NewResearchScreen() {
         goal: goal.trim(),
         research_mode: mode,
         output_language: outputLanguage,
+        preferences: buildPreferences(),
       });
       rememberRunId(created.id);
       await api.execute(created.id);
@@ -142,23 +219,13 @@ export function NewResearchScreen() {
               id="goal"
               className="textarea"
               style={{ minHeight: 128 }}
-              maxLength={1000}
+              maxLength={8000}
+              placeholder={t("new.goalPlaceholder")}
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               data-testid="research-goal"
             />
-            <span className="muted">{goal.length} / 1000</span>
-          </div>
-          <div className="field" style={{ marginTop: 16 }}>
-            <label htmlFor="template-name">{t("new.templateName")}</label>
-            <input
-              id="template-name"
-              className="input"
-              maxLength={80}
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              data-testid="template-name"
-            />
+            <span className="muted">{goal.length} / 8000</span>
           </div>
           <div style={{ marginTop: 20 }}>
             <div className="section-title">
@@ -216,21 +283,89 @@ export function NewResearchScreen() {
                 <span className="muted">{t("new.outputLanguageHelp")}</span>
               </div>
               <div className="field">
-                <label htmlFor="freshness">{t("new.freshness")}</label>
-                <select id="freshness" className="select" disabled aria-disabled="true" title={t("new.unsupportedFilter")}>
-                  <option>{t("freshness.live")}</option>
+                <label htmlFor="model-policy">{t("new.modelPolicy")}</label>
+                <select
+                  id="model-policy"
+                  className="select"
+                  value={modelPolicy}
+                  onChange={(e) => setModelPolicy(e.target.value as ModelPolicyMode)}
+                  data-testid="model-policy"
+                >
+                  <option value="automatic">{t("new.model.automatic")}</option>
+                  <option value="quality">{t("new.model.quality")}</option>
+                  <option value="balanced">{t("new.model.balanced")}</option>
+                  <option value="speed">{t("new.model.speed")}</option>
+                  <option value="cost">{t("new.model.cost")}</option>
                 </select>
-                <span className="muted">{t("new.unsupportedFilter")}</span>
+                <span className="muted">{t("new.modelPolicyHelp")}</span>
               </div>
               <div className="field">
-                <label htmlFor="excluded">{t("new.excluded")}</label>
-                <input id="excluded" className="input" disabled aria-disabled="true" placeholder="—" title={t("new.unsupportedFilter")} />
-                <span className="muted">{t("new.unsupportedFilter")}</span>
+                <label htmlFor="geo-mode">{t("new.region")}</label>
+                <select
+                  id="geo-mode"
+                  className="select"
+                  value={geoMode}
+                  onChange={(e) => setGeoMode(e.target.value as GeoMode)}
+                  data-testid="geo-mode"
+                >
+                  <option value="automatic">{t("new.geo.automatic")}</option>
+                  <option value="global">{t("new.geo.global")}</option>
+                  <option value="regions">{t("new.geo.regions")}</option>
+                </select>
+                {geoMode === "regions" ? (
+                  <div style={{ marginTop: 8 }}>
+                    <input
+                      className="input"
+                      placeholder={t("new.geo.search")}
+                      value={geoQuery}
+                      onChange={(e) => setGeoQuery(e.target.value)}
+                      aria-label={t("new.geo.search")}
+                    />
+                    <div className="chip-row" style={{ marginTop: 8 }}>
+                      {filteredCountries.map((item) => {
+                        const label = countryLabel(item.en, locale);
+                        const selected = geoRegions.includes(item.en);
+                        return (
+                          <button
+                            key={item.code}
+                            type="button"
+                            className={`chip ${selected ? "selected" : ""}`}
+                            onClick={() => toggleRegion(item.en)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+                <span className="muted">{t("new.geo.regionsHelp")}</span>
               </div>
               <div className="field">
-                <label htmlFor="region">{t("new.region")}</label>
-                <input id="region" className="input" value={t("new.regionAny")} readOnly title={t("new.unsupportedFilter")} />
-                <span className="muted">{t("new.unsupportedFilter")}</span>
+                <label htmlFor="freshness">{t("new.freshness")}</label>
+                <select
+                  id="freshness"
+                  className="select"
+                  value={freshnessMode === "automatic" ? "automatic" : freshnessPolicy}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "automatic") {
+                      setFreshnessMode("automatic");
+                    } else {
+                      setFreshnessMode("explicit");
+                      setFreshnessPolicy(value as FreshnessPolicy);
+                    }
+                  }}
+                  data-testid="freshness-policy"
+                >
+                  <option value="automatic">{t("new.freshness.automatic")}</option>
+                  <option value="any">{t("new.freshness.any")}</option>
+                  <option value="24h">{t("new.freshness.24h")}</option>
+                  <option value="7d">{t("new.freshness.7d")}</option>
+                  <option value="30d">{t("new.freshness.30d")}</option>
+                  <option value="1y">{t("new.freshness.1y")}</option>
+                </select>
+                <span className="muted">{t("new.freshnessHelp")}</span>
               </div>
             </div>
           </div>
@@ -239,33 +374,85 @@ export function NewResearchScreen() {
           </button>
           {advanced ? (
             <div className="field" style={{ marginTop: 8 }}>
-              <label htmlFor="max-sources">{t("new.maxSources")}</label>
+              <label htmlFor="excluded">{t("new.excluded")}</label>
+              <input
+                id="excluded"
+                className="input"
+                value={excludedDomains}
+                onChange={(e) => setExcludedDomains(e.target.value)}
+                placeholder={t("new.excludedPlaceholder")}
+                data-testid="excluded-domains"
+              />
+              <span className="muted">{t("new.excludedHelp")}</span>
+              <label htmlFor="max-sources" style={{ marginTop: 12, display: "block" }}>
+                {t("new.maxSources")}
+              </label>
               <input id="max-sources" className="input" value={summary.sources} readOnly title={t("new.budgetByMode")} />
               <span className="muted">{t("new.budgetByMode")}</span>
+            </div>
+          ) : null}
+          {hosted && !providerReady ? (
+            <div className="note-box" style={{ marginTop: 12 }}>
+              <p className="wrap-text" style={{ margin: 0 }}>
+                {t("new.providerMissing")}
+              </p>
+              <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => router.push("/account")}>
+                {t("new.configureProviders")}
+              </button>
             </div>
           ) : null}
           {error ? <p className="badge bad wrap-text">{error}</p> : null}
           {notice ? <p className="badge ok wrap-text">{notice}</p> : null}
           <div className="form-actions" style={{ marginTop: 18 }}>
-            <button className="btn ghost" type="button" onClick={() => router.push("/")}>
+            <button className="btn ghost" type="button" onClick={() => router.push("/dashboard")}>
               {t("action.cancel")}
             </button>
             <div className="row">
-              <button
-                className="btn"
-                type="button"
-                disabled={saving || !goal.trim()}
-                data-testid="save-template"
-                onClick={() => void saveTemplate()}
-              >
+              <button className="btn" type="button" onClick={() => setShowTemplateDialog(true)} disabled={!goal.trim()}>
                 {t("new.saveTemplate")}
               </button>
-              <button className="btn primary" type="button" disabled={busy || !goal.trim()} data-testid="start-research" onClick={() => void start()}>
+              <button
+                className="btn primary"
+                type="button"
+                disabled={busy || !goal.trim() || (hosted && !providerReady)}
+                data-testid="start-research"
+                onClick={() => void start()}
+              >
                 {t("action.start")} →
               </button>
             </div>
           </div>
         </div>
+        {showTemplateDialog ? (
+          <div className="card" style={{ marginTop: 16 }} role="dialog" aria-labelledby="template-dialog-title">
+            <h2 id="template-dialog-title">{t("new.saveTemplateTitle")}</h2>
+            <div className="field">
+              <label htmlFor="template-name">{t("new.templateNameLabel")}</label>
+              <input
+                id="template-name"
+                className="input"
+                maxLength={80}
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                data-testid="template-name"
+              />
+            </div>
+            <div className="row" style={{ marginTop: 12 }}>
+              <button type="button" className="btn ghost" onClick={() => setShowTemplateDialog(false)}>
+                {t("action.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={saving || !templateName.trim()}
+                data-testid="save-template"
+                onClick={() => void saveTemplate()}
+              >
+                {t("action.save")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
       <aside>
         <section className="card">
@@ -299,7 +486,7 @@ export function NewResearchScreen() {
           </dl>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>{t("new.resources")}</h2>
+          <h2>{t("new.estimatedEnvelope")}</h2>
           <dl className="kv-list">
             <div className="kv-row">
               <dt>{t("new.modelCalls")}</dt>
@@ -319,8 +506,7 @@ export function NewResearchScreen() {
             </div>
           </dl>
           <div className="cost-highlight">{t("new.costUnknown")}</div>
-          <p className="cost-range">{t("new.costNote")}</p>
-          <div className="note-box">{t("new.costHint")}</div>
+          <p className="cost-range">{t("new.actualUsage")}</p>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
           <h2>{t("new.templates")}</h2>

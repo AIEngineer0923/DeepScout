@@ -21,16 +21,23 @@ class TavilyWebSearchProvider:
         *,
         max_results: int = 5,
         timeout_s: float = 15.0,
+        days: int | None = None,
+        topic: str | None = None,
     ) -> list[SearchResult]:
         def _post() -> httpx.Response:
+            payload: dict[str, object] = {
+                "api_key": self._api_key,
+                "query": query,
+                "max_results": max_results,
+                "include_answer": False,
+            }
+            if days is not None and days > 0:
+                payload["days"] = days
+            if topic:
+                payload["topic"] = topic
             response = self._client.post(
                 "https://api.tavily.com/search",
-                json={
-                    "api_key": self._api_key,
-                    "query": query,
-                    "max_results": max_results,
-                    "include_answer": False,
-                },
+                json=payload,
                 timeout=timeout_s,
             )
             response.raise_for_status()

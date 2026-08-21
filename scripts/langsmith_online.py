@@ -30,11 +30,17 @@ async def main() -> int:
     client = Client()
     existing = [
         item
-        async for item in client.evaluators.list(name_contains="deepscout-claim-has-evidence", limit=20, timeout=30.0)
+        async for item in client.evaluators.list(
+            name_contains="deepscout-claim-has-evidence", limit=20, timeout=30.0
+        )
     ]
     if existing:
-        evaluator_id = str(getattr(existing[0], "id", None) or getattr(existing[0], "evaluator", existing[0]))
-        print(json.dumps({"status": "ALREADY_PRESENT", "evaluator": "deepscout-claim-has-evidence"}))
+        evaluator_id = str(
+            getattr(existing[0], "id", None) or getattr(existing[0], "evaluator", existing[0])
+        )
+        print(
+            json.dumps({"status": "ALREADY_PRESENT", "evaluator": "deepscout-claim-has-evidence"})
+        )
     else:
         created = await client.evaluators.create(
             name="deepscout-claim-has-evidence",
@@ -57,7 +63,11 @@ async def main() -> int:
     attached = False
     if listed.status_code == 200:
         payload = listed.json()
-        rules = payload if isinstance(payload, list) else payload.get("rules") or payload.get("data") or []
+        rules = (
+            payload
+            if isinstance(payload, list)
+            else payload.get("rules") or payload.get("data") or []
+        )
         attached = any("deepscout-claim-has-evidence" in str(rule) for rule in rules)
     if not attached:
         response = httpx.post(

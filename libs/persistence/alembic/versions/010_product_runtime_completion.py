@@ -53,7 +53,9 @@ def upgrade() -> None:
         sa.Column("identity_value", sa.String(length=2048), nullable=False),
         sa.Column("reason", sa.String(length=500), nullable=False, server_default=""),
         sa.Column("origin", sa.String(length=32), nullable=False, server_default="user"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["research_run_id"], ["research_runs.id"], ondelete="CASCADE"),
         sa.UniqueConstraint(
             "research_run_id",
@@ -90,8 +92,12 @@ def upgrade() -> None:
         sa.Column("last_change_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("lease_until", sa.DateTime(timezone=True), nullable=True),
         sa.Column("lease_owner", sa.String(length=128), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["template_id"], ["research_templates.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["last_run_id"], ["research_runs.id"], ondelete="SET NULL"),
     )
@@ -115,11 +121,15 @@ def upgrade() -> None:
         sa.Column("cls", sa.Float(), nullable=True),
         sa.Column("ttfb_ms", sa.Float(), nullable=True),
         sa.Column("fcp_ms", sa.Float(), nullable=True),
-        sa.Column("navigation_type", sa.String(length=32), nullable=False, server_default="navigate"),
+        sa.Column(
+            "navigation_type", sa.String(length=32), nullable=False, server_default="navigate"
+        ),
         sa.Column("device_class", sa.String(length=32), nullable=False, server_default="unknown"),
         sa.Column("network_class", sa.String(length=32), nullable=False, server_default="unknown"),
         sa.Column("source", sa.String(length=16), nullable=False, server_default="field"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_web_vital_samples_created_at", "web_vital_samples", ["created_at"])
     op.create_index("ix_web_vital_samples_route", "web_vital_samples", ["route"])

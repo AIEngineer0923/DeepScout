@@ -11,13 +11,16 @@ def test_round_trip_and_binding() -> None:
     nonce, ciphertext, version = vault.encrypt(
         "sk-test-not-a-real-key", principal_id=principal, provider=CredentialProvider.GOOGLE
     )
-    assert vault.decrypt(
-        nonce=nonce,
-        ciphertext=ciphertext,
-        principal_id=principal,
-        provider="google",
-        key_version=version,
-    ) == "sk-test-not-a-real-key"
+    assert (
+        vault.decrypt(
+            nonce=nonce,
+            ciphertext=ciphertext,
+            principal_id=principal,
+            provider="google",
+            key_version=version,
+        )
+        == "sk-test-not-a-real-key"
+    )
     with pytest.raises(VaultError):
         vault.decrypt(
             nonce=nonce,

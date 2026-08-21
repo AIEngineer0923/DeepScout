@@ -67,7 +67,11 @@ class RetrievalService:
         dense_scores: dict[uuid.UUID, float] = {}
         lexical_scores: dict[uuid.UUID, float] = {}
         strategy = resolve_strategy(self._settings)
-        mode = request.mode if request.mode in {"dense", "lexical", "hybrid"} else strategy_to_mode(strategy)
+        mode = (
+            request.mode
+            if request.mode in {"dense", "lexical", "hybrid"}
+            else strategy_to_mode(strategy)
+        )
 
         # Overlap provider embedding wait with local FTS. The SQLAlchemy session
         # stays on this thread; only embed_query runs off-thread.
@@ -132,10 +136,16 @@ class RetrievalService:
             source = sources.get(row.source_id)
             if source is not None and is_excluded(source.canonical_url, prefs):
                 continue
-            if request.fresher_than and snapshot.retrieved_at and snapshot.retrieved_at < request.fresher_than:
+            if (
+                request.fresher_than
+                and snapshot.retrieved_at
+                and snapshot.retrieved_at < request.fresher_than
+            ):
                 continue
             dense_rank = dense_ranked.index(chunk_id) + 1 if chunk_id in dense_ranked else None
-            lexical_rank = lexical_ranked.index(chunk_id) + 1 if chunk_id in lexical_ranked else None
+            lexical_rank = (
+                lexical_ranked.index(chunk_id) + 1 if chunk_id in lexical_ranked else None
+            )
             text = sanitize_retrieved_text(row.text)
             candidates.append(
                 RetrievedChunk(

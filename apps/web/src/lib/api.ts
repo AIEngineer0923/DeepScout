@@ -27,6 +27,17 @@ async function parse<T>(responsePromise: Promise<Response>): Promise<T> {
   return (await response.json()) as T;
 }
 
+export type ResearchPreferencesPayload = {
+  geographic_focus: { mode: "automatic" | "global" | "regions"; regions: string[] };
+  freshness: { mode: "automatic" | "explicit"; policy: "any" | "24h" | "7d" | "30d" | "1y" };
+  model_policy: {
+    mode: "automatic" | "quality" | "balanced" | "speed" | "cost" | "manual";
+    provider?: string | null;
+    model?: string | null;
+  };
+  excluded_domains: string[];
+};
+
 export const api = {
   overview: () => parse<Overview>(apiFetch(`${apiUrl}/api/v1/overview`, { cache: "no-store" })),
   me: () =>
@@ -68,7 +79,12 @@ export const api = {
     });
     return `${apiUrl}/api/v1/research-runs?${query}`;
   },
-  createRun: (body: { goal: string; research_mode?: string; output_language?: string }) =>
+  createRun: (body: {
+    goal: string;
+    research_mode?: string;
+    output_language?: string;
+    preferences?: ResearchPreferencesPayload;
+  }) =>
     parse<{ id: string; research_mode?: string; output_language?: string }>(
       apiFetch(`${apiUrl}/api/v1/research-runs`, {
         method: "POST",

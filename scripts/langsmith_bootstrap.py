@@ -10,15 +10,24 @@ from deepscout_research.langsmith_env import configure_langsmith_env
 
 BASELINE_EXAMPLES = [
     {
-        "inputs": {"goal": "Compare NMC and LFP battery chemistries", "scenario": "simple_research"},
+        "inputs": {
+            "goal": "Compare NMC and LFP battery chemistries",
+            "scenario": "simple_research",
+        },
         "outputs": {"expected_evidence_min": 1},
     },
     {
-        "inputs": {"goal": "Parallel: NMC density vs LFP safety", "scenario": "parallel_independent"},
+        "inputs": {
+            "goal": "Parallel: NMC density vs LFP safety",
+            "scenario": "parallel_independent",
+        },
         "outputs": {"expected_tasks_min": 2},
     },
     {
-        "inputs": {"goal": "First chemistry, then cost comparison", "scenario": "dependent_research"},
+        "inputs": {
+            "goal": "First chemistry, then cost comparison",
+            "scenario": "dependent_research",
+        },
         "outputs": {"requires_dependencies": True},
     },
     {
@@ -26,7 +35,10 @@ BASELINE_EXAMPLES = [
         "outputs": {"expected_evidence_min": 0},
     },
     {
-        "inputs": {"goal": "Conflicting claims on battery density", "scenario": "contradictory_sources"},
+        "inputs": {
+            "goal": "Conflicting claims on battery density",
+            "scenario": "contradictory_sources",
+        },
         "outputs": {"expect_contradiction": True},
     },
     {

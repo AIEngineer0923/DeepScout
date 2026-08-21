@@ -41,9 +41,7 @@ def _parse_skill(path: Path) -> Skill:
     description = meta.get("description") or ""
     version = "1"
     triggers = tuple(
-        part.strip().casefold()
-        for part in meta.get("compatibility", "").split(",")
-        if part.strip()
+        part.strip().casefold() for part in meta.get("compatibility", "").split(",") if part.strip()
     )
     return Skill(
         skill_id=name,

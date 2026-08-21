@@ -26,14 +26,12 @@ def select_followup_context(store: ResearchStore, parent_run_id: UUID, goal: str
     """Pick a bounded, provenance-preserving slice of the parent run."""
     claims = store.list_claims(parent_run_id)
     evidence = store.list_evidence(parent_run_id)
-    ranked_claims = sorted(
-        claims, key=lambda row: _score(goal, row.statement), reverse=True
-    )[:MAX_CLAIMS]
+    ranked_claims = sorted(claims, key=lambda row: _score(goal, row.statement), reverse=True)[
+        :MAX_CLAIMS
+    ]
     claim_ids = {row.id for row in ranked_claims}
     ranked_evidence = [
-        row
-        for row in evidence
-        if row.claim_id in claim_ids or _score(goal, row.quote) > 0
+        row for row in evidence if row.claim_id in claim_ids or _score(goal, row.quote) > 0
     ][:MAX_EVIDENCE]
     report = store.get_report(parent_run_id)
     report_excerpt = ""
@@ -44,9 +42,9 @@ def select_followup_context(store: ResearchStore, parent_run_id: UUID, goal: str
         from deepscout_persistence import knowledge as knowledge_store
 
         statements = knowledge_store.list_statements_for_run(store._session, parent_run_id)
-        ranked = sorted(
-            statements, key=lambda row: _score(goal, row.statement_text), reverse=True
-        )[:MAX_STATEMENTS]
+        ranked = sorted(statements, key=lambda row: _score(goal, row.statement_text), reverse=True)[
+            :MAX_STATEMENTS
+        ]
         wiki_bits = [f"{row.statement_text} [statement:{row.id}]" for row in ranked]
     except Exception:
         wiki_bits = []

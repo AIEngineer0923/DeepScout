@@ -43,16 +43,9 @@ def test_options_from_settings_wires_timeout_not_transport_retries() -> None:
 
 def test_capability_filter_rejects_embedding_as_chat() -> None:
     req = ModelRequirements(
-        capabilities=frozenset(
-            {ModelCapability.CHAT, ModelCapability.STRUCTURED_OUTPUT}
-        )
+        capabilities=frozenset({ModelCapability.CHAT, ModelCapability.STRUCTURED_OUTPUT})
     )
-    assert (
-        satisfies_requirements(
-            ProviderKind.GOOGLE, "gemini-embedding-2", req
-        )
-        is False
-    )
+    assert satisfies_requirements(ProviderKind.GOOGLE, "gemini-embedding-2", req) is False
 
 
 def test_privacy_allowlist_blocks_fallback_provider() -> None:
@@ -81,9 +74,7 @@ def test_privacy_allowlist_blocks_fallback_provider() -> None:
         fallback_allowed=True,
     )
     try:
-        router.select_with_fallback(
-            AgentRole.PLANNER, requirements=req, prefer_fallback=True
-        )
+        router.select_with_fallback(AgentRole.PLANNER, requirements=req, prefer_fallback=True)
         raise AssertionError("expected privacy block")
     except IncompatibleFallbackError as exc:
         assert "privacy" in str(exc).lower() or "allowlist" in str(exc).lower()
@@ -115,9 +106,7 @@ def test_fallback_requires_matching_capabilities() -> None:
         fallback_allowed=True,
     )
     try:
-        router.select_with_fallback(
-            AgentRole.PLANNER, requirements=req, prefer_fallback=True
-        )
+        router.select_with_fallback(AgentRole.PLANNER, requirements=req, prefer_fallback=True)
         raise AssertionError("expected capability failure")
     except IncompatibleFallbackError:
         pass

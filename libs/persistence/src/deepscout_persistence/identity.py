@@ -46,9 +46,13 @@ def get_local_system(session: Session) -> PrincipalRow:
     return row
 
 
-def record_event(session: Session, principal_id: UUID | None, event_type: str, detail: str = "") -> None:
+def record_event(
+    session: Session, principal_id: UUID | None, event_type: str, detail: str = ""
+) -> None:
     session.add(
-        AuthEventRow(id=uuid4(), principal_id=principal_id, event_type=event_type, detail=detail[:256])
+        AuthEventRow(
+            id=uuid4(), principal_id=principal_id, event_type=event_type, detail=detail[:256]
+        )
     )
 
 
@@ -94,7 +98,9 @@ def revoke_session(session: Session, token: str) -> None:
 def revoke_all_sessions(session: Session, principal_id: UUID) -> int:
     now = datetime.now(UTC)
     rows = session.scalars(
-        select(SessionRow).where(SessionRow.principal_id == principal_id, SessionRow.revoked_at.is_(None))
+        select(SessionRow).where(
+            SessionRow.principal_id == principal_id, SessionRow.revoked_at.is_(None)
+        )
     ).all()
     for row in rows:
         row.revoked_at = now
@@ -133,7 +139,9 @@ def upsert_oauth_principal(
 
     if email and email_verified:
         existing = session.scalar(
-            select(PrincipalRow).where(PrincipalRow.email == email, PrincipalRow.email_verified.is_(True))
+            select(PrincipalRow).where(
+                PrincipalRow.email == email, PrincipalRow.email_verified.is_(True)
+            )
         )
         if existing is not None:
             session.add(
@@ -198,7 +206,9 @@ def consume_oauth_state(session: Session, state: str, provider: str) -> OAuthSta
     return row
 
 
-def get_credential(session: Session, principal_id: UUID, provider: str) -> ProviderCredentialRow | None:
+def get_credential(
+    session: Session, principal_id: UUID, provider: str
+) -> ProviderCredentialRow | None:
     return session.scalar(
         select(ProviderCredentialRow).where(
             ProviderCredentialRow.principal_id == principal_id,
@@ -237,7 +247,9 @@ def delete_principal_data(session: Session, principal_id: UUID) -> None:
     ):
         session.delete(template)
     session.flush()
-    for run in session.scalars(select(ResearchRunRow).where(ResearchRunRow.owner_principal_id == principal_id)):
+    for run in session.scalars(
+        select(ResearchRunRow).where(ResearchRunRow.owner_principal_id == principal_id)
+    ):
         session.delete(run)
     session.flush()
     principal = session.get(PrincipalRow, principal_id)

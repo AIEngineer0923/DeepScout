@@ -33,7 +33,10 @@ def test_url_canonicalization_and_exclude() -> None:
 
 
 def test_domain_exclude_and_pin_do_not_trust() -> None:
-    prefs = [_pref("exclude", "domain", "blocked.test"), _pref("pin", "url", "https://kept.example/a")]
+    prefs = [
+        _pref("exclude", "domain", "blocked.test"),
+        _pref("pin", "url", "https://kept.example/a"),
+    ]
     assert is_excluded("https://news.blocked.test/article", prefs)
     assert is_pinned("https://kept.example/a", prefs)
     assert not is_pinned("https://other.example/a", prefs)

@@ -78,6 +78,13 @@ def extract_claims_for_run(
 
         search_text = snapshot.content_text
         if retriever is not None:
+            from deepscout_research.preferences.snapshot import preferences_from_snapshot
+
+            row = store.get_run_row(run_id)
+            resolved = preferences_from_snapshot(
+                row.config_snapshot if row else None,
+                goal=row.goal if row else "",
+            )
             plan = plan_retrieval_query(
                 query=candidate.query,
                 run_id=run_id,
@@ -85,6 +92,7 @@ def extract_claims_for_run(
                 source_ids=[source.id],
                 role=AgentRole.EXTRACTOR,
                 document_token_estimate=estimate_tokens(snapshot.content_text),
+                fresher_than=resolved.fresher_than,
             )
             if not plan.skip_retrieval:
                 hits = retriever.retrieve(
@@ -95,6 +103,7 @@ def extract_claims_for_run(
                         top_k=plan.top_k,
                         candidate_k=plan.candidate_k,
                         mode=plan.mode,
+                        fresher_than=plan.fresher_than,
                     )
                 )
                 if hits:

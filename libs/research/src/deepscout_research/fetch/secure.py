@@ -224,11 +224,7 @@ def _request_pinned(
         conn = _PinnedHTTPConnection(target.hostname, target.port, str(target.pinned_ip), timeout_s)
     try:
         conn.putrequest("GET", target.path, skip_host=True, skip_accept_encoding=True)
-        host = (
-            target.hostname
-            if target.port in {80, 443}
-            else f"{target.hostname}:{target.port}"
-        )
+        host = target.hostname if target.port in {80, 443} else f"{target.hostname}:{target.port}"
         conn.putheader("Host", host)
         conn.putheader(
             "User-Agent",

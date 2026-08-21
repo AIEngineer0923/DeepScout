@@ -58,7 +58,9 @@ def _break_cycles(tasks: list[PlannerTask]) -> list[PlannerTask]:
             changed = False
             for task in sorted(current, key=lambda item: item.priority, reverse=True):
                 if task.depends_on:
-                    by_key[task.task_key] = task.model_copy(update={"depends_on": task.depends_on[:-1]})
+                    by_key[task.task_key] = task.model_copy(
+                        update={"depends_on": task.depends_on[:-1]}
+                    )
                     current = list(by_key.values())
                     changed = True
                     break
@@ -81,7 +83,9 @@ def _dedupe_objectives(tasks: list[PlannerTask]) -> list[PlannerTask]:
     if not dropped_keys:
         return unique
     return [
-        task.model_copy(update={"depends_on": [dep for dep in task.depends_on if dep not in dropped_keys]})
+        task.model_copy(
+            update={"depends_on": [dep for dep in task.depends_on if dep not in dropped_keys]}
+        )
         for task in unique
     ]
 
@@ -118,31 +122,46 @@ def repair_plan(output: PlannerOutput) -> PlannerOutput:
     decomposition = output.decomposition
     if decomposition == PlanDecomposition.SIMPLE:
         primary = sorted(tasks, key=lambda item: (item.priority, item.task_key))[:1]
-        tasks = [task.model_copy(update={"depends_on": [], "parallel_safe": True}) for task in primary]
+        tasks = [
+            task.model_copy(update={"depends_on": [], "parallel_safe": True}) for task in primary
+        ]
     elif decomposition == PlanDecomposition.PARALLEL:
-        tasks = [task.model_copy(update={"depends_on": [], "parallel_safe": True}) for task in tasks]
+        tasks = [
+            task.model_copy(update={"depends_on": [], "parallel_safe": True}) for task in tasks
+        ]
     elif decomposition == PlanDecomposition.CHAIN:
         if len(tasks) >= 2 and not any(task.depends_on for task in tasks):
             tasks = _chain_by_priority(tasks)
-        tasks = [task.model_copy(update={"parallel_safe": not bool(task.depends_on)}) for task in tasks]
+        tasks = [
+            task.model_copy(update={"parallel_safe": not bool(task.depends_on)}) for task in tasks
+        ]
     elif decomposition == PlanDecomposition.MIXED:
         if len(tasks) >= 3 and not any(task.depends_on for task in tasks):
             ordered = sorted(tasks, key=lambda item: (item.priority, item.task_key))
             fan_in = ordered[-1]
             fan_out_keys = [task.task_key for task in ordered[:-1]]
             tasks = [
-                *[task.model_copy(update={"depends_on": [], "parallel_safe": True}) for task in ordered[:-1]],
+                *[
+                    task.model_copy(update={"depends_on": [], "parallel_safe": True})
+                    for task in ordered[:-1]
+                ],
                 fan_in.model_copy(update={"depends_on": fan_out_keys, "parallel_safe": False}),
             ]
         else:
             roots = {task.task_key for task in tasks if not task.depends_on}
             tasks = [
-                task.model_copy(update={"parallel_safe": not task.depends_on or all(dep in roots for dep in task.depends_on)})
+                task.model_copy(
+                    update={
+                        "parallel_safe": not task.depends_on
+                        or all(dep in roots for dep in task.depends_on)
+                    }
+                )
                 for task in tasks
             ]
 
     tasks = _break_cycles(_drop_unknown_and_self_deps(tasks))
     questions_out = [
-        PlannerQuestion(text=task.question_text or task.objective, priority=task.priority) for task in tasks
+        PlannerQuestion(text=task.question_text or task.objective, priority=task.priority)
+        for task in tasks
     ]
     return output.model_copy(update={"tasks": tasks, "questions": questions_out})

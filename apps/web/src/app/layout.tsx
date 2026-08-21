@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
-import { AppShell } from "@/components/AppShell";
+import { LayoutSelector } from "@/components/LayoutSelector";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={inter.className}>
       <body className="page-overflow-guard">
         <Providers>
-          <AppShell>{children}</AppShell>
+          <LayoutSelector>{children}</LayoutSelector>
         </Providers>
       </body>
     </html>

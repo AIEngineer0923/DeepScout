@@ -33,7 +33,18 @@ def _target(inputs: dict) -> dict:
 
 def _trajectory_eval(run, example) -> dict:
     actions = (run.outputs or {}).get("actions") or []
-    score = 1.0 if match_trajectory(actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.SUPERSET) or match_trajectory(actions, ["phase.plan", "phase.research", "phase.report"], mode=TrajectoryMatchMode.SUPERSET) else 0.0
+    score = (
+        1.0
+        if match_trajectory(
+            actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.SUPERSET
+        )
+        or match_trajectory(
+            actions,
+            ["phase.plan", "phase.research", "phase.report"],
+            mode=TrajectoryMatchMode.SUPERSET,
+        )
+        else 0.0
+    )
     return {"key": "trajectory_superset", "score": score}
 
 

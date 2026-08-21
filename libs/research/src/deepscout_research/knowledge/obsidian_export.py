@@ -37,9 +37,7 @@ def export_run_wiki_markdown(store: ResearchStore, run_id: uuid.UUID) -> dict[st
             "question": "questions",
         }.get(page.page_type.value, "topics")
         claim_ids = [
-            str(item.claim_id)
-            for item in by_page.get(page.id, [])
-            if item.claim_id is not None
+            str(item.claim_id) for item in by_page.get(page.id, []) if item.claim_id is not None
         ]
         frontmatter = "\n".join(
             [

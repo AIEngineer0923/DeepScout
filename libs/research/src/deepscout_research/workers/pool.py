@@ -27,6 +27,7 @@ from deepscout_core.settings import Settings
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.budget_gate import BudgetGate
 from deepscout_research.fetch.secure import public_http_url_or_none
+from deepscout_research.preferences.search_context import RunScopedSearchProvider
 from deepscout_research.search.protocol import WebSearchProvider
 from deepscout_research.workers.langgraph_worker import run_worker_graph
 from deepscout_research.working_memory import WorkingMemory
@@ -195,7 +196,7 @@ class ResearchWorkerPool:
                     task_id=task.id,
                     worker_id=worker_id,
                     objective=task.objective,
-                    search_provider=self._search,
+                    search_provider=RunScopedSearchProvider(self._search, store, run_id),
                     resume=True,
                     database_url=self._settings.database_url,
                     durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,

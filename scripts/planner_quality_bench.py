@@ -39,8 +39,14 @@ def _synthetic_v2(goal: str, expected: str) -> PlannerOutput:
         ]
     elif decomposition == PlanDecomposition.CHAIN:
         tasks = [
-            PlannerTask(task_key="find", objective="Identify the needed entity or identifier", priority=1),
-            PlannerTask(task_key="use", objective="Use that finding to retrieve the dependent facts", priority=2),
+            PlannerTask(
+                task_key="find", objective="Identify the needed entity or identifier", priority=1
+            ),
+            PlannerTask(
+                task_key="use",
+                objective="Use that finding to retrieve the dependent facts",
+                priority=2,
+            ),
         ]
     else:
         tasks = [
@@ -73,7 +79,11 @@ def main() -> int:
         after_ok = (
             v2["pass"]
             and case["min_tasks"] <= v2["task_count"] <= case["max_tasks"]
-            and (bool(repair_plan(_synthetic_v2(case["goal"], expected)).tasks[-1].depends_on) if case["requires_depends_on"] else True)
+            and (
+                bool(repair_plan(_synthetic_v2(case["goal"], expected)).tasks[-1].depends_on)
+                if case["requires_depends_on"]
+                else True
+            )
         )
         if not after_ok:
             after_fail += 1

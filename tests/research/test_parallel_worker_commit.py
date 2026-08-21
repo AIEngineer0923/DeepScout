@@ -92,4 +92,3 @@ def test_threaded_workers_do_not_deadlock_with_orchestrator_session(store, setti
     assert result is not None
     statuses = {task.status.value for task in store.list_tasks(run.id)}
     assert "running" not in statuses
-

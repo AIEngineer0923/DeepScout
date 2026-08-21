@@ -83,13 +83,18 @@ def evaluate_plan_dag(output: PlannerOutput, *, repaired: bool = True) -> dict[s
         PlanDecomposition.UNSPECIFIED: 8,
     }[plan.decomposition]
     over_decomposed = plan.decomposition == PlanDecomposition.SIMPLE and len(tasks) > 1
-    under_decomposed = plan.decomposition in {
-        PlanDecomposition.PARALLEL,
-        PlanDecomposition.MIXED,
-    } and len(tasks) < 2
-    missing_required_deps = plan.decomposition in {PlanDecomposition.CHAIN, PlanDecomposition.MIXED} and not any(
-        task.depends_on for task in tasks
+    under_decomposed = (
+        plan.decomposition
+        in {
+            PlanDecomposition.PARALLEL,
+            PlanDecomposition.MIXED,
+        }
+        and len(tasks) < 2
     )
+    missing_required_deps = plan.decomposition in {
+        PlanDecomposition.CHAIN,
+        PlanDecomposition.MIXED,
+    } and not any(task.depends_on for task in tasks)
 
     return {
         "task_count": len(tasks),

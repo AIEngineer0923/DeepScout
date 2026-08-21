@@ -118,9 +118,7 @@ def test_repeated_execute_resume_cancel_restart(api_client: TestClient) -> None:
 
 @pytest.mark.postgres
 def test_export_and_source_surfaces(api_client: TestClient) -> None:
-    payload = {
-        "goal": "=cmd|'/c calc'!A0 <script>alert(1)</script> javascript:alert(1)"
-    }
+    payload = {"goal": "=cmd|'/c calc'!A0 <script>alert(1)</script> javascript:alert(1)"}
     created = api_client.post("/api/v1/research-runs", json=payload)
     run_id = created.json()["id"]
     api_client.post(f"/api/v1/research-runs/{run_id}/cancel")

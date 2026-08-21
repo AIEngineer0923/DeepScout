@@ -311,10 +311,15 @@ class HumanReviewService:
             )
 
         if decision_kind == ReviewDecisionKind.REJECT:
-            outcome = rejection_outcome if rejection_outcome in {
-                "STOP_AND_SYNTHESIZE",
-                "CANCEL_RUN",
-            } else "STOP_AND_SYNTHESIZE"
+            outcome = (
+                rejection_outcome
+                if rejection_outcome
+                in {
+                    "STOP_AND_SYNTHESIZE",
+                    "CANCEL_RUN",
+                }
+                else "STOP_AND_SYNTHESIZE"
+            )
             self._store.update_review_status(
                 review_id,
                 ReviewRequestStatus.REJECTED,

@@ -159,9 +159,8 @@ def main() -> int:
     replan_ok = all(item.get("replan_match", True) for item in results)
 
     report = {
-        "status": "PASS" if all(
-            [allocation_ok, allocation_match, skill_match, untrusted_ok, spawn_ok, replan_ok]
-        )
+        "status": "PASS"
+        if all([allocation_ok, allocation_match, skill_match, untrusted_ok, spawn_ok, replan_ok])
         and compaction["deterministic_keeps_ref"]
         and not compaction["llm_stub_keeps_ref"]
         else "WARN",

@@ -6,6 +6,11 @@ async function mockApi(page: Page) {
     document.documentElement.setAttribute("data-visual", "1");
     window.localStorage.setItem("deepscout.last_run_id", "11111111-1111-4111-8111-111111111111");
   });
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: { authenticated: true, mode: "local", hosted_auth_ready: true, id: "local", display_name: "Local workspace" },
+    });
+  });
   await page.route("**/api/v1/overview", async (route) => {
     await route.fulfill({ json: overviewFixture });
   });
@@ -44,7 +49,7 @@ async function mockApi(page: Page) {
 test.describe("interaction", () => {
   test("sidebar navigates and disabled items go to select", async ({ page }) => {
     await mockApi(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.getByLabel("Primary navigation").getByRole("link", { name: "New Research" }).click();
     await expect(page).toHaveURL(/\/research\/new/);
     await page.getByLabel("Primary navigation").getByRole("link", { name: "Live Research" }).click();
@@ -79,7 +84,7 @@ test.describe("interaction", () => {
 
   test("Italian UI persists after reload", async ({ page }) => {
     await mockApi(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.getByTestId("ui-lang-it").click();
     await expect(page.getByRole("link", { name: "Panoramica" })).toBeVisible();
     await page.reload();
@@ -114,12 +119,15 @@ test.describe("interaction", () => {
     await expect(page.getByRole("link", { name: "Nuova ricerca" })).toBeVisible();
   });
 
-  test("unsupported New Research filters are disabled with an explanation", async ({ page }) => {
+  test("new research filters are enabled and configurable", async ({ page }) => {
     await mockApi(page);
     await page.goto("/research/new");
-    await expect(page.locator("#freshness")).toBeDisabled();
-    await expect(page.locator("#excluded")).toBeDisabled();
-    await expect(page.getByText(/Not applied in this baseline/i).first()).toBeVisible();
+    await expect(page.locator("#freshness")).toBeEnabled();
+    await expect(page.locator("#geo-mode")).toBeEnabled();
+    await page.getByTestId("geo-mode").selectOption("regions");
+    await page.getByRole("button", { name: "Italy" }).click();
+    await page.getByRole("button", { name: "Show advanced settings" }).click();
+    await expect(page.locator("#excluded")).toBeEnabled();
   });
 
   test("workspace tabs navigate provenance routes", async ({ page }) => {
@@ -181,7 +189,7 @@ test.describe("interaction", () => {
     await goal.click();
     await goal.fill("Name two common EV battery chemistries.");
     await expect(goal).toHaveValue("Name two common EV battery chemistries.");
-    await expect(page.getByTestId("save-template")).toBeEnabled();
+    await page.getByRole("button", { name: "Save as template" }).click();
     await page.getByTestId("template-name").fill("Battery lookup");
     await page.getByTestId("save-template").click();
     await expect(page.getByText("Template saved")).toBeVisible();

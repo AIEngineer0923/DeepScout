@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from uuid import UUID
 
-from deepscout_core.domain.schemas import ResearchRunCreate, ResearchRunRead
+from deepscout_core.domain.schemas import ResearchRunCreate, ResearchRunRead, SourcePreferenceWrite
 from deepscout_core.security.csv import render_csv
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
@@ -32,10 +32,16 @@ def _require_run(request: Request, store, settings: Settings, run_id: UUID, *, w
     return authorize_run(store, run_id, access, write=write)
 
 
-def _snapshot(settings: Settings) -> dict:
+def _snapshot(settings: Settings, body: ResearchRunCreate | None = None) -> dict:
+    from deepscout_core.domain.research_preferences import ResearchPreferences
+    from deepscout_research.preferences.snapshot import snapshot_with_preferences
     from deepscout_research.runtime.config_snapshot import build_config_snapshot
 
-    return build_config_snapshot(settings)
+    base = build_config_snapshot(settings)
+    if body is None:
+        return base
+    prefs = body.preferences or ResearchPreferences()
+    return snapshot_with_preferences(base, prefs, goal=body.goal)
 
 
 class ExecuteResponse(BaseModel):
@@ -185,14 +191,32 @@ def create_research_run(
 ) -> ResearchRunRead:
     access = load_access(request, store._session, settings)
     owner_id = owner_for_create(access)
-    if settings.is_hosted() and store.count_active_runs(owner_id) >= settings.hosted_max_concurrent_runs_per_user:
+    if (
+        settings.is_hosted()
+        and store.count_active_runs(owner_id) >= settings.hosted_max_concurrent_runs_per_user
+    ):
         raise HTTPException(status_code=429, detail="Concurrent run limit reached")
-    return store.create_run(
+    snapshot = _snapshot(settings, body)
+    created = store.create_run(
         body,
         settings,
-        config_snapshot=_snapshot(settings),
+        config_snapshot=snapshot,
         owner_principal_id=owner_id,
     )
+    prefs = body.preferences
+    if prefs and prefs.excluded_domains:
+        for domain in prefs.excluded_domains:
+            store.upsert_source_preference(
+                created.id,
+                SourcePreferenceWrite(
+                    action="exclude",
+                    identity_kind="domain",
+                    identity_value=domain,
+                    reason="create_run_excluded_domains",
+                ),
+                origin="user",
+            )
+    return created
 
 
 @router.get("", response_model=None)
@@ -224,7 +248,16 @@ def list_research_runs(
     items = [_list_item(row, metrics[row.id]) for row in rows]
     if format == "csv":
         body = render_csv(
-            ["id", "goal", "status", "research_mode", "output_language", "tokens", "cost", "updated_at"],
+            [
+                "id",
+                "goal",
+                "status",
+                "research_mode",
+                "output_language",
+                "tokens",
+                "cost",
+                "updated_at",
+            ],
             [
                 [
                     item.id,
@@ -618,7 +651,9 @@ def create_source_preference(
     except Exception as exc:
         raise HTTPException(status_code=400, detail="invalid preference") from exc
     if payload.identity_kind == "url":
-        payload = payload.model_copy(update={"identity_value": normalize_source_url(payload.identity_value)})
+        payload = payload.model_copy(
+            update={"identity_value": normalize_source_url(payload.identity_value)}
+        )
     row = store.upsert_source_preference(run_id, payload, origin="user")
     store.commit()
     return row.model_dump(mode="json")
@@ -709,7 +744,10 @@ def export_research_run(
     request: Request,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
-    format: str = Query(default="markdown", pattern="^(markdown|json|csv|pdf|sources-csv|evals-json|evals-csv|snapshot-text)$"),
+    format: str = Query(
+        default="markdown",
+        pattern="^(markdown|json|csv|pdf|sources-csv|evals-json|evals-csv|snapshot-text)$",
+    ),
     snapshot_id: UUID | None = None,
 ):
     _require_run(request, store, settings, run_id, write=False)
@@ -742,7 +780,9 @@ def export_research_run(
             headers={"Content-Disposition": 'attachment; filename="evaluations.csv"'},
         )
     if format == "history-csv":
-        raise HTTPException(status_code=400, detail="history-csv is a list export, not a run export")
+        raise HTTPException(
+            status_code=400, detail="history-csv is a list export, not a run export"
+        )
     if format == "csv" or format == "sources-csv":
         body = render_csv(
             ["title", "domain", "url", "status", "claims", "evidence"],
@@ -769,7 +809,9 @@ def export_research_run(
         detail = snapshot_detail(store, run_id, snapshot_id)
         return PlainTextResponse(detail["snapshot"]["content_text"], media_type="text/plain")
     report = workspace.get("report") or {}
-    markdown = report.get("body_markdown") or f"# {workspace['goal']}\n\nReport is not available yet.\n"
+    markdown = (
+        report.get("body_markdown") or f"# {workspace['goal']}\n\nReport is not available yet.\n"
+    )
     if format == "markdown":
         return PlainTextResponse(
             markdown,

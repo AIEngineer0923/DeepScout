@@ -86,6 +86,7 @@ def test_sse_replay_uses_after_query(api_client: TestClient) -> None:
     assert replay.status_code == 200
     assert replay.text == "" or ": keepalive" in replay.text or "id:" in replay.text
 
+
 @pytest.mark.postgres
 def test_get_unknown_run_returns_404(api_client: TestClient) -> None:
     response = api_client.get(f"/api/v1/research-runs/{uuid.uuid4()}")
@@ -139,6 +140,33 @@ def test_create_run_persists_mode_and_language(api_client: TestClient) -> None:
     workspace = api_client.get(f"/api/v1/research-runs/{body['id']}/workspace")
     assert workspace.json()["research_mode"] == "deep"
     assert workspace.json()["output_language"] == "it"
+
+
+@pytest.mark.postgres
+def test_create_run_persists_preferences_in_snapshot(api_client: TestClient) -> None:
+
+    created = api_client.post(
+        "/api/v1/research-runs",
+        json={
+            "goal": "Compare EV battery chemistries in Germany",
+            "research_mode": "standard",
+            "output_language": "en",
+            "preferences": {
+                "geographic_focus": {"mode": "regions", "regions": ["Germany"]},
+                "freshness": {"mode": "explicit", "policy": "7d"},
+                "model_policy": {"mode": "automatic"},
+                "excluded_domains": ["spam.test"],
+            },
+        },
+    )
+    assert created.status_code == 201
+    run_id = created.json()["id"]
+    workspace = api_client.get(f"/api/v1/research-runs/{run_id}/workspace")
+    assert workspace.status_code == 200
+    prefs = api_client.get(f"/api/v1/research-runs/{run_id}/source-preferences")
+    assert prefs.status_code == 200
+    excluded = [item for item in prefs.json() if item["action"] == "exclude"]
+    assert any(item["identity_value"] == "spam.test" for item in excluded)
 
 
 @pytest.mark.postgres

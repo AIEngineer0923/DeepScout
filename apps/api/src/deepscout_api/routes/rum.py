@@ -43,7 +43,12 @@ def ingest_vitals(body: WebVitalWrite, store=Depends(get_research_store)) -> Non
         body.network_class = "unknown"
     if body.navigation_type not in ALLOWED_NAV:
         body.navigation_type = "navigate"
-    if "?" in body.route or "#" in body.route or not body.route.startswith("/") or not _route_allowed(body.route):
+    if (
+        "?" in body.route
+        or "#" in body.route
+        or not body.route.startswith("/")
+        or not _route_allowed(body.route)
+    ):
         raise HTTPException(status_code=400, detail="invalid route")
     store.record_web_vital(body)
     store.commit()

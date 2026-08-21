@@ -21,6 +21,7 @@ def test_live_and_ready_endpoints() -> None:
     assert "postgres" in body
     assert body["status"] in {"ok", "unavailable"}
 
+
 def test_smoke_agent_without_api_key_returns_503() -> None:
     settings = Settings(
         _env_file=None,

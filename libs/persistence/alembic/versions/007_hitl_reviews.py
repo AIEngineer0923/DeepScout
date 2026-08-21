@@ -67,7 +67,9 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=300), nullable=False),
         sa.Column("explanation", sa.Text(), nullable=False),
         sa.Column("proposed_action_type", sa.String(length=64), nullable=False),
-        sa.Column("proposed_action_payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column(
+            "proposed_action_payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False
+        ),
         sa.Column("payload_hash", sa.String(length=64), nullable=False),
         sa.Column(
             "status",
@@ -78,7 +80,9 @@ def upgrade() -> None:
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("policy_version", sa.String(length=32), nullable=False, server_default="hitl-v1"),
         sa.Column("created_by_component", sa.String(length=64), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("resolved_by", sa.String(length=128), nullable=True),
@@ -115,7 +119,9 @@ def upgrade() -> None:
         sa.Column("actor_source", sa.String(length=32), nullable=False),
         sa.Column("actor_identity", sa.String(length=128), nullable=True),
         sa.Column("detail", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_review_events_review_id", "review_events", ["review_request_id"])
 
@@ -133,8 +139,12 @@ def upgrade() -> None:
         sa.Column("scores", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("note", sa.Text(), nullable=True),
         sa.Column("source", sa.String(length=32), nullable=False, server_default="ui"),
-        sa.Column("created_by", sa.String(length=128), nullable=False, server_default="local_operator"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_by", sa.String(length=128), nullable=False, server_default="local_operator"
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_human_feedback_run_id", "human_feedback", ["research_run_id"])
 

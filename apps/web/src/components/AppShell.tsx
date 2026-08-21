@@ -58,6 +58,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [langsmith, setLangsmith] = useState<{ connected: boolean; project: string; region: string } | null>(null);
   const [identityLabel, setIdentityLabel] = useState("Local workspace");
   const [identityRole, setIdentityRole] = useState("Operator");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isHosted, setIsHosted] = useState(false);
 
   useEffect(() => {
     if (pathRunId) rememberRunId(pathRunId);
@@ -68,6 +70,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     api
       .me()
       .then((me) => {
+        setIsAuthenticated(Boolean(me.authenticated));
+        setIsHosted(me.mode === "hosted");
         const previous = window.sessionStorage.getItem("deepscout.principal_id");
         if (me.id && previous && previous !== me.id) {
           clearLastRunId();
@@ -89,6 +93,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .then((data) => {
         setIdentityLabel(data.identity.label);
         setIdentityRole(data.identity.role);
+        setIsHosted(data.identity.mode === "hosted");
+        setIsAuthenticated(data.identity.role === "Authenticated" || data.identity.role === "Operator");
         if (!readLastRunId() && data.active?.id) rememberRunId(data.active.id);
         setStoredRunId(parseRunId(window.location.pathname) ?? readLastRunId() ?? data.active?.id ?? null);
       })
@@ -115,12 +121,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {t("nav.skip")}
       </a>
       <aside className="sidebar" aria-label={t("nav.primary")}>
-        <Link href="/" className="brand">
+        <Link href="/dashboard" className="brand">
           <span className="brand-mark">S</span>
           {t("brand.name")}
         </Link>
         <nav className="nav">
-          <Link href="/" className={`nav-link ${pathname === "/" ? "active" : ""}`} aria-current={pathname === "/" ? "page" : undefined}>
+          <Link
+            href="/dashboard"
+            className={`nav-link ${pathname === "/dashboard" ? "active" : ""}`}
+            aria-current={pathname === "/dashboard" ? "page" : undefined}
+          >
             <IconHome />
             {t("nav.overview")}
           </Link>
@@ -187,16 +197,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/demo" className={`nav-link ${pathname === "/demo" ? "active" : ""}`}>
             <IconEvals />
-            Demo
+            {t("nav.demo")}
           </Link>
-          <Link href="/login" className={`nav-link ${pathname === "/login" ? "active" : ""}`}>
-            <IconSettings />
-            Sign in
-          </Link>
-          <Link href="/account" className={`nav-link ${pathname === "/account" ? "active" : ""}`}>
-            <IconSettings />
-            Account
-          </Link>
+          {!isAuthenticated && isHosted ? (
+            <Link href="/login" className={`nav-link ${pathname === "/login" ? "active" : ""}`}>
+              <IconSettings />
+              {t("nav.signIn")}
+            </Link>
+          ) : null}
+          {isAuthenticated || !isHosted ? (
+            <Link href="/account" className={`nav-link ${pathname === "/account" ? "active" : ""}`}>
+              <IconSettings />
+              {t("nav.account")}
+            </Link>
+          ) : null}
           <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
             <IconSettings />
             {t("nav.settings")}
@@ -218,7 +232,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
             <div className="identity-meta">
               <strong>{identityLabel}</strong>
-              <div className="muted">{identityRole}</div>
+              <div className="muted">
+                {identityRole === "Anonymous"
+                  ? t("identity.anonymous")
+                  : identityRole === "Authenticated"
+                    ? t("identity.authenticated")
+                    : t("identity.operator")}
+              </div>
             </div>
           </div>
           <div className="version-tag">v0.1.0</div>
@@ -226,7 +246,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="main-wrap">
         <header className="topbar">
-          <Link href={runId ? `/research/${runId}` : "/"} className="back-link">
+          <Link href={runId ? `/research/${runId}` : "/dashboard"} className="back-link">
             ← {t("nav.back")}
           </Link>
           <div className="row" aria-label={t("uiLanguage.label")}>
@@ -244,7 +264,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
         <nav className="mobile-nav" aria-label="Mobile">
-          <Link href="/">{t("nav.overview")}</Link>
+          <Link href="/dashboard">{t("nav.overview")}</Link>
           <Link href="/research/new">{t("nav.mobile.new")}</Link>
           <Link href={runId ? `/research/${runId}` : "/research/select"}>{t("nav.mobile.run")}</Link>
           <Link href="/history">{t("nav.history")}</Link>

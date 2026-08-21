@@ -74,7 +74,9 @@ def upgrade() -> None:
         sa.Column("kind", note_kind, nullable=False),
         sa.Column("body", sa.String(length=2000), nullable=False),
         sa.Column("artifact_ref", sa.String(length=128), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_agent_notes_run_id", "agent_notes", ["research_run_id"])
 
@@ -90,7 +92,9 @@ def upgrade() -> None:
         sa.Column("research_task_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("skill_id", sa.String(length=64), nullable=False),
         sa.Column("skill_version", sa.String(length=32), nullable=False, server_default="1"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_run_skill_bindings_run_id", "run_skill_bindings", ["research_run_id"])
 
@@ -108,7 +112,9 @@ def upgrade() -> None:
         sa.Column("chars_after", sa.Integer(), nullable=False),
         sa.Column("dropped_redundant", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("artifact_refs_kept", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
 

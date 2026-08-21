@@ -51,7 +51,10 @@ def index_snapshots_for_run(
 
 def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec) -> IndexingStatus:
     session = store._session
-    if snapshot.indexing_status == IndexingStatus.INDEXED and snapshot.embedding_spec_key == spec.key:
+    if (
+        snapshot.indexing_status == IndexingStatus.INDEXED
+        and snapshot.embedding_spec_key == spec.key
+    ):
         return IndexingStatus.INDEXED
     text = (snapshot.content_text or "").strip()
     if len(text) < 40:
@@ -108,7 +111,11 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
             token_total += sum(estimate_tokens(row.text) for row in batch)
         if token_total:
             _record_embedding_usage(store, spec=spec, run_id=run_id, input_tokens=token_total)
-        status = IndexingStatus.INDEXED if written == len(pending) or not pending else IndexingStatus.PARTIALLY_INDEXED
+        status = (
+            IndexingStatus.INDEXED
+            if written == len(pending) or not pending
+            else IndexingStatus.PARTIALLY_INDEXED
+        )
         if pending and written == 0:
             status = IndexingStatus.FAILED
         set_indexing_status(
@@ -127,7 +134,9 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
         return IndexingStatus.FAILED
 
 
-def _record_embedding_usage(store: ResearchStore, *, spec: EmbeddingSpec, run_id: uuid.UUID, input_tokens: int) -> None:
+def _record_embedding_usage(
+    store: ResearchStore, *, spec: EmbeddingSpec, run_id: uuid.UUID, input_tokens: int
+) -> None:
     usage = TokenUsageRecord(
         research_run_id=run_id,
         phase=ResearchPhase.INDEX,

@@ -50,19 +50,38 @@ def upgrade() -> None:
         "source_snapshots",
         sa.Column("embedding_count", sa.Integer(), nullable=False, server_default="0"),
     )
-    op.add_column("source_snapshots", sa.Column("chunking_version", sa.String(length=64), nullable=True))
+    op.add_column(
+        "source_snapshots", sa.Column("chunking_version", sa.String(length=64), nullable=True)
+    )
     op.add_column(
         "source_snapshots",
         sa.Column("embedding_spec_key", sa.String(length=256), nullable=True),
     )
-    op.add_column("source_snapshots", sa.Column("indexed_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "source_snapshots", sa.Column("indexed_at", sa.DateTime(timezone=True), nullable=True)
+    )
 
     op.create_table(
         "document_chunks",
         sa.Column("id", sa.Uuid(as_uuid=True), primary_key=True),
-        sa.Column("research_run_id", sa.Uuid(as_uuid=True), sa.ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("source_id", sa.Uuid(as_uuid=True), sa.ForeignKey("sources.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("source_snapshot_id", sa.Uuid(as_uuid=True), sa.ForeignKey("source_snapshots.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "research_run_id",
+            sa.Uuid(as_uuid=True),
+            sa.ForeignKey("research_runs.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Uuid(as_uuid=True),
+            sa.ForeignKey("sources.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "source_snapshot_id",
+            sa.Uuid(as_uuid=True),
+            sa.ForeignKey("source_snapshots.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("ordinal", sa.Integer(), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("start_offset", sa.Integer(), nullable=False),
@@ -71,8 +90,15 @@ def upgrade() -> None:
         sa.Column("content_hash", sa.String(length=64), nullable=False),
         sa.Column("section_title", sa.String(length=200), nullable=True),
         sa.Column("chunking_version", sa.String(length=64), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.UniqueConstraint("source_snapshot_id", "chunking_version", "ordinal", name="uq_chunks_snapshot_version_ord"),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.UniqueConstraint(
+            "source_snapshot_id",
+            "chunking_version",
+            "ordinal",
+            name="uq_chunks_snapshot_version_ord",
+        ),
     )
     op.create_index("ix_document_chunks_run_id", "document_chunks", ["research_run_id"])
     op.create_index("ix_document_chunks_snapshot_id", "document_chunks", ["source_snapshot_id"])
@@ -85,14 +111,26 @@ def upgrade() -> None:
     op.create_table(
         "chunk_embeddings",
         sa.Column("id", sa.Uuid(as_uuid=True), primary_key=True),
-        sa.Column("chunk_id", sa.Uuid(as_uuid=True), sa.ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("research_run_id", sa.Uuid(as_uuid=True), sa.ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "chunk_id",
+            sa.Uuid(as_uuid=True),
+            sa.ForeignKey("document_chunks.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "research_run_id",
+            sa.Uuid(as_uuid=True),
+            sa.ForeignKey("research_runs.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("model", sa.String(length=128), nullable=False),
         sa.Column("dimensions", sa.Integer(), nullable=False),
         sa.Column("config_version", sa.String(length=64), nullable=False),
         sa.Column("embedding", Vector(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint(
             "chunk_id",
             "provider",

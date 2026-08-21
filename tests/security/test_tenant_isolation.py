@@ -147,9 +147,12 @@ def test_user_b_cannot_mutate_or_export_user_a(hosted_client) -> None:
                 kwargs["json"] = body
             response = getattr(hosted_client, method)(path, **kwargs)
             assert response.status_code == 404, path
-        assert hosted_client.get(
-            f"/api/v1/research-runs/{run.id}/export?format=json", cookies=cookies_a
-        ).status_code == 200
+        assert (
+            hosted_client.get(
+                f"/api/v1/research-runs/{run.id}/export?format=json", cookies=cookies_a
+            ).status_code
+            == 200
+        )
         export = hosted_client.get("/api/v1/account/export", cookies=cookies_a)
         assert export.status_code == 200
         assert "ciphertext" not in export.text

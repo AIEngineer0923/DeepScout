@@ -8,10 +8,7 @@ from deepscout_research.prompts.registry import PROMPT_REGISTRY
 
 
 def build_config_snapshot(settings: Settings) -> dict:
-    prompts = {
-        spec.prompt_id: spec.prompt_version
-        for spec in PROMPT_REGISTRY.values()
-    }
+    prompts = {spec.prompt_id: spec.prompt_version for spec in PROMPT_REGISTRY.values()}
     return {
         "state_schema_version": 9,
         "hitl_policy_version": "hitl-v1",

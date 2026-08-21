@@ -40,8 +40,14 @@ export function DashboardScreen() {
   const active = overview.active;
 
   useEffect(() => {
-    api.overview().then(setOverview).catch(() => setOverview(EMPTY));
-  }, []);
+    api.overview().then((data) => {
+      if (data.identity.role === "Anonymous" && data.identity.mode === "hosted") {
+        router.replace("/login");
+        return;
+      }
+      setOverview(data);
+    }).catch(() => setOverview(EMPTY));
+  }, [router]);
 
   async function start() {
     if (!goal.trim()) return;
@@ -93,34 +99,6 @@ export function DashboardScreen() {
         </h1>
         <p className="page-sub">{t("dashboard.subtitle")}</p>
       </div>
-      {overview.identity.role === "Anonymous" ? (
-        <section className="card" style={{ display: "grid", gap: 12 }}>
-          <p className="page-sub" style={{ margin: 0 }}>
-            Explore completed research without an account. Sign in only if you want to run your own
-            research with your own provider credentials.
-          </p>
-          <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
-            <Link className="btn primary" href="/demo">
-              Explore Demo
-            </Link>
-            <Link className="btn" href="/login">
-              Sign in
-            </Link>
-            <a className="btn" href="https://github.com/francescoveryra-dot/deepscout">
-              View on GitHub
-            </a>
-            <a className="btn" href="https://github.com/francescoveryra-dot/deepscout#quick-start">
-              Run Locally
-            </a>
-            <a className="btn" href="https://github.com/francescoveryra-dot/deepscout/blob/main/docs/DEPLOYMENT.md">
-              Deploy Your Own
-            </a>
-            <a className="btn" href="https://github.com/francescoveryra-dot/deepscout/blob/main/ARCHITECTURE.md">
-              Architecture
-            </a>
-          </div>
-        </section>
-      ) : null}
       <div className="grid cols-2">
         <section className="card">
           <h2>{t("dashboard.goalLabel")}</h2>

@@ -23,7 +23,9 @@ from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.runtime.config_snapshot import build_config_snapshot
 from deepscout_research.search.tavily import TavilyWebSearchProvider
 
-OUT = Path(__file__).resolve().parents[1] / "libs/evaluation/data/agent_runtime_live_closure_v1.json"
+OUT = (
+    Path(__file__).resolve().parents[1] / "libs/evaluation/data/agent_runtime_live_closure_v1.json"
+)
 
 
 def main() -> int:
@@ -33,8 +35,14 @@ def main() -> int:
     store = ResearchStore(get_session_factory(settings.database_url)())
     extra: dict = {"rerun_at": datetime.now(UTC).isoformat()}
     with TavilyWebSearchProvider(settings) as search:
+
         def run_case(case: str, goal: str, budget: ResearchBudget, concurrency: int):
-            snap = {**build_config_snapshot(settings), "benchmark": TAG, "case": case, "rerun": True}
+            snap = {
+                **build_config_snapshot(settings),
+                "benchmark": TAG,
+                "case": case,
+                "rerun": True,
+            }
             created = store.create_run(
                 ResearchRunCreate(goal=_goal(case, goal), budget=budget, research_mode="quick"),
                 settings,
@@ -48,7 +56,13 @@ def main() -> int:
             ResearchOrchestrator(store, settings, search).execute(created.id)
             store.commit()
             return _snapshot_case(
-                store, created.id, {"latency_ms": int((time.perf_counter() - t0) * 1000), "concurrency": concurrency, "rerun": True}
+                store,
+                created.id,
+                {
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                    "concurrency": concurrency,
+                    "rerun": True,
+                },
             )
 
         b_goal = (
@@ -58,19 +72,40 @@ def main() -> int:
         extra["B1"] = run_case(
             "B1R",
             b_goal,
-            ResearchBudget(max_iterations=2, max_wall_time_seconds=180, max_total_tokens=40_000, max_cost_usd=0.75, max_sources=12, max_tool_calls=6),
+            ResearchBudget(
+                max_iterations=2,
+                max_wall_time_seconds=180,
+                max_total_tokens=40_000,
+                max_cost_usd=0.75,
+                max_sources=12,
+                max_tool_calls=6,
+            ),
             1,
         )
         extra["B2"] = run_case(
             "B2R",
             b_goal,
-            ResearchBudget(max_iterations=2, max_wall_time_seconds=180, max_total_tokens=40_000, max_cost_usd=0.75, max_sources=12, max_tool_calls=6),
+            ResearchBudget(
+                max_iterations=2,
+                max_wall_time_seconds=180,
+                max_total_tokens=40_000,
+                max_cost_usd=0.75,
+                max_sources=12,
+                max_tool_calls=6,
+            ),
             3,
         )
         extra["F"] = run_case(
             "FR",
             "Name one common EV battery chemistry.",
-            ResearchBudget(max_iterations=2, max_wall_time_seconds=180, max_total_tokens=20_000, max_cost_usd=0.75, max_sources=8, max_tool_calls=1),
+            ResearchBudget(
+                max_iterations=2,
+                max_wall_time_seconds=180,
+                max_total_tokens=20_000,
+                max_cost_usd=0.75,
+                max_sources=8,
+                max_tool_calls=1,
+            ),
             1,
         )
         f = extra["F"]
@@ -85,11 +120,23 @@ def main() -> int:
             dispose_all_engines()
             store = ResearchStore(get_session_factory(settings.database_url)())
             pending = store.get_pending_review(run_id, ReviewReasonCode.BUDGET_EXTENSION)
-            hitl["process_restart"] = pending is not None and store.get_run(run_id).status == ResearchRunStatus.PAUSED
+            hitl["process_restart"] = (
+                pending is not None and store.get_run(run_id).status == ResearchRunStatus.PAUSED
+            )
             hitl["review_id"] = str(pending.id) if pending else None
             service = HumanReviewService(store, settings)
-            first = service.resolve_review(run_id=run_id, review_id=pending.id, decision_kind=ReviewDecisionKind.APPROVE, source="api")
-            second = service.resolve_review(run_id=run_id, review_id=pending.id, decision_kind=ReviewDecisionKind.APPROVE, source="api")
+            first = service.resolve_review(
+                run_id=run_id,
+                review_id=pending.id,
+                decision_kind=ReviewDecisionKind.APPROVE,
+                source="api",
+            )
+            second = service.resolve_review(
+                run_id=run_id,
+                review_id=pending.id,
+                decision_kind=ReviewDecisionKind.APPROVE,
+                source="api",
+            )
             store.commit()
             ResearchOrchestrator(store, settings, search).execute(run_id)
             store.commit()
@@ -125,7 +172,18 @@ def main() -> int:
         "b2_status": b2["status"],
     }
     OUT.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-    print(json.dumps({"status": "RERUN", "B1": b1["run_id"], "B2": b2["run_id"], "F": extra["F"]["run_id"], "F_status": extra["F"]["status"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "status": "RERUN",
+                "B1": b1["run_id"],
+                "B2": b2["run_id"],
+                "F": extra["F"]["run_id"],
+                "F_status": extra["F"]["status"],
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

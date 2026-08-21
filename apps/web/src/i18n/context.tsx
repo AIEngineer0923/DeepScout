@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { detectLocaleFromNavigator } from "./locale";
 import { UI_LOCALE_KEY, isLocale, translate, type Locale } from "./messages";
 
 type I18nContextValue = {
@@ -15,8 +16,8 @@ const I18nContext = createContext<I18nContextValue>({
   t: (key) => key,
 });
 
-function readStoredLocale(): Locale {
-  if (typeof window === "undefined") return "en";
+function readStoredLocale(): Locale | null {
+  if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(UI_LOCALE_KEY);
   if (isLocale(stored)) return stored;
   const cookie = document.cookie
@@ -24,7 +25,7 @@ function readStoredLocale(): Locale {
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${UI_LOCALE_KEY}=`));
   const value = cookie?.split("=")[1];
-  return isLocale(value) ? value : "en";
+  return isLocale(value) ? value : null;
 }
 
 function persistLocale(locale: Locale) {
@@ -37,7 +38,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
-    const next = readStoredLocale();
+    const stored = readStoredLocale();
+    const next = stored ?? detectLocaleFromNavigator();
     setLocaleState(next);
     persistLocale(next);
   }, []);

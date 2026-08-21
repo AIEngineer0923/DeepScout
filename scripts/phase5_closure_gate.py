@@ -41,7 +41,9 @@ from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.retrieval.spec import EmbeddingSpec
 from sqlalchemy import text
 
-BENCHMARK_PATH = Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+BENCHMARK_PATH = (
+    Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+)
 TOP_K = 5
 CANDIDATE_K = 20
 
@@ -85,8 +87,12 @@ def _client_for_dims(settings, dims: int):
     return client, spec, s
 
 
-def _seed_corpus(store: ResearchStore, settings, goal: str, documents: list[dict]) -> tuple[Any, dict[str, UUID]]:
-    run = store.create_run(ResearchRunCreate(goal=goal, budget=settings.default_research_budget()), settings)
+def _seed_corpus(
+    store: ResearchStore, settings, goal: str, documents: list[dict]
+) -> tuple[Any, dict[str, UUID]]:
+    run = store.create_run(
+        ResearchRunCreate(goal=goal, budget=settings.default_research_budget()), settings
+    )
     doc_to_source: dict[str, UUID] = {}
     for doc in documents:
         source, _ = store.add_source(
@@ -282,7 +288,9 @@ def run_closure() -> ClosureResult:
     try:
         import subprocess
 
-        result.branch_head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        result.branch_head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip()
     except Exception:  # noqa: BLE001
         result.branch_head = None
 
@@ -312,7 +320,8 @@ def run_closure() -> ClosureResult:
             "finite": all(math.isfinite(float(v)) for v in probe),
             "non_zero": any(abs(float(v)) > 1e-9 for v in probe),
             "latency_s": round(smoke_latency, 3),
-            "pass": len(probe) == 1536 and str(_runtime_model(client_1536)).startswith("gemini-embedding"),
+            "pass": len(probe) == 1536
+            and str(_runtime_model(client_1536)).startswith("gemini-embedding"),
         }
 
         # --- A3: 768 vs 1536 on identical corpus/queries ---
@@ -327,7 +336,9 @@ def run_closure() -> ClosureResult:
             )
             source_to_doc = _source_doc_map(doc_to_source)
             t_index = time.perf_counter()
-            index_stats = index_snapshots_for_run(store, dim_settings, run.id, client=client, spec=spec)
+            index_stats = index_snapshots_for_run(
+                store, dim_settings, run.id, client=client, spec=spec
+            )
             store.commit()
             index_latency = time.perf_counter() - t_index
             embed_count = int(
@@ -364,7 +375,9 @@ def run_closure() -> ClosureResult:
                 "index_stats": index_stats,
                 "chunks": chunk_count,
                 "embeddings": embed_count,
-                "vector_storage_bytes_approx": _vector_storage_bytes(embeddings=embed_count, dimensions=dims),
+                "vector_storage_bytes_approx": _vector_storage_bytes(
+                    embeddings=embed_count, dimensions=dims
+                ),
                 "index_latency_s": round(index_latency, 3),
                 "query_embed_latency_s": round(embed_q_latency, 3),
                 "query_vector_dims": len(qvec),
@@ -377,7 +390,8 @@ def run_closure() -> ClosureResult:
         m768 = dim_report["768"]["retrieval"]
         m1536 = dim_report["1536"]["retrieval"]
         storage_ratio = (
-            dim_report["1536"]["vector_storage_bytes_approx"] / dim_report["768"]["vector_storage_bytes_approx"]
+            dim_report["1536"]["vector_storage_bytes_approx"]
+            / dim_report["768"]["vector_storage_bytes_approx"]
             if dim_report["768"]["vector_storage_bytes_approx"]
             else None
         )
@@ -402,7 +416,9 @@ def run_closure() -> ClosureResult:
             )
         else:
             dim_decision = "1536"
-            dim_reason = "mixed quality deltas; retain 1536 for OpenAI portability and conservative recall"
+            dim_reason = (
+                "mixed quality deltas; retain 1536 for OpenAI portability and conservative recall"
+            )
         result.dimension_benchmark = {
             "768": dim_report["768"],
             "1536": dim_report["1536"],
@@ -452,7 +468,9 @@ def run_closure() -> ClosureResult:
             }
             for label, data in ablation_out.items()
         }
-        result.category_results = ablation_out["HYBRID_RRF_PLUS_DETERMINISTIC_RERANK"]["by_category"]
+        result.category_results = ablation_out["HYBRID_RRF_PLUS_DETERMINISTIC_RERANK"][
+            "by_category"
+        ]
 
         hybrid = ablation_out["HYBRID_RRF_PLUS_DETERMINISTIC_RERANK"]["by_category"]
         dense = ablation_out["DENSE_ONLY"]["by_category"]
@@ -481,7 +499,14 @@ def run_closure() -> ClosureResult:
             },
             "quality_delta_rerank_minus_rrf": {
                 key: round(rr_plus.get(key, 0) - rr.get(key, 0), 4)
-                for key in ("hit_at_k", "recall_at_k", "precision_at_k", "mrr", "ndcg_at_k", "phrase_recall")
+                for key in (
+                    "hit_at_k",
+                    "recall_at_k",
+                    "precision_at_k",
+                    "mrr",
+                    "ndcg_at_k",
+                    "phrase_recall",
+                )
             },
             "latency_delta_s": round(
                 ablation_out["HYBRID_RRF_PLUS_DETERMINISTIC_RERANK"]["mean_latency_s"]
@@ -502,14 +527,18 @@ def run_closure() -> ClosureResult:
         }
 
         # --- A4: isolated pre-RAG vs RAG ---
-        run_a, _ = _seed_corpus(store, chosen_settings, goal="Phase5 pre-RAG isolated", documents=documents)
+        run_a, _ = _seed_corpus(
+            store, chosen_settings, goal="Phase5 pre-RAG isolated", documents=documents
+        )
         _seed_search_candidates(store, run_a.id)
         pre = extract_claims_for_run(store, run_a.id, retriever=None)
         store.commit()
         claims_a = len(store.list_claims(run_a.id))
         evidence_a = len(store.list_evidence(run_a.id))
 
-        run_b, _ = _seed_corpus(store, chosen_settings, goal="Phase5 RAG isolated", documents=documents)
+        run_b, _ = _seed_corpus(
+            store, chosen_settings, goal="Phase5 RAG isolated", documents=documents
+        )
         _seed_search_candidates(store, run_b.id)
         index_snapshots_for_run(store, chosen_settings, run_b.id, client=client, spec=spec)
         store.commit()
@@ -554,7 +583,9 @@ def run_closure() -> ClosureResult:
 
         # --- cross-run isolation + DB reality on ablation run ---
         run_iso = store.create_run(
-            ResearchRunCreate(goal="cross-run isolation", budget=settings.default_research_budget()),
+            ResearchRunCreate(
+                goal="cross-run isolation", budget=settings.default_research_budget()
+            ),
             chosen_settings,
         )
         store.commit()
@@ -566,9 +597,10 @@ def run_closure() -> ClosureResult:
             next(q["query"] for q in queries if q["id"] == "q-adversarial")
         )
 
-        db = session.execute(
-            text(
-                """
+        db = (
+            session.execute(
+                text(
+                    """
                 SELECT
                   (SELECT COUNT(*) FROM research_runs WHERE id = :rid) AS runs,
                   (SELECT COUNT(*) FROM sources WHERE research_run_id = :rid) AS sources,
@@ -577,13 +609,18 @@ def run_closure() -> ClosureResult:
                   (SELECT COUNT(*) FROM document_chunks WHERE research_run_id = :rid) AS chunks,
                   (SELECT COUNT(*) FROM chunk_embeddings WHERE research_run_id = :rid) AS embeddings
                 """
-            ),
-            {"rid": ablation_run.id},
-        ).mappings().one()
+                ),
+                {"rid": ablation_run.id},
+            )
+            .mappings()
+            .one()
+        )
         result.database_reality = {
             "run_id": str(ablation_run.id),
             **{k: int(db[k]) for k in db.keys()},
-            "pass": all(int(db[k]) > 0 for k in ("runs", "sources", "snapshots", "chunks", "embeddings")),
+            "pass": all(
+                int(db[k]) > 0 for k in ("runs", "sources", "snapshots", "chunks", "embeddings")
+            ),
         }
 
         result.final_live_rag = {
@@ -609,7 +646,8 @@ def run_closure() -> ClosureResult:
             and "768" in result.dimension_benchmark
             and "1536" in result.dimension_benchmark
             and all(label in result.retrieval_ablation for label in modes)
-            and result.pre_rag_vs_rag.get("outcome") in {"RAG_BETTER", "PRE_RAG_BETTER", "SIMILAR", "MIXED"}
+            and result.pre_rag_vs_rag.get("outcome")
+            in {"RAG_BETTER", "PRE_RAG_BETTER", "SIMILAR", "MIXED"}
         )
         result.status = "PASS" if ok else "WARN"
     return result

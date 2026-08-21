@@ -61,7 +61,12 @@ def bench_events(engine, database_url: str) -> dict:
             pub_started = time.perf_counter()
             client.publish("deepscout-lab", str(run_id))
             pub_ms = _ms(pub_started)
-            redis = {"available": True, "ping_ms": ping_ms, "publish_ms": pub_ms, "durable_replay": False}
+            redis = {
+                "available": True,
+                "ping_ms": ping_ms,
+                "publish_ms": pub_ms,
+                "durable_replay": False,
+            }
         finally:
             client.close()
     except Exception as exc:
@@ -84,7 +89,11 @@ def bench_pgvector(engine) -> dict:
     dim = 64
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS lab_vec"))
-        conn.execute(text(f"CREATE UNLOGGED TABLE lab_vec (id bigserial PRIMARY KEY, embedding vector({dim}))"))
+        conn.execute(
+            text(
+                f"CREATE UNLOGGED TABLE lab_vec (id bigserial PRIMARY KEY, embedding vector({dim}))"
+            )
+        )
         for n in SIZES:
             conn.execute(text("TRUNCATE lab_vec"))
             insert_started = time.perf_counter()
@@ -111,11 +120,17 @@ def bench_pgvector(engine) -> dict:
             try:
                 build_started = time.perf_counter()
                 conn.execute(text("DROP INDEX IF EXISTS lab_vec_hnsw"))
-                conn.execute(text("CREATE INDEX lab_vec_hnsw ON lab_vec USING hnsw (embedding vector_cosine_ops)"))
+                conn.execute(
+                    text(
+                        "CREATE INDEX lab_vec_hnsw ON lab_vec USING hnsw (embedding vector_cosine_ops)"
+                    )
+                )
                 hnsw_build_ms = _ms(build_started)
                 hnsw_started = time.perf_counter()
                 conn.execute(
-                    text("SELECT id FROM lab_vec ORDER BY embedding <=> CAST(:q AS vector) LIMIT 10"),
+                    text(
+                        "SELECT id FROM lab_vec ORDER BY embedding <=> CAST(:q AS vector) LIMIT 10"
+                    ),
                     {"q": q},
                 )
                 hnsw_ms = _ms(hnsw_started)
@@ -203,11 +218,16 @@ def main() -> int:
         "final_infrastructure": "POSTGRES_ONLY",
     }
     # Refine from actual numbers
-    exact_10k = next((row["exact_top10_ms"] for row in report["pgvector"]["sizes"] if row["n"] == 10_000), None)
+    exact_10k = next(
+        (row["exact_top10_ms"] for row in report["pgvector"]["sizes"] if row["n"] == 10_000), None
+    )
     if exact_10k is not None and exact_10k > 80:
         report["pgvector_ann"] = "HNSW"
         report["pgvector"]["decision"] = "HNSW"
-    out = __import__("pathlib").Path(__file__).resolve().parents[1] / "libs/evaluation/data/infra_decision_lab_v1.json"
+    out = (
+        __import__("pathlib").Path(__file__).resolve().parents[1]
+        / "libs/evaluation/data/infra_decision_lab_v1.json"
+    )
     out.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     return 0

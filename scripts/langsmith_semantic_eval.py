@@ -36,7 +36,9 @@ def _judge_one(model, case: dict) -> JudgeVerdict:
     structured = model.with_structured_output(JudgeVerdict)
     result = structured.invoke(
         [
-            SystemMessage(content="You are a strict research evaluator. Score only from the provided rubric."),
+            SystemMessage(
+                content="You are a strict research evaluator. Score only from the provided rubric."
+            ),
             HumanMessage(content=json.dumps(payload)),
         ]
     )

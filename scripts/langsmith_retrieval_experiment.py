@@ -19,7 +19,9 @@ from deepscout_research.retrieval.models import RetrievalQuery
 from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.retrieval.spec import EmbeddingSpec
 
-BENCHMARK_PATH = Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+BENCHMARK_PATH = (
+    Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+)
 
 
 def _runtime_model(client) -> str:
@@ -54,7 +56,9 @@ def _phrase_score(texts: list[str], phrases: list[str]) -> float:
 
 def _seed(store, settings, documents):
     run = store.create_run(
-        ResearchRunCreate(goal="langsmith retrieval experiment", budget=settings.default_research_budget()),
+        ResearchRunCreate(
+            goal="langsmith retrieval experiment", budget=settings.default_research_budget()
+        ),
         settings,
     )
     for doc in documents:
@@ -100,7 +104,9 @@ def main() -> int:
             }
             for item in benchmark["queries"]
         ]
-        dataset = client_ls.create_dataset(dataset_name, description="Phase 5 retrieval benchmark v1.1")
+        dataset = client_ls.create_dataset(
+            dataset_name, description="Phase 5 retrieval benchmark v1.1"
+        )
         client_ls.create_examples(dataset_id=dataset.id, examples=examples)
 
     session_factory = get_session_factory(settings.database_url)

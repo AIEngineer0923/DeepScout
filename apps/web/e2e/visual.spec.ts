@@ -8,6 +8,11 @@ async function mockApi(page: Page) {
     window.localStorage.setItem("deepscout.ui_locale", "en");
   });
   await page.clock.setFixedTime(new Date("2026-08-21T10:05:00.000Z"));
+  await page.route("**/api/v1/auth/me", async (route) =>
+    route.fulfill({
+      json: { authenticated: true, mode: "local", hosted_auth_ready: true, id: "local", display_name: "Local workspace" },
+    }),
+  );
   await page.route("**/api/v1/overview", async (route) => route.fulfill({ json: overviewFixture }));
   await page.route("**/api/v1/settings", async (route) => route.fulfill({ json: settingsFixture }));
   await page.route("**/api/v1/research-runs**", async (route) => {
@@ -35,7 +40,7 @@ test.describe("visual regression", () => {
 
   test("dashboard desktop", async ({ page }) => {
     await mockApi(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: /Welcome back|Bentornato/ })).toBeVisible();
     await expect(page.locator(".shell")).toHaveScreenshot("dashboard.png", { maxDiffPixelRatio: 0.03 });
   });

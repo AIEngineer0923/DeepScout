@@ -609,7 +609,9 @@ class WikiPageRow(Base):
     )
     slug: Mapped[str] = mapped_column(String(200), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    page_type: Mapped[WikiPageType] = mapped_column(pg_enum(WikiPageType, "wiki_page_type"), nullable=False)
+    page_type: Mapped[WikiPageType] = mapped_column(
+        pg_enum(WikiPageType, "wiki_page_type"), nullable=False
+    )
     status: Mapped[WikiPageStatus] = mapped_column(
         pg_enum(WikiPageStatus, "wiki_page_status"),
         nullable=False,
@@ -636,7 +638,9 @@ class WikiRevisionRow(Base):
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
-    change_op: Mapped[WikiChangeOp] = mapped_column(pg_enum(WikiChangeOp, "wiki_change_op"), nullable=False)
+    change_op: Mapped[WikiChangeOp] = mapped_column(
+        pg_enum(WikiChangeOp, "wiki_change_op"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     page: Mapped[WikiPageRow] = relationship(back_populates="revisions")
@@ -668,7 +672,9 @@ class WikiStatementRow(Base):
     evidence_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("evidence.id", ondelete="RESTRICT")
     )
-    compiled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    compiled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -693,7 +699,9 @@ class WikiLinkRow(Base):
     to_page_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("wiki_pages.id", ondelete="CASCADE")
     )
-    link_type: Mapped[WikiLinkType] = mapped_column(pg_enum(WikiLinkType, "wiki_link_type"), nullable=False)
+    link_type: Mapped[WikiLinkType] = mapped_column(
+        pg_enum(WikiLinkType, "wiki_link_type"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -816,7 +824,9 @@ class AgentNoteRow(Base):
         Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
     )
     research_task_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
-    kind: Mapped[AgentNoteKind] = mapped_column(pg_enum(AgentNoteKind, "agent_note_kind"), nullable=False)
+    kind: Mapped[AgentNoteKind] = mapped_column(
+        pg_enum(AgentNoteKind, "agent_note_kind"), nullable=False
+    )
     body: Mapped[str] = mapped_column(String(2000), nullable=False)
     artifact_ref: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -976,7 +986,9 @@ class PrincipalRow(Base):
 class AuthAccountRow(Base):
     __tablename__ = "auth_accounts"
     __table_args__ = (
-        UniqueConstraint("provider", "provider_account_id", name="uq_auth_accounts_provider_subject"),
+        UniqueConstraint(
+            "provider", "provider_account_id", name="uq_auth_accounts_provider_subject"
+        ),
         Index("ix_auth_accounts_principal_id", "principal_id"),
     )
 
@@ -1000,7 +1012,9 @@ class SessionRow(Base):
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -1019,7 +1033,9 @@ class OAuthStateRow(Base):
 class ProviderCredentialRow(Base):
     __tablename__ = "provider_credentials"
     __table_args__ = (
-        UniqueConstraint("principal_id", "provider", name="uq_provider_credentials_principal_provider"),
+        UniqueConstraint(
+            "principal_id", "provider", name="uq_provider_credentials_principal_provider"
+        ),
         Index("ix_provider_credentials_principal_id", "principal_id"),
     )
 

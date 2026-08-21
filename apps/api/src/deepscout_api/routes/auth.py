@@ -60,7 +60,10 @@ def _client_id_secret(settings: Settings, provider: str) -> tuple[str, str]:
     if provider == "github":
         if not settings.github_oauth_client_id or not settings.github_oauth_client_secret:
             raise HTTPException(status_code=503, detail="GitHub login is not configured")
-        return settings.github_oauth_client_id, settings.github_oauth_client_secret.get_secret_value()
+        return (
+            settings.github_oauth_client_id,
+            settings.github_oauth_client_secret.get_secret_value(),
+        )
     if not settings.google_oauth_client_id or not settings.google_oauth_client_secret:
         raise HTTPException(status_code=503, detail="Google login is not configured")
     return settings.google_oauth_client_id, settings.google_oauth_client_secret.get_secret_value()
@@ -74,7 +77,11 @@ def auth_me(
 ) -> dict:
     access = load_access(request, store._session, settings)
     if access.principal is None:
-        return {"authenticated": False, "mode": access.mode.value, "hosted_auth_ready": access.hosted_auth_ready}
+        return {
+            "authenticated": False,
+            "mode": access.mode.value,
+            "hosted_auth_ready": access.hosted_auth_ready,
+        }
     principal = access.principal
     return {
         "authenticated": True,
@@ -162,7 +169,9 @@ def login_callback(
         email = userinfo.get("email")
         emails = client.get(spec["emails"]).json() if spec.get("emails") else []
         if isinstance(emails, list):
-            primary = next((item for item in emails if item.get("primary") and item.get("verified")), None)
+            primary = next(
+                (item for item in emails if item.get("primary") and item.get("verified")), None
+            )
             chosen = primary or next((item for item in emails if item.get("verified")), None)
             if chosen:
                 email = chosen.get("email")

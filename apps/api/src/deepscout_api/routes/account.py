@@ -41,14 +41,20 @@ def _vault(settings: Settings) -> CredentialVault:
     if settings.credential_encryption_key is None:
         raise HTTPException(status_code=503, detail="credential vault is not configured")
     try:
-        return CredentialVault(decode_master_key(settings.credential_encryption_key.get_secret_value()))
+        return CredentialVault(
+            decode_master_key(settings.credential_encryption_key.get_secret_value())
+        )
     except VaultError as exc:
         raise HTTPException(status_code=503, detail="credential vault is not configured") from exc
 
 
 def _meta(row: ProviderCredentialRow | None, provider: str) -> dict:
     if row is None:
-        return {"provider": provider, "status": CredentialStatus.NOT_CONFIGURED.value, "configured": False}
+        return {
+            "provider": provider,
+            "status": CredentialStatus.NOT_CONFIGURED.value,
+            "configured": False,
+        }
     return {
         "provider": provider,
         "status": row.status,

@@ -40,8 +40,7 @@ def settings() -> Settings:
 @pytest.mark.postgres
 def test_budget_review_binding_and_idempotent_approve(store, settings) -> None:
     assert (
-        evaluate_policy(ReviewReasonCode.BUDGET_EXTENSION, settings)
-        == PolicyVerdict.REQUIRE_REVIEW
+        evaluate_policy(ReviewReasonCode.BUDGET_EXTENSION, settings) == PolicyVerdict.REQUIRE_REVIEW
     )
     run = store.create_run(
         ResearchRunCreate(goal="HITL budget test", budget=settings.default_research_budget()),

@@ -17,7 +17,9 @@ RRF_K = 60
 MAX_CHUNKS_PER_SOURCE = 3
 CONTEXT_TOKEN_BUDGET = 3000
 DOCUMENT_INSTRUCTION = "Task: index this passage for later retrieval of supporting evidence.\n"
-QUERY_INSTRUCTION = "Task: retrieve passages that can support or contradict this research question.\n"
+QUERY_INSTRUCTION = (
+    "Task: retrieve passages that can support or contradict this research question.\n"
+)
 
 SUPPORTED_EMBEDDING_PROVIDERS = frozenset({ProviderKind.GOOGLE, ProviderKind.OPENAI})
 

@@ -73,8 +73,12 @@ def upgrade() -> None:
         sa.Column("status", wiki_page_status, nullable=False, server_default="active"),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("body_markdown", sa.Text(), nullable=False, server_default=""),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("research_run_id", "slug", name="uq_wiki_pages_run_slug"),
     )
     op.create_index("ix_wiki_pages_run_id", "wiki_pages", ["research_run_id"])
@@ -91,7 +95,9 @@ def upgrade() -> None:
         sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("body_markdown", sa.Text(), nullable=False),
         sa.Column("change_op", wiki_change_op, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("page_id", "revision", name="uq_wiki_revisions_page_rev"),
     )
 
@@ -124,7 +130,9 @@ def upgrade() -> None:
             sa.ForeignKey("evidence.id", ondelete="RESTRICT"),
             nullable=True,
         ),
-        sa.Column("compiled_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "compiled_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("last_verified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("superseded_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
@@ -154,7 +162,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("link_type", wiki_link_type, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("from_page_id", "to_page_id", "link_type", name="uq_wiki_links_edge"),
     )
     op.create_index("ix_wiki_links_run_id", "wiki_links", ["research_run_id"])
@@ -194,7 +204,9 @@ def upgrade() -> None:
             sa.ForeignKey("claims.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_knowledge_relations_run_id", "knowledge_relations", ["research_run_id"])
 

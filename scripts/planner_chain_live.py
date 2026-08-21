@@ -21,7 +21,11 @@ GOALS = [
 
 def main() -> int:
     settings = Settings()
-    if settings.google_api_key is None and settings.openai_api_key is None and settings.anthropic_api_key is None:
+    if (
+        settings.google_api_key is None
+        and settings.openai_api_key is None
+        and settings.anthropic_api_key is None
+    ):
         OUT.write_text(json.dumps({"skipped": True, "reason": "no LLM credentials"}) + "\n")
         print("SKIP: no LLM credentials")
         return 0

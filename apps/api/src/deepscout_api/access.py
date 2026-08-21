@@ -121,6 +121,8 @@ def safe_next_path(raw: str | None, allowlist: str) -> str:
     candidate = (raw or "/").strip()
     if not candidate.startswith("/") or candidate.startswith("//") or "://" in candidate:
         return "/"
-    if candidate in allowed or any(candidate.startswith(prefix.rstrip("/") + "/") for prefix in allowed if prefix != "/"):
+    if candidate in allowed or any(
+        candidate.startswith(prefix.rstrip("/") + "/") for prefix in allowed if prefix != "/"
+    ):
         return candidate
     return "/"

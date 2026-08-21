@@ -25,7 +25,7 @@ test.describe("lab network matrix", () => {
       });
       await session.send("Emulation.setCPUThrottlingRate", { rate: profile.cpu });
       const started = Date.now();
-      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
       await expect(page.locator(".page-title, h1, #content").first()).toBeVisible({ timeout: 20_000 });
       for (const path of ["/knowledge", "/monitors", "/compare", "/history"]) {
         await page.goto(path, { waitUntil: "domcontentloaded" });

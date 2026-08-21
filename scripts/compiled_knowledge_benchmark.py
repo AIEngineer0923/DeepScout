@@ -22,7 +22,10 @@ from deepscout_research.retrieval.indexer import index_snapshots_for_run
 from deepscout_research.retrieval.models import RetrievalQuery
 from deepscout_research.retrieval.service import RetrievalService
 
-BENCHMARK_PATH = Path(__file__).resolve().parents[1] / "libs/evaluation/data/compiled_knowledge_benchmark_v1.json"
+BENCHMARK_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "libs/evaluation/data/compiled_knowledge_benchmark_v1.json"
+)
 
 
 def _phrase_recall(texts: list[str], phrases: list[str]) -> float:
@@ -39,7 +42,9 @@ def main() -> int:
     with session_factory() as session:
         store = ResearchStore(session)
         run = store.create_run(
-            ResearchRunCreate(goal="compiled knowledge benchmark", budget=settings.default_research_budget()),
+            ResearchRunCreate(
+                goal="compiled knowledge benchmark", budget=settings.default_research_budget()
+            ),
             settings,
         )
         for doc in benchmark["documents"]:

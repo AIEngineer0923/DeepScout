@@ -8,6 +8,11 @@ async function mockProduct(page: Page) {
     document.documentElement.setAttribute("data-visual", "1");
     window.localStorage.setItem("deepscout.last_run_id", "11111111-1111-4111-8111-111111111111");
   });
+  await page.route("**/api/v1/auth/me", async (route) =>
+    route.fulfill({
+      json: { authenticated: true, mode: "local", hosted_auth_ready: true, id: "local", display_name: "Local workspace" },
+    }),
+  );
   await page.route("**/api/v1/overview", async (route) => route.fulfill({ json: overviewFixture }));
   await page.route("**/api/v1/settings", async (route) => route.fulfill({ json: settingsFixture }));
   await page.route("**/api/v1/rum/vitals", async (route) => route.fulfill({ status: 204, body: "" }));

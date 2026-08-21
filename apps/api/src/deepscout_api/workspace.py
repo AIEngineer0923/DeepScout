@@ -171,7 +171,9 @@ def assemble_workspace(
                 "evidence_count": len(related_evidence),
                 "task_id": str(discovering_task.id) if discovering_task else None,
                 "task_key": discovering_task.task_key if discovering_task else None,
-                "worker_index": indexes.get(discovering_task.task_key) if discovering_task else None,
+                "worker_index": indexes.get(discovering_task.task_key)
+                if discovering_task
+                else None,
                 "preference": _source_preference(source.canonical_url, source.domain, preferences),
             }
         )
@@ -410,8 +412,7 @@ def assemble_workspace(
             "current_phase": completed_phases[-1] if completed_phases else "pending",
             "latest_job_type": latest_job.job_type.value if latest_job else None,
             "latest_job_status": latest_job.status.value if latest_job else None,
-            "resumable": run.status.value
-            in {"pending", "running", "budget_exhausted", "failed"}
+            "resumable": run.status.value in {"pending", "running", "budget_exhausted", "failed"}
             and run.status.value != "paused"
             or (bool(remaining_tasks) and run.status.value != "paused"),
             "awaiting_review": run.status.value == "paused",
@@ -449,7 +450,9 @@ def snapshot_detail(store: ResearchStore, run_id: UUID, snapshot_id: UUID) -> di
     snapshot = store.get_snapshot(snapshot_id)
     if snapshot is None:
         raise LookupError("snapshot not found")
-    source = next((item for item in store.list_sources(run_id) if item.id == snapshot.source_id), None)
+    source = next(
+        (item for item in store.list_sources(run_id) if item.id == snapshot.source_id), None
+    )
     if source is None or source.research_run_id != run_id:
         raise LookupError("snapshot not in run")
     related_claims = [

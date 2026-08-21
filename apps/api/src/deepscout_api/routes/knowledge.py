@@ -131,7 +131,8 @@ def knowledge_page(
             for row in revisions[:20]
         ],
         "links": [
-            {"to_page_id": str(row.to_page_id), "link_type": row.link_type.value} for row in links[:50]
+            {"to_page_id": str(row.to_page_id), "link_type": row.link_type.value}
+            for row in links[:50]
         ],
     }
 
@@ -238,7 +239,9 @@ def knowledge_graph(
     statements = list_statements_for_run(store._session, run_id)[:80]
     relations = list(
         store._session.scalars(
-            select(KnowledgeRelationRow).where(KnowledgeRelationRow.research_run_id == run_id).limit(120)
+            select(KnowledgeRelationRow)
+            .where(KnowledgeRelationRow.research_run_id == run_id)
+            .limit(120)
         ).all()
     )
     hop_counts = bounded_relation_hops(store._session, run_id=run_id, max_hops=hops)

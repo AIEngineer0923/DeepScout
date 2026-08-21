@@ -27,15 +27,25 @@ def main() -> int:
     session = get_session_factory(settings.database_url)()
     store = ResearchStore(session)
     events = store.list_run_events(run_id)
-    payloads = [{"event_type": event.event_type, "payload": event.payload or {}} for event in events]
+    payloads = [
+        {"event_type": event.event_type, "payload": event.payload or {}} for event in events
+    ]
     actions = actions_from_run_events(payloads)
     result = {
         "run_id": str(run_id),
         "actions": actions,
-        "exact_required": match_trajectory(actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.EXACT),
-        "unordered_required": match_trajectory(actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.UNORDERED),
-        "subset_noise": match_trajectory(list(REQUIRED_MULTI_AGENT_ACTIONS), actions, mode=TrajectoryMatchMode.SUBSET),
-        "superset_required": match_trajectory(actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.SUPERSET)
+        "exact_required": match_trajectory(
+            actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.EXACT
+        ),
+        "unordered_required": match_trajectory(
+            actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.UNORDERED
+        ),
+        "subset_noise": match_trajectory(
+            list(REQUIRED_MULTI_AGENT_ACTIONS), actions, mode=TrajectoryMatchMode.SUBSET
+        ),
+        "superset_required": match_trajectory(
+            actions, list(REQUIRED_MULTI_AGENT_ACTIONS), mode=TrajectoryMatchMode.SUPERSET
+        )
         or match_trajectory(
             [action for action in actions if action.startswith("phase.")],
             ["phase.plan", "phase.research", "phase.report"],

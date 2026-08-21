@@ -31,7 +31,9 @@ def rerank_candidates(
     overflow: list[RetrievedChunk] = []
     for score, item in scored:
         count = per_source[str(item.source_id)]
-        updated = item.model_copy(update={"rerank_score": score, "retrieval_reason": _reason(item, query_tokens)})
+        updated = item.model_copy(
+            update={"rerank_score": score, "retrieval_reason": _reason(item, query_tokens)}
+        )
         if count >= max_per_source:
             overflow.append(updated)
             continue

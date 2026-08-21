@@ -83,9 +83,7 @@ def invoke_with_resilience[T](
             role,
             requirements=requirements,
             prefer_fallback=True,
-            fallback_reason=(
-                classify_exception(last_exc).value if last_exc else "primary_failed"
-            ),
+            fallback_reason=(classify_exception(last_exc).value if last_exc else "primary_failed"),
         )
     except IncompatibleFallbackError as fb_err:
         raise last_exc from fb_err

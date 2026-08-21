@@ -33,7 +33,9 @@ def create_monitor(
         raise ValueError("MODE A monitor limit reached")
     now = datetime.now(UTC)
     row = store.create_monitor(
-        payload, next_run_at=compute_next_run_at(payload, after=now), owner_principal_id=owner_principal_id
+        payload,
+        next_run_at=compute_next_run_at(payload, after=now),
+        owner_principal_id=owner_principal_id,
     )
     return row
 
@@ -54,7 +56,11 @@ def dispatch_due_monitors(
             if store.monitor_has_active_run(row.id):
                 store.release_monitor_lease(row.id, next_run_at=row.next_run_at or now)
                 continue
-            mode = row.research_mode if row.research_mode in {"quick", "standard", "deep"} else "standard"
+            mode = (
+                row.research_mode
+                if row.research_mode in {"quick", "standard", "deep"}
+                else "standard"
+            )
             created = store.create_run(
                 ResearchRunCreate(goal=row.goal, research_mode=mode),
                 settings,

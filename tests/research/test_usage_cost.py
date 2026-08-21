@@ -24,7 +24,9 @@ def test_application_cost_persisted_when_catalog_maps(store, db_session) -> None
     from deepscout_research.usage.pricing import DEFAULT_PRICING_CATALOG
 
     cost, status = DEFAULT_PRICING_CATALOG.estimate_cost(usage)
-    store.record_token_usage(usage, pricing_version=DEFAULT_PRICING_CATALOG.version, cost_usd=cost, cost_status=status)
+    store.record_token_usage(
+        usage, pricing_version=DEFAULT_PRICING_CATALOG.version, cost_usd=cost, cost_status=status
+    )
     summary = store.get_usage_summary(run.id)
     assert status == CostReportStatus.ESTIMATED
     assert summary.cost_usd is not None and summary.cost_usd > 0
@@ -60,8 +62,12 @@ def test_evaluator_usage_excluded_from_application_cost(store, db_session) -> No
     )
     app_cost, app_status = DEFAULT_PRICING_CATALOG.estimate_cost(application)
     eval_cost, eval_status = DEFAULT_PRICING_CATALOG.estimate_cost(evaluation)
-    store.record_token_usage(application, pricing_version="2026-08-21", cost_usd=app_cost, cost_status=app_status)
-    store.record_token_usage(evaluation, pricing_version="2026-08-21", cost_usd=eval_cost, cost_status=eval_status)
+    store.record_token_usage(
+        application, pricing_version="2026-08-21", cost_usd=app_cost, cost_status=app_status
+    )
+    store.record_token_usage(
+        evaluation, pricing_version="2026-08-21", cost_usd=eval_cost, cost_status=eval_status
+    )
     summary = store.get_usage_summary(run.id)
     assert summary.total_tokens == 150
     assert summary.cost_usd == app_cost

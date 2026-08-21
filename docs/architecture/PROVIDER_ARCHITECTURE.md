@@ -53,7 +53,10 @@ Never hardcode model IDs in research/domain code.
 class WebSearchProvider(Protocol):
     async def search(self, query: str, *, max_results: int) -> list[SearchResult]: ...
 
+
 class TavilySearchAdapter(WebSearchProvider): ...
+
+
 # Future: BraveSearchAdapter, SerpAPIAdapter, MCPSearchAdapter
 ```
 

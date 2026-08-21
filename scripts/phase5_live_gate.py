@@ -30,7 +30,9 @@ from deepscout_research.retrieval.models import RetrievalQuery
 from deepscout_research.retrieval.security import looks_like_injection
 from deepscout_research.retrieval.service import RetrievalService
 
-BENCHMARK_PATH = Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+BENCHMARK_PATH = (
+    Path(__file__).resolve().parents[1] / "libs/evaluation/data/retrieval_benchmark_v1.json"
+)
 
 
 @dataclass
@@ -116,7 +118,8 @@ def run_gate() -> GateResult:
             "finite": all(math.isfinite(v) for v in vec),
             "non_zero": any(abs(v) > 1e-9 for v in vec),
             "latency_s": round(embed_latency, 3),
-            "pass": len(vec) == settings.embedding_dimensions and runtime_model.startswith("gemini-embedding"),
+            "pass": len(vec) == settings.embedding_dimensions
+            and runtime_model.startswith("gemini-embedding"),
         }
 
         t0 = time.perf_counter()
@@ -139,7 +142,9 @@ def run_gate() -> GateResult:
             query = item["query"]
             phrases = item.get("relevant_phrases", [])
             qvec = _embed_query(client, query)
-            lex_ids = [cid for cid, _ in lexical_search(session, run_id=run.id, query=query, limit=5)]
+            lex_ids = [
+                cid for cid, _ in lexical_search(session, run_id=run.id, query=query, limit=5)
+            ]
             den_ids = [
                 cid
                 for cid, _ in dense_search(
@@ -154,9 +159,15 @@ def run_gate() -> GateResult:
                 )
             ]
             rows = load_chunks(session, lex_ids + den_ids)
-            ablation["lexical"].append(_hit_rate([rows[i].text for i in lex_ids if i in rows], phrases))
-            ablation["dense"].append(_hit_rate([rows[i].text for i in den_ids if i in rows], phrases))
-            hits = service.retrieve(RetrievalQuery(query=query, run_id=run.id, top_k=5, mode="hybrid"))
+            ablation["lexical"].append(
+                _hit_rate([rows[i].text for i in lex_ids if i in rows], phrases)
+            )
+            ablation["dense"].append(
+                _hit_rate([rows[i].text for i in den_ids if i in rows], phrases)
+            )
+            hits = service.retrieve(
+                RetrievalQuery(query=query, run_id=run.id, top_k=5, mode="hybrid")
+            )
             ablation["hybrid_rerank"].append(_hit_rate([h.text for h in hits], phrases))
 
         result.ablation = {k: round(sum(v) / len(v), 3) for k, v in ablation.items()}

@@ -52,7 +52,7 @@ export const overviewFixture = {
     cost_status: "estimated",
     avg_completion_seconds: 180,
   },
-  identity: { label: "Local workspace", role: "Operator" },
+  identity: { label: "Local workspace", role: "Operator", mode: "local" },
   langsmith: { connected: true, project: "deepscout-dev", region: "EU", tracing: true },
   providers: { google: { configured: true, model: "gemini-3.7-flash" } },
 };
@@ -306,7 +306,7 @@ export const workspaceFixture = {
 };
 
 export const settingsFixture = {
-  identity: { label: "Local workspace", role: "Operator", plan: null },
+  identity: { label: "Local workspace", role: "Operator", plan: null, mode: "local" },
   providers: { google: { configured: true, model: "gemini-3.7-flash" }, tavily: { configured: true } },
   langsmith: { connected: true, project: "deepscout-dev", region: "EU", tracing: true },
   research_defaults: {

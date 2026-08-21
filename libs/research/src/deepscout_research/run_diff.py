@@ -50,7 +50,9 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
             approach="compare",
             success_criteria="compare",
             decomposition=PlanDecomposition.UNSPECIFIED,
-            questions=[PlannerQuestion(text=task.objective, priority=task.priority) for task in tasks],
+            questions=[
+                PlannerQuestion(text=task.objective, priority=task.priority) for task in tasks
+            ],
             tasks=[
                 PlannerTask(
                     task_key=task.task_key,
@@ -68,7 +70,11 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
             "critical_path_depth": quality["critical_path_depth"],
             "parallel_width": quality["parallel_width"],
             "edges": [
-                {"task_key": task.task_key, "depends_on": list(task.depends_on), "status": task.status.value}
+                {
+                    "task_key": task.task_key,
+                    "depends_on": list(task.depends_on),
+                    "status": task.status.value,
+                }
                 for task in tasks
             ],
         }
@@ -79,7 +85,10 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
     for key in sorted(set(left_eval) | set(right_eval)):
         lv = left_eval.get(key)
         rv = right_eval.get(key)
-        eval_diff[key] = {"left": lv if lv is not None else "UNKNOWN", "right": rv if rv is not None else "UNKNOWN"}
+        eval_diff[key] = {
+            "left": lv if lv is not None else "UNKNOWN",
+            "right": rv if rv is not None else "UNKNOWN",
+        }
 
     left_usage = store.get_usage_summary(left_id)
     right_usage = store.get_usage_summary(right_id)
@@ -89,7 +98,9 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
             "goal": left.goal,
             "status": left.status.value,
             "lineage_kind": getattr(left_row, "lineage_kind", "none") if left_row else "none",
-            "parent_run_id": str(left_row.parent_run_id) if left_row and left_row.parent_run_id else None,
+            "parent_run_id": str(left_row.parent_run_id)
+            if left_row and left_row.parent_run_id
+            else None,
             "planner_version": (left_row.config_snapshot or {}).get("prompts", {}).get("planner")
             if left_row
             else None,
@@ -101,7 +112,9 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
             "goal": right.goal,
             "status": right.status.value,
             "lineage_kind": getattr(right_row, "lineage_kind", "none") if right_row else "none",
-            "parent_run_id": str(right_row.parent_run_id) if right_row and right_row.parent_run_id else None,
+            "parent_run_id": str(right_row.parent_run_id)
+            if right_row and right_row.parent_run_id
+            else None,
             "planner_version": (right_row.config_snapshot or {}).get("prompts", {}).get("planner")
             if right_row
             else None,
@@ -111,8 +124,12 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
         "sources": _classify(set(left_sources), set(right_sources)),
         "snapshots": _classify(left_snaps, right_snaps),
         "claims": {
-            DiffChangeKind.ADDED.value: [right_claims[k] for k in sorted(set(right_claims) - set(left_claims))][:40],
-            DiffChangeKind.REMOVED.value: [left_claims[k] for k in sorted(set(left_claims) - set(right_claims))][:40],
+            DiffChangeKind.ADDED.value: [
+                right_claims[k] for k in sorted(set(right_claims) - set(left_claims))
+            ][:40],
+            DiffChangeKind.REMOVED.value: [
+                left_claims[k] for k in sorted(set(left_claims) - set(right_claims))
+            ][:40],
             DiffChangeKind.UNCHANGED.value: len(set(left_claims) & set(right_claims)),
         },
         "contradictions": {
@@ -135,6 +152,8 @@ def compare_runs(store: ResearchStore, left_id: UUID, right_id: UUID) -> dict:
         "evaluation": eval_diff,
         "plan_diagnostics": {
             "left": (left_row.config_snapshot or {}).get("plan_diagnostics") if left_row else None,
-            "right": (right_row.config_snapshot or {}).get("plan_diagnostics") if right_row else None,
+            "right": (right_row.config_snapshot or {}).get("plan_diagnostics")
+            if right_row
+            else None,
         },
     }

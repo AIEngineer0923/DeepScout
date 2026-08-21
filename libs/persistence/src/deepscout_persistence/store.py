@@ -251,7 +251,9 @@ class ResearchStore:
                 ResearchTaskRow.research_run_id,
                 func.count(),
                 func.coalesce(
-                    func.sum(case((ResearchTaskRow.status == ResearchTaskStatus.COMPLETED, 1), else_=0)),
+                    func.sum(
+                        case((ResearchTaskRow.status == ResearchTaskStatus.COMPLETED, 1), else_=0)
+                    ),
                     0,
                 ),
             )
@@ -1077,11 +1079,7 @@ class ResearchStore:
             raise LookupError(f"ResearchTask {task_id} not found")
         if row.status == ResearchTaskStatus.COMPLETED and status != ResearchTaskStatus.COMPLETED:
             return row
-        if (
-            worker_id is not None
-            and row.worker_id is not None
-            and row.worker_id != worker_id
-        ):
+        if worker_id is not None and row.worker_id is not None and row.worker_id != worker_id:
             return row
         if (
             worker_id is not None
@@ -1264,7 +1262,9 @@ class ResearchStore:
             known = [value for value in values if value is not None]
             return sum(known) if known else None
 
-        def _cost(group: list[TokenUsageRecordRow]) -> tuple[float | None, CostReportStatus, str | None]:
+        def _cost(
+            group: list[TokenUsageRecordRow],
+        ) -> tuple[float | None, CostReportStatus, str | None]:
             if not group:
                 return None, CostReportStatus.UNKNOWN, "no_usage_records"
             unknown = [record for record in group if record.cost_report_status.value == "unknown"]
@@ -1329,9 +1329,7 @@ class ResearchStore:
             bucket["cached_input_tokens"] = _sum(
                 [bucket["cached_input_tokens"], record.cached_input_tokens]
             )
-            bucket["reasoning_tokens"] = _sum(
-                [bucket["reasoning_tokens"], record.reasoning_tokens]
-            )
+            bucket["reasoning_tokens"] = _sum([bucket["reasoning_tokens"], record.reasoning_tokens])
             bucket["total_tokens"] = _sum([bucket["total_tokens"], record.total_tokens])
         return roles
 
@@ -1395,8 +1393,7 @@ class ResearchStore:
                     ResearchJobStatus.RUNNING,
                 ]
             ),
-            (ResearchJobRow.lease_expires_at.is_(None))
-            | (ResearchJobRow.lease_expires_at < now),
+            (ResearchJobRow.lease_expires_at.is_(None)) | (ResearchJobRow.lease_expires_at < now),
         ]
         if job_id is not None:
             conditions.append(ResearchJobRow.id == job_id)
@@ -1520,9 +1517,12 @@ class ResearchStore:
     def append_tasks(self, run_id: uuid.UUID, tasks: list) -> int:
         self._require_run(run_id)
         added = 0
-        existing = {row.task_key for row in self._session.scalars(
-            select(ResearchTaskRow).where(ResearchTaskRow.research_run_id == run_id)
-        ).all()}
+        existing = {
+            row.task_key
+            for row in self._session.scalars(
+                select(ResearchTaskRow).where(ResearchTaskRow.research_run_id == run_id)
+            ).all()
+        }
         for task in tasks:
             if task.task_key in existing:
                 continue
@@ -1626,7 +1626,9 @@ class ResearchStore:
             ).all()
         )
 
-    def list_templates(self, owner_principal_id: uuid.UUID | None = None) -> list[ResearchTemplateRead]:
+    def list_templates(
+        self, owner_principal_id: uuid.UUID | None = None
+    ) -> list[ResearchTemplateRead]:
         stmt = select(ResearchTemplateRow)
         if owner_principal_id is not None:
             stmt = stmt.where(ResearchTemplateRow.owner_principal_id == owner_principal_id)
@@ -1753,7 +1755,11 @@ class ResearchStore:
         )
 
     def create_monitor(
-        self, payload: ResearchMonitorCreate, *, next_run_at: datetime, owner_principal_id: uuid.UUID | None = None
+        self,
+        payload: ResearchMonitorCreate,
+        *,
+        next_run_at: datetime,
+        owner_principal_id: uuid.UUID | None = None,
     ) -> ResearchMonitorRow:
         row = ResearchMonitorRow(
             name=payload.name.strip(),
@@ -1777,11 +1783,15 @@ class ResearchStore:
     def get_monitor(self, monitor_id: uuid.UUID) -> ResearchMonitorRow | None:
         return self._session.get(ResearchMonitorRow, monitor_id)
 
-    def list_monitors(self, owner_principal_id: uuid.UUID | None = None) -> list[ResearchMonitorRow]:
+    def list_monitors(
+        self, owner_principal_id: uuid.UUID | None = None
+    ) -> list[ResearchMonitorRow]:
         stmt = select(ResearchMonitorRow)
         if owner_principal_id is not None:
             stmt = stmt.where(ResearchMonitorRow.owner_principal_id == owner_principal_id)
-        return list(self._session.scalars(stmt.order_by(ResearchMonitorRow.updated_at.desc())).all())
+        return list(
+            self._session.scalars(stmt.order_by(ResearchMonitorRow.updated_at.desc())).all()
+        )
 
     def list_monitor_runs(self, monitor_id: uuid.UUID) -> list[ResearchRunRow]:
         return list(
@@ -1884,7 +1894,9 @@ class ResearchStore:
             "/research",
         }
         allowed_prefixes = ("/research/", "/knowledge/", "/monitors/", "/resume/")
-        if route not in allowed_exact and not any(route.startswith(prefix) for prefix in allowed_prefixes):
+        if route not in allowed_exact and not any(
+            route.startswith(prefix) for prefix in allowed_prefixes
+        ):
             return
         recent = int(
             self._session.scalar(
@@ -2006,7 +2018,9 @@ def _run_to_read(row: ResearchRunRow) -> ResearchRunRead:
         budget=_budget_from_run(row),
         usage=_usage_summary_from_run(row),
         termination_reason=row.termination_reason,
-        research_mode=row.research_mode if row.research_mode in {"quick", "standard", "deep"} else None,
+        research_mode=row.research_mode
+        if row.research_mode in {"quick", "standard", "deep"}
+        else None,
         output_language=row.output_language,
         created_at=row.created_at,
         updated_at=row.updated_at,

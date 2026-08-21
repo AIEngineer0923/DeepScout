@@ -16,6 +16,7 @@ from deepscout_core.domain.enums import (
     SourceType,
     ToolExecutionStatus,
 )
+from deepscout_core.domain.research_preferences import ResearchPreferences
 from deepscout_core.domain.usage import RunUsageSummary
 
 WORKER_TOOL_ALLOWLIST = frozenset({"web_search"})
@@ -26,6 +27,7 @@ class ResearchRunCreate(BaseModel):
     budget: ResearchBudget | None = None
     research_mode: Literal["quick", "standard", "deep"] | None = None
     output_language: str = Field(default="en", min_length=2, max_length=16)
+    preferences: ResearchPreferences | None = None
 
 
 class ResearchRunRead(BaseModel):

@@ -18,7 +18,9 @@ def test_duplicate_ready_task_claim_rejected(store, db_session) -> None:
             strategy="s",
             success_criteria="c",
             questions=["Q"],
-            tasks=[PlannerTask(task_key="q1", objective="Q", priority=1, allowed_tools=["web_search"])],
+            tasks=[
+                PlannerTask(task_key="q1", objective="Q", priority=1, allowed_tools=["web_search"])
+            ],
         ),
     )
     task = store.list_tasks(run.id)[0]
@@ -33,7 +35,9 @@ def test_worker_thread_id_is_run_and_task_scoped() -> None:
     run_id = uuid.uuid4()
     task_a = uuid.uuid4()
     task_b = uuid.uuid4()
-    assert worker_thread_id(run_id=run_id, task_id=task_a) != worker_thread_id(run_id=run_id, task_id=task_b)
+    assert worker_thread_id(run_id=run_id, task_id=task_a) != worker_thread_id(
+        run_id=run_id, task_id=task_b
+    )
     assert str(run_id) in worker_thread_id(run_id=run_id, task_id=task_a)
 
 

@@ -29,7 +29,9 @@ def settings() -> Settings:
 
 def _seed_snapshot(store, settings, *, content: str):
     run = store.create_run(ResearchRunCreate(goal="Retrieval test"), settings)
-    source, _ = store.add_source(run.id, SourceWrite(canonical_url="https://example.com/doc", title="Doc"))
+    source, _ = store.add_source(
+        run.id, SourceWrite(canonical_url="https://example.com/doc", title="Doc")
+    )
     snapshot = store.add_snapshot(source.id, SourceSnapshotWrite(content=content))
     return run, source, snapshot
 
@@ -160,7 +162,9 @@ class _FakeEmbeddings:
 
 @pytest.mark.postgres
 def test_service_does_not_return_other_run_chunks(store, settings, db_session) -> None:
-    run_a, source_a, snapshot_a = _seed_snapshot(store, settings, content="Isolation test content here.")
+    run_a, source_a, snapshot_a = _seed_snapshot(
+        store, settings, content="Isolation test content here."
+    )
     run_b, _, _ = _seed_snapshot(store, settings, content="Other run.")
     drafts = chunk_snapshot_text(snapshot_a.content_text, snapshot_id=str(snapshot_a.id))
     rows = replace_chunks(

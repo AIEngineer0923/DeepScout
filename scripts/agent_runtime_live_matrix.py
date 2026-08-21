@@ -12,8 +12,10 @@ from deepscout_research.langsmith_env import configure_langsmith_env
 
 def main() -> int:
     settings = get_settings()
-    has_llm = settings.google_api_key is not None or settings.openai_api_key is not None or (
-        settings.anthropic_api_key is not None
+    has_llm = (
+        settings.google_api_key is not None
+        or settings.openai_api_key is not None
+        or (settings.anthropic_api_key is not None)
     )
     has_search = settings.tavily_api_key is not None
     has_langsmith = settings.langsmith_api_key is not None
