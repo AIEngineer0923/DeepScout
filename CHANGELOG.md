@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Pre-Phase-5 security gate: dependency upgrades (Next 15.5.23, Vitest 3.2.6, PostCSS 8.5.23, sharp 0.35.3), CodeQL, Semgrep, pip-audit, npm audit
+- Secure fetch now pins TCP connect to the DNS-checked IP
+- CSV formula-injection sanitization, security headers, optional IP rate limits
+- Smoke agent disabled by default; API docs disabled; default bind 127.0.0.1
+- Worker tool allowlists clamp unknown tools; search URLs are filtered before persistence
+
 ### Added
 
 - Phase 3 research orchestrator: outer loop (`ResearchOrchestrator`), structured planner, deterministic termination, budget gate

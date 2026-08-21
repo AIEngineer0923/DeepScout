@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import uuid
 
-import httpx
 from deepscout_core.domain.schemas import SourceSnapshotWrite
 from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
@@ -43,7 +42,7 @@ def fetch_sources_for_run(store: ResearchStore, run_id: uuid.UUID, *, max_source
                 ),
             )
             fetched += 1
-        except (SecureFetchError, httpx.HTTPError) as exc:
+        except (SecureFetchError, OSError, TimeoutError) as exc:
             logger.info(
                 "Fetch skipped for source",
                 extra={

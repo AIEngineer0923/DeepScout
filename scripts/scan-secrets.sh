@@ -43,8 +43,12 @@ while IFS= read -r f; do
     echo "BLOCK: credential pattern in $f"
     block=1
   fi
-  if grep -Eq 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' "$f" 2>/dev/null; then
-    echo "BLOCK: private key block in $f"
+  if grep -Eq 'AIza[0-9A-Za-z_-]{20,}' "$f" 2>/dev/null; then
+    echo "BLOCK: Google API key pattern in $f"
+    block=1
+  fi
+  if grep -Eq 'Co-authored-by: Cursor' "$f" 2>/dev/null; then
+    echo "BLOCK: Cursor attribution in $f"
     block=1
   fi
   if grep -Eq '/Users/[^/]+/' "$f" 2>/dev/null; then

@@ -14,7 +14,13 @@ _SENSITIVE_KEYS = frozenset(
         "openai_api_key",
         "anthropic_api_key",
         "tavily_api_key",
-        "langsmith_api_key",
+        "api_key",
+        "authorization",
+        "password",
+        "secret",
+        "token",
+        "private_key",
+        "master",
     }
 )
 

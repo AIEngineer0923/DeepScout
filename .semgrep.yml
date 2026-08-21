@@ -1,0 +1,41 @@
+# DeepScout Semgrep policy — high-signal security rules only.
+# Keep this focused; noisy community packs are not enabled wholesale.
+
+rules:
+  - id: deepscout-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: "Arbitrary eval/exec is forbidden in DeepScout runtime."
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    paths:
+      exclude:
+        - "**/tests/**"
+
+  - id: deepscout-subprocess-shell
+    languages: [python]
+    severity: ERROR
+    message: "subprocess with shell=True is forbidden."
+    pattern: subprocess.$F(..., shell=True, ...)
+
+  - id: deepscout-pickle
+    languages: [python]
+    severity: ERROR
+    message: "pickle/yaml.load of untrusted data is forbidden."
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: yaml.load(...)
+
+  - id: deepscout-dangerously-set-html
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "dangerouslySetInnerHTML is forbidden unless explicitly reviewed."
+    pattern: dangerouslySetInnerHTML
+
+  - id: deepscout-wildcard-cors
+    languages: [python]
+    severity: ERROR
+    message: "Wildcard CORS origins are forbidden."
+    pattern: allow_origins=["*"]

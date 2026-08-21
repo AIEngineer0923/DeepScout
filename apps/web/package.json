@@ -12,7 +12,7 @@
     "test:e2e:update": "playwright test --update-snapshots"
   },
   "dependencies": {
-    "next": "^15.1.0",
+    "next": "15.5.23",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -23,8 +23,15 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.1.0",
+    "eslint-config-next": "15.5.23",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "vitest": "3.2.6"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3",
+    "vite": "6.4.3",
+    "esbuild": "0.25.12",
+    "vitest": "3.2.6"
   }
 }

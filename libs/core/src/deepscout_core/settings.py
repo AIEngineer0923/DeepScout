@@ -19,9 +19,19 @@ class Settings(BaseSettings):
     )
 
     app_env: str = Field(default="development", alias="APP_ENV")
-    app_debug: bool = Field(default=True, alias="APP_DEBUG")
-    api_host: str = Field(default="0.0.0.0", alias="API_HOST")
+    app_debug: bool = Field(default=False, alias="APP_DEBUG")
+    api_host: str = Field(default="127.0.0.1", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
+    cors_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000",
+        alias="CORS_ORIGINS",
+    )
+    enable_smoke_agent: bool = Field(default=False, alias="ENABLE_SMOKE_AGENT")
+    rate_limit_enabled: bool = Field(default=False, alias="RATE_LIMIT_ENABLED")
+    rate_limit_max_requests: int = Field(default=120, alias="RATE_LIMIT_MAX_REQUESTS")
+    rate_limit_mutating_max: int = Field(default=20, alias="RATE_LIMIT_MUTATING_MAX")
+    rate_limit_window_s: int = Field(default=60, alias="RATE_LIMIT_WINDOW_S")
+    max_request_bytes: int = Field(default=1_000_000, alias="MAX_REQUEST_BYTES")
 
     llm_provider: ProviderKind = Field(default=ProviderKind.GOOGLE, alias="LLM_PROVIDER")
     llm_model: str | None = Field(default=None, alias="LLM_MODEL")

@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID
 
 from deepscout_core.domain.schemas import ResearchRunCreate, ResearchRunRead
+from deepscout_core.security.csv import render_csv
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
 from deepscout_research.jobs.service import JobService
@@ -176,14 +177,27 @@ def list_research_runs(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     items = [_list_item(store, row) for row in rows]
     if format == "csv":
-        lines = ["id,goal,status,research_mode,output_language,tokens,cost,updated_at"]
-        for item in items:
-            goal = item.goal.replace('"', "'")
-            lines.append(
-                f"{item.id},\"{goal}\",{item.status},{item.research_mode or ''},"
-                f"{item.output_language},{item.total_tokens or ''},{item.cost_usd or ''},{item.updated_at.isoformat()}"
-            )
-        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/csv")
+        body = render_csv(
+            ["id", "goal", "status", "research_mode", "output_language", "tokens", "cost", "updated_at"],
+            [
+                [
+                    item.id,
+                    item.goal,
+                    item.status,
+                    item.research_mode or "",
+                    item.output_language,
+                    item.total_tokens or "",
+                    item.cost_usd or "",
+                    item.updated_at.isoformat(),
+                ]
+                for item in items
+            ],
+        )
+        return PlainTextResponse(
+            body,
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="research-runs.csv"'},
+        )
     return RunListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -406,25 +420,47 @@ def export_research_run(
     if format == "evals-json":
         return {"run_id": str(run_id), "evaluations": workspace["evaluations"]}
     if format == "evals-csv":
-        lines = ["evaluator_id,version,category,method,applicability,value"]
-        for item in workspace["evaluations"]:
-            value = str(item.get("value") or "").replace('"', "'")
-            lines.append(
-                f"{item['evaluator_id']},{item['version']},{item['category']},"
-                f"{item['method']},{item['applicability']},\"{value}\""
-            )
-        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/csv")
+        body = render_csv(
+            ["evaluator_id", "version", "category", "method", "applicability", "value"],
+            [
+                [
+                    item["evaluator_id"],
+                    item["version"],
+                    item["category"],
+                    item["method"],
+                    item["applicability"],
+                    item.get("value") or "",
+                ]
+                for item in workspace["evaluations"]
+            ],
+        )
+        return PlainTextResponse(
+            body,
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="evaluations.csv"'},
+        )
     if format == "history-csv":
         raise HTTPException(status_code=400, detail="history-csv is a list export, not a run export")
     if format == "csv" or format == "sources-csv":
-        lines = ["title,domain,url,status,claims,evidence"]
-        for source in workspace["sources"]:
-            title = source["title"].replace('"', "'")
-            lines.append(
-                f"\"{title}\",{source['domain']},{source['url']},{source['fetch_state']},"
-                f"{source['claim_count']},{source['evidence_count']}"
-            )
-        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/csv")
+        body = render_csv(
+            ["title", "domain", "url", "status", "claims", "evidence"],
+            [
+                [
+                    source["title"],
+                    source["domain"],
+                    source["url"],
+                    source["fetch_state"],
+                    source["claim_count"],
+                    source["evidence_count"],
+                ]
+                for source in workspace["sources"]
+            ],
+        )
+        return PlainTextResponse(
+            body,
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="sources.csv"'},
+        )
     if format == "snapshot-text":
         if snapshot_id is None:
             raise HTTPException(status_code=400, detail="snapshot_id required")
@@ -433,8 +469,16 @@ def export_research_run(
     report = workspace.get("report") or {}
     markdown = report.get("body_markdown") or f"# {workspace['goal']}\n\nReport is not available yet.\n"
     if format == "markdown":
-        return PlainTextResponse(markdown, media_type="text/markdown")
-    return Response(content=_report_pdf(workspace["goal"], markdown), media_type="application/pdf")
+        return PlainTextResponse(
+            markdown,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="report.md"'},
+        )
+    return Response(
+        content=_report_pdf(workspace["goal"], markdown),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="report.pdf"'},
+    )
 
 
 def _pdf_escape(text: str) -> str:

@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from deepscout_core.settings import Settings, get_settings
 from deepscout_research.smoke_agent import run_smoke_agent
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from redis import Redis
 from sqlalchemy import create_engine, text
@@ -11,6 +10,7 @@ from sqlalchemy import create_engine, text
 from deepscout_api.main import configure_observability
 from deepscout_api.routes.product import router as product_router
 from deepscout_api.routes.research_runs import router as research_runs_router
+from deepscout_api.security import install_security_middleware
 
 
 @asynccontextmanager
@@ -19,17 +19,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="DeepScout API", version="0.2.0", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
+app = FastAPI(
+    title="DeepScout API",
+    version="0.2.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
+install_security_middleware(app, get_settings())
 app.include_router(research_runs_router)
 app.include_router(product_router)
 
@@ -87,12 +85,14 @@ def smoke_agent(
     body: SmokeAgentRequest,
     settings: Settings = Depends(get_settings),
 ) -> SmokeAgentResponseBody:
+    if not settings.enable_smoke_agent:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
         result = run_smoke_agent(settings, user_message=body.message)
-    except ValueError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail="LLM provider request failed") from exc
+    except ValueError:
+        raise HTTPException(status_code=503, detail="Smoke agent is not configured") from None
+    except Exception:
+        raise HTTPException(status_code=502, detail="LLM provider request failed") from None
 
     return SmokeAgentResponseBody(
         reply=result.structured.reply,

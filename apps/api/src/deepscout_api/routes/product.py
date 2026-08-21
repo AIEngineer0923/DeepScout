@@ -82,7 +82,7 @@ def product_settings(settings: Settings = Depends(get_settings)) -> dict:
         },
         "security": {
             "untrusted_content": "Research titles, quotes, and reports are rendered as text.",
-            "ssrf": "Private/link-local URLs are blocked. DNS rebinding remains an accepted limitation.",
+            "ssrf": "Private, loopback, link-local, CGNAT, and metadata URLs are blocked. Fetch pins TCP connect to the resolved IP.",
         },
     }
 

@@ -260,5 +260,5 @@ export const settingsFixture = {
     concurrency_note: "Worker fan-out is bounded by run concurrency_limit (default 3).",
   },
   health: { api: "ok", postgres: "ok", vector_store: "not_in_scope", langsmith: "connected" },
-  security: { untrusted_content: "rendered as text", ssrf: "accepted limitation" },
+  security: { untrusted_content: "rendered as text", ssrf: "Private, loopback, link-local, CGNAT, and metadata URLs are blocked. Fetch pins TCP connect to the resolved IP." },
 };

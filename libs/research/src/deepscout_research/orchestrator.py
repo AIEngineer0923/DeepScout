@@ -331,6 +331,8 @@ class ResearchOrchestrator:
             SourceWrite,
         )
 
+        from deepscout_research.fetch.secure import public_http_url_or_none
+
         run = self._store.get_run(run_id)
         if run is None:
             raise LookupError(f"ResearchRun {run_id} not found")
@@ -376,10 +378,13 @@ class ResearchOrchestrator:
             ),
         )
         for result in results:
-            domain = urlparse(result.url).netloc
+            safe_url = public_http_url_or_none(result.url)
+            if safe_url is None:
+                continue
+            domain = urlparse(safe_url).netloc
             _, created = self._store.add_source(
                 run_id,
-                SourceWrite(canonical_url=result.url, title=result.title, domain=domain),
+                SourceWrite(canonical_url=safe_url, title=result.title, domain=domain),
             )
             if created:
                 try:

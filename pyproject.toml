@@ -44,6 +44,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/api/src/deepscout_api/app.py" = ["B008"]
+"apps/api/src/deepscout_api/security.py" = ["B008"]
 "apps/api/src/deepscout_api/deps.py" = ["B008"]
 "apps/api/src/deepscout_api/routes/research_runs.py" = ["B008", "E501"]
 "apps/api/src/deepscout_api/routes/product.py" = ["B008", "E501"]

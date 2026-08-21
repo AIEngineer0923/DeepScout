@@ -9,7 +9,21 @@ from html.parser import HTMLParser
 class _MainContentExtractor(HTMLParser):
     """Extract readable text preferring main/article content regions."""
 
-    _SKIP_TAGS = frozenset({"script", "style", "noscript", "nav", "header", "footer", "svg"})
+    _SKIP_TAGS = frozenset(
+        {
+            "script",
+            "style",
+            "noscript",
+            "nav",
+            "header",
+            "footer",
+            "svg",
+            "iframe",
+            "object",
+            "embed",
+            "form",
+        }
+    )
     _BLOCK_TAGS = frozenset({"p", "div", "li", "h1", "h2", "h3", "h4", "br", "section", "td"})
     _TARGET_CLASSES = frozenset(
         {"mw-parser-output", "entry-content", "post-content", "article-body", "article-content"}

@@ -17,6 +17,7 @@ def test_smoke_agent_without_api_key_returns_503() -> None:
         _env_file=None,
         LLM_PROVIDER=ProviderKind.GOOGLE,
         GOOGLE_API_KEY=None,
+        ENABLE_SMOKE_AGENT=True,
     )
     app.dependency_overrides[get_settings] = lambda: settings
     try:

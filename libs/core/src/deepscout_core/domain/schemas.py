@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from deepscout_core.domain.budget import ResearchBudget
 from deepscout_core.domain.enums import (
@@ -16,6 +16,8 @@ from deepscout_core.domain.enums import (
     ToolExecutionStatus,
 )
 from deepscout_core.domain.usage import RunUsageSummary
+
+WORKER_TOOL_ALLOWLIST = frozenset({"web_search"})
 
 
 class ResearchRunCreate(BaseModel):
@@ -49,6 +51,11 @@ class PlannerTask(BaseModel):
     depends_on: list[str] = Field(default_factory=list, max_length=20)
     priority: int = Field(default=3, ge=1, le=5)
     allowed_tools: list[str] = Field(default_factory=lambda: ["web_search"], max_length=10)
+
+    @field_validator("allowed_tools")
+    @classmethod
+    def clamp_allowed_tools(cls, value: list[str]) -> list[str]:
+        return [item for item in value if item in WORKER_TOOL_ALLOWLIST]
 
 
 class ResearchPlanWrite(BaseModel):

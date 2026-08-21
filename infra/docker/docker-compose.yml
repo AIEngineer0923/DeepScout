@@ -34,6 +34,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://deepscout:deepscout@postgres:5432/deepscout
       REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      APP_DEBUG: "false"
+      API_HOST: 0.0.0.0
+      RATE_LIMIT_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     ports:
       - "8000:8000"
     depends_on:
