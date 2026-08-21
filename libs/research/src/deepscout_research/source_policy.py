@@ -47,6 +47,15 @@ def is_pinned(url: str, preferences: list[SourcePreferenceRead]) -> bool:
     return False
 
 
+def effective_action(url: str, preferences: list[SourcePreferenceRead]) -> str:
+    """EXCLUDE always wins over PIN for the same identity."""
+    if is_excluded(url, preferences):
+        return "exclude"
+    if is_pinned(url, preferences):
+        return "pin"
+    return "normal"
+
+
 def filter_search_urls(urls: list[str], preferences: list[SourcePreferenceRead]) -> list[str]:
     return [url for url in urls if not is_excluded(url, preferences)]
 

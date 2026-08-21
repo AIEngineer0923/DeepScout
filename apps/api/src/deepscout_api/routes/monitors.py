@@ -10,9 +10,10 @@ from deepscout_core.settings import Settings, get_settings
 from deepscout_persistence.store import ResearchStore, _monitor_to_read
 from deepscout_research.monitors.schedule import compute_next_run_at
 from deepscout_research.monitors.service import create_monitor, monitor_status
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from deepscout_api.access import authorize_monitor, load_access, owner_for_create
 from deepscout_api.deps import get_research_store
 from deepscout_api.routes.research_runs import _kick_worker
 
@@ -35,17 +36,24 @@ def _serialize(store: ResearchStore, row) -> dict:
 
 
 @router.get("")
-def list_monitors(store=Depends(get_research_store)) -> list[dict]:
-    return [_serialize(store, row) for row in store.list_monitors()]
+def list_monitors(request: Request, store=Depends(get_research_store), settings: Settings = Depends(get_settings)) -> list[dict]:
+    access = load_access(request, store._session, settings)
+    owner = None if access.is_local else access.principal_id
+    if settings.is_hosted() and access.principal is None:
+        return []
+    return [_serialize(store, row) for row in store.list_monitors(owner_principal_id=owner)]
 
 
 @router.post("", status_code=201)
 def create_monitor_route(
     body: ResearchMonitorCreate,
+    request: Request,
     store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
 ) -> dict:
+    access = load_access(request, store._session, settings)
     try:
-        row = create_monitor(store, body)
+        row = create_monitor(store, body, owner_principal_id=owner_for_create(access))
         store.commit()
         return _serialize(store, row)
     except ValueError as exc:
@@ -53,7 +61,14 @@ def create_monitor_route(
 
 
 @router.get("/{monitor_id}")
-def get_monitor_route(monitor_id: UUID, store=Depends(get_research_store)) -> dict:
+def get_monitor_route(
+    monitor_id: UUID,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    access = load_access(request, store._session, settings)
+    authorize_monitor(store, monitor_id, access)
     row = store.get_monitor(monitor_id)
     if row is None:
         raise HTTPException(status_code=404, detail="monitor not found")
@@ -67,7 +82,15 @@ def get_monitor_route(monitor_id: UUID, store=Depends(get_research_store)) -> di
 
 
 @router.patch("/{monitor_id}")
-def patch_monitor(monitor_id: UUID, body: MonitorPatch, store=Depends(get_research_store)) -> dict:
+def patch_monitor(
+    monitor_id: UUID,
+    body: MonitorPatch,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    access = load_access(request, store._session, settings)
+    authorize_monitor(store, monitor_id, access)
     row = store.get_monitor(monitor_id)
     if row is None:
         raise HTTPException(status_code=404, detail="monitor not found")
@@ -91,7 +114,14 @@ def patch_monitor(monitor_id: UUID, body: MonitorPatch, store=Depends(get_resear
 
 
 @router.delete("/{monitor_id}", status_code=204)
-def delete_monitor(monitor_id: UUID, store=Depends(get_research_store)) -> None:
+def delete_monitor(
+    monitor_id: UUID,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    access = load_access(request, store._session, settings)
+    authorize_monitor(store, monitor_id, access)
     row = store.get_monitor(monitor_id)
     if row is None:
         raise HTTPException(status_code=404, detail="monitor not found")
@@ -102,10 +132,13 @@ def delete_monitor(monitor_id: UUID, store=Depends(get_research_store)) -> None:
 @router.post("/{monitor_id}/run-now", status_code=202)
 def run_monitor_now(
     monitor_id: UUID,
+    request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
+    access = load_access(request, store._session, settings)
+    authorize_monitor(store, monitor_id, access)
     row = store.get_monitor(monitor_id)
     if row is None:
         raise HTTPException(status_code=404, detail="monitor not found")

@@ -76,3 +76,20 @@ Retrieved text cannot grant tools, change budget, verify claims, or alter prompt
 ## Content rule
 
 > Retrieved content is DATA, never trusted instruction.
+
+## Mode B hosted additions
+
+| ID | Threat | Mitigation |
+|---|---|---|
+| T20 | IDOR/BOLA | Server-side owner match; 404 for foreign ids |
+| T21 | Cross-user RAG/Wiki/SSE | Authorize run before retrieval, wiki, events |
+| T22 | Credential theft / exfil | AES-GCM vault, no read-back, redaction |
+| T23 | Maintainer key fallback | Hosted overlay zeros env keys |
+| T24 | OAuth CSRF / open redirect | PKCE + state; allowlisted `next` |
+| T25 | Session theft | HttpOnly Secure SameSite cookies |
+| T26 | Demo mutation | Write paths denied for `is_public_demo` |
+| T27 | Prompt-injection tenant escape | Owner is never model-selected |
+| T28 | Denial of wallet (host) | Per-IP rate limits, concurrent run caps |
+| T29 | Preview secret leak | Fork PRs do not receive production secrets |
+| T30 | Next.js cache leak | `no-store` on authenticated fetches |
+

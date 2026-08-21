@@ -9,9 +9,10 @@ from deepscout_core.domain.enums import HumanFeedbackTarget, ReviewDecisionKind,
 from deepscout_core.settings import Settings, get_settings
 from deepscout_research.hitl import LOCAL_OPERATOR, HumanReviewService
 from deepscout_research.jobs.service import JobService
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from deepscout_api.access import authorize_run, load_access, require_user
 from deepscout_api.deps import get_research_store
 
 router = APIRouter(tags=["reviews"])
@@ -94,26 +95,63 @@ def _to_read(row) -> ReviewRead:  # noqa: ANN001
 
 @router.get("/api/v1/reviews", response_model=list[ReviewRead])
 def list_reviews(
+    request: Request,
     status: str | None = "pending",
     store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
 ) -> list[ReviewRead]:
+    access = load_access(request, store._session, settings)
+    if settings.is_hosted() and access.principal is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
     st = ReviewRequestStatus(status) if status else None
-    return [_to_read(row) for row in store.list_reviews(status=st)]
+    owner = None if access.is_local else access.principal_id
+    return [_to_read(row) for row in store.list_reviews(status=st, owner_principal_id=owner)]
 
 
 @router.get("/api/v1/research-runs/{run_id}/reviews", response_model=list[ReviewRead])
-def list_run_reviews(run_id: UUID, store=Depends(get_research_store)) -> list[ReviewRead]:
+def list_run_reviews(
+    run_id: UUID,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> list[ReviewRead]:
+    _require_run_read(request, store, settings, run_id)
     if store.get_run(run_id) is None:
         raise HTTPException(status_code=404, detail="Research run not found")
     return [_to_read(row) for row in store.list_reviews(run_id=run_id)]
 
 
 @router.get("/api/v1/research-runs/{run_id}/reviews/{review_id}", response_model=ReviewRead)
-def get_review(run_id: UUID, review_id: UUID, store=Depends(get_research_store)) -> ReviewRead:
+def get_review(
+    run_id: UUID,
+    review_id: UUID,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> ReviewRead:
+    _require_run_read(request, store, settings, run_id)
     row = store.get_review_request(review_id)
     if row is None or row.research_run_id != run_id:
         raise HTTPException(status_code=404, detail="Review not found")
     return _to_read(row)
+
+
+def _actor_identity(request: Request, store, settings: Settings) -> str:
+    access = load_access(request, store._session, settings)
+    if access.is_local:
+        return LOCAL_OPERATOR
+    principal = require_user(access)
+    return str(principal.id)
+
+
+def _require_run_write(request: Request, store, settings: Settings, run_id: UUID):
+    access = load_access(request, store._session, settings)
+    return authorize_run(store, run_id, access, write=True)
+
+
+def _require_run_read(request: Request, store, settings: Settings, run_id: UUID):
+    access = load_access(request, store._session, settings)
+    return authorize_run(store, run_id, access, write=False)
 
 
 def _resolve_and_maybe_resume(
@@ -127,6 +165,7 @@ def _resolve_and_maybe_resume(
     background_tasks: BackgroundTasks,
     store,
     settings: Settings,
+    identity: str,
 ) -> dict[str, Any]:
     service = HumanReviewService(store, settings)
     try:
@@ -135,7 +174,7 @@ def _resolve_and_maybe_resume(
             review_id=review_id,
             decision_kind=decision_kind,
             source="api",
-            identity=LOCAL_OPERATOR,
+            identity=identity,
             decision_payload=body_payload,
             decision_reason=reason,
             rejection_outcome=rejection_outcome or "STOP_AND_SYNTHESIZE",
@@ -158,7 +197,7 @@ def _resolve_and_maybe_resume(
             run_id,
             event_type="resume_started",
             actor_source="api",
-            actor_identity=LOCAL_OPERATOR,
+            actor_identity=identity,
             detail={"job_id": str(job_id)},
         )
     return {
@@ -175,10 +214,12 @@ def approve_review(
     run_id: UUID,
     review_id: UUID,
     body: ApproveBody,
+    request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
+    _require_run_write(request, store, settings, run_id)
     return _resolve_and_maybe_resume(
         run_id=run_id,
         review_id=review_id,
@@ -189,6 +230,7 @@ def approve_review(
         background_tasks=background_tasks,
         store=store,
         settings=settings,
+        identity=_actor_identity(request, store, settings),
     )
 
 
@@ -197,10 +239,12 @@ def edit_review(
     run_id: UUID,
     review_id: UUID,
     body: EditBody,
+    request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
+    _require_run_write(request, store, settings, run_id)
     return _resolve_and_maybe_resume(
         run_id=run_id,
         review_id=review_id,
@@ -215,6 +259,7 @@ def edit_review(
         background_tasks=background_tasks,
         store=store,
         settings=settings,
+        identity=_actor_identity(request, store, settings),
     )
 
 
@@ -223,10 +268,12 @@ def reject_review(
     run_id: UUID,
     review_id: UUID,
     body: RejectBody,
+    request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
+    _require_run_write(request, store, settings, run_id)
     return _resolve_and_maybe_resume(
         run_id=run_id,
         review_id=review_id,
@@ -237,6 +284,7 @@ def reject_review(
         background_tasks=background_tasks,
         store=store,
         settings=settings,
+        identity=_actor_identity(request, store, settings),
     )
 
 
@@ -245,10 +293,12 @@ def respond_review(
     run_id: UUID,
     review_id: UUID,
     body: RespondBody,
+    request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
+    _require_run_write(request, store, settings, run_id)
     return _resolve_and_maybe_resume(
         run_id=run_id,
         review_id=review_id,
@@ -259,6 +309,7 @@ def respond_review(
         background_tasks=background_tasks,
         store=store,
         settings=settings,
+        identity=_actor_identity(request, store, settings),
     )
 
 
@@ -266,9 +317,12 @@ def respond_review(
 def create_feedback(
     run_id: UUID,
     body: FeedbackBody,
+    request: Request,
     store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     """Human evaluation only — cannot authorize operational reviews."""
+    _require_run_write(request, store, settings, run_id)
     if store.get_run(run_id) is None:
         raise HTTPException(status_code=404, detail="Research run not found")
     try:
@@ -279,7 +333,7 @@ def create_feedback(
             note=body.note,
             target_id=body.target_id,
             source="ui",
-            created_by=LOCAL_OPERATOR,
+            created_by=_actor_identity(request, store, settings),
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc

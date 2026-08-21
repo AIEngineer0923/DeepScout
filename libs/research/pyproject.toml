@@ -11,6 +11,7 @@ dependencies = [
     "langsmith>=0.3",
     "httpx>=0.28",
     "langgraph-checkpoint-postgres>=3.1.2",
+    "cryptography>=44.0",
 ]
 
 [build-system]

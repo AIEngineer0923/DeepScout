@@ -26,11 +26,15 @@ def monitor_status(row: ResearchMonitorRow, *, child_running: bool = False) -> s
     return "active"
 
 
-def create_monitor(store: ResearchStore, payload: ResearchMonitorCreate) -> ResearchMonitorRow:
+def create_monitor(
+    store: ResearchStore, payload: ResearchMonitorCreate, *, owner_principal_id=None
+) -> ResearchMonitorRow:
     if store.count_monitors() >= MAX_MONITORS:
         raise ValueError("MODE A monitor limit reached")
     now = datetime.now(UTC)
-    row = store.create_monitor(payload, next_run_at=compute_next_run_at(payload, after=now))
+    row = store.create_monitor(
+        payload, next_run_at=compute_next_run_at(payload, after=now), owner_principal_id=owner_principal_id
+    )
     return row
 
 
@@ -59,6 +63,7 @@ def dispatch_due_monitors(
                 root_run_id=row.last_run_id,
                 monitor_id=row.id,
                 lineage_kind=RunLineageKind.MONITOR.value,
+                owner_principal_id=row.owner_principal_id,
             )
             jobs.enqueue_execute_run(created.id)
             nxt = catch_up_next_run(row, now=now)

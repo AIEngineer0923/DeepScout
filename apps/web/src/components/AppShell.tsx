@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { parseRunId, readLastRunId, rememberRunId } from "@/lib/current-run";
+import { parseRunId, readLastRunId, rememberRunId, clearLastRunId } from "@/lib/current-run";
 import { initials } from "@/lib/visual";
 import { useI18n } from "@/i18n/context";
 import {
@@ -65,6 +65,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathRunId]);
 
   useEffect(() => {
+    api
+      .me()
+      .then((me) => {
+        const previous = window.sessionStorage.getItem("deepscout.principal_id");
+        if (me.id && previous && previous !== me.id) {
+          clearLastRunId();
+          setStoredRunId(parseRunId(window.location.pathname));
+        }
+        if (me.id) window.sessionStorage.setItem("deepscout.principal_id", me.id);
+        else window.sessionStorage.removeItem("deepscout.principal_id");
+      })
+      .catch(() => undefined);
     api
       .settings()
       .then((data) => {
@@ -172,6 +184,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/reviews" className={`nav-link ${pathname === "/reviews" ? "active" : ""}`}>
             <IconEvals />
             {t("nav.reviews")}
+          </Link>
+          <Link href="/demo" className={`nav-link ${pathname === "/demo" ? "active" : ""}`}>
+            <IconEvals />
+            Demo
+          </Link>
+          <Link href="/login" className={`nav-link ${pathname === "/login" ? "active" : ""}`}>
+            <IconSettings />
+            Sign in
+          </Link>
+          <Link href="/account" className={`nav-link ${pathname === "/account" ? "active" : ""}`}>
+            <IconSettings />
+            Account
           </Link>
           <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
             <IconSettings />

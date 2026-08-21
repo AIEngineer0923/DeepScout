@@ -118,6 +118,9 @@ class ResearchStore:
         root_run_id: uuid.UUID | None = None,
         monitor_id: uuid.UUID | None = None,
         lineage_kind: str = "none",
+        owner_principal_id: uuid.UUID | None = None,
+        is_public_demo: bool = False,
+        public_slug: str | None = None,
     ) -> ResearchRunRead:
         budget = payload.budget or settings.default_research_budget()
         budget = _budget_for_mode(budget, payload.research_mode)
@@ -142,6 +145,9 @@ class ResearchStore:
             root_run_id=root_run_id or parent_run_id,
             monitor_id=monitor_id,
             lineage_kind=lineage_kind,
+            owner_principal_id=owner_principal_id,
+            is_public_demo=is_public_demo,
+            public_slug=public_slug,
         )
         self._session.add(row)
         self._session.flush()
@@ -161,9 +167,17 @@ class ResearchStore:
         query: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        owner_principal_id: uuid.UUID | None = None,
+        public_demo_only: bool = False,
     ) -> tuple[list[ResearchRunRow], int]:
         stmt = select(ResearchRunRow)
         count_stmt = select(func.count()).select_from(ResearchRunRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(ResearchRunRow.owner_principal_id == owner_principal_id)
+            count_stmt = count_stmt.where(ResearchRunRow.owner_principal_id == owner_principal_id)
+        if public_demo_only:
+            stmt = stmt.where(ResearchRunRow.is_public_demo.is_(True))
+            count_stmt = count_stmt.where(ResearchRunRow.is_public_demo.is_(True))
         if status:
             try:
                 enum_status = ResearchRunStatus(status)
@@ -807,6 +821,7 @@ class ResearchStore:
         *,
         run_id: uuid.UUID | None = None,
         status: ReviewRequestStatus | None = None,
+        owner_principal_id: uuid.UUID | None = None,
         limit: int = 50,
     ) -> list[ReviewRequestRow]:
         stmt = select(ReviewRequestRow).order_by(ReviewRequestRow.created_at.desc()).limit(limit)
@@ -814,6 +829,10 @@ class ResearchStore:
             stmt = stmt.where(ReviewRequestRow.research_run_id == run_id)
         if status is not None:
             stmt = stmt.where(ReviewRequestRow.status == status)
+        if owner_principal_id is not None:
+            stmt = stmt.join(
+                ResearchRunRow, ReviewRequestRow.research_run_id == ResearchRunRow.id
+            ).where(ResearchRunRow.owner_principal_id == owner_principal_id)
         return list(self._session.scalars(stmt).all())
 
     def update_review_status(
@@ -1607,26 +1626,34 @@ class ResearchStore:
             ).all()
         )
 
-    def list_templates(self) -> list[ResearchTemplateRead]:
-        rows = self._session.scalars(
-            select(ResearchTemplateRow).order_by(ResearchTemplateRow.updated_at.desc())
-        ).all()
+    def list_templates(self, owner_principal_id: uuid.UUID | None = None) -> list[ResearchTemplateRead]:
+        stmt = select(ResearchTemplateRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(ResearchTemplateRow.owner_principal_id == owner_principal_id)
+        rows = self._session.scalars(stmt.order_by(ResearchTemplateRow.updated_at.desc())).all()
         return [_template_to_read(row) for row in rows]
 
-    def create_template(self, payload: ResearchTemplateCreate) -> ResearchTemplateRead:
+    def create_template(
+        self, payload: ResearchTemplateCreate, *, owner_principal_id: uuid.UUID | None = None
+    ) -> ResearchTemplateRead:
         row = ResearchTemplateRow(
             name=payload.name.strip(),
             goal=payload.goal.strip(),
             research_mode=payload.research_mode,
             output_language=payload.output_language,
+            owner_principal_id=owner_principal_id,
         )
         self._session.add(row)
         self._session.flush()
         return _template_to_read(row)
 
-    def delete_template(self, template_id: uuid.UUID) -> bool:
+    def delete_template(
+        self, template_id: uuid.UUID, *, owner_principal_id: uuid.UUID | None = None
+    ) -> bool:
         row = self._session.get(ResearchTemplateRow, template_id)
         if row is None:
+            return False
+        if owner_principal_id is not None and row.owner_principal_id != owner_principal_id:
             return False
         self._session.delete(row)
         self._session.flush()
@@ -1706,8 +1733,27 @@ class ResearchStore:
     def count_monitors(self) -> int:
         return int(self._session.scalar(select(func.count()).select_from(ResearchMonitorRow)) or 0)
 
+    def count_active_runs(self, owner_principal_id: uuid.UUID) -> int:
+        return int(
+            self._session.scalar(
+                select(func.count())
+                .select_from(ResearchRunRow)
+                .where(
+                    ResearchRunRow.owner_principal_id == owner_principal_id,
+                    ResearchRunRow.status.in_(
+                        [
+                            ResearchRunStatus.PENDING,
+                            ResearchRunStatus.RUNNING,
+                            ResearchRunStatus.PAUSED,
+                        ]
+                    ),
+                )
+            )
+            or 0
+        )
+
     def create_monitor(
-        self, payload: ResearchMonitorCreate, *, next_run_at: datetime
+        self, payload: ResearchMonitorCreate, *, next_run_at: datetime, owner_principal_id: uuid.UUID | None = None
     ) -> ResearchMonitorRow:
         row = ResearchMonitorRow(
             name=payload.name.strip(),
@@ -1722,6 +1768,7 @@ class ResearchStore:
             research_mode=payload.research_mode,
             template_id=payload.template_id,
             next_run_at=next_run_at,
+            owner_principal_id=owner_principal_id,
         )
         self._session.add(row)
         self._session.flush()
@@ -1730,12 +1777,11 @@ class ResearchStore:
     def get_monitor(self, monitor_id: uuid.UUID) -> ResearchMonitorRow | None:
         return self._session.get(ResearchMonitorRow, monitor_id)
 
-    def list_monitors(self) -> list[ResearchMonitorRow]:
-        return list(
-            self._session.scalars(
-                select(ResearchMonitorRow).order_by(ResearchMonitorRow.updated_at.desc())
-            ).all()
-        )
+    def list_monitors(self, owner_principal_id: uuid.UUID | None = None) -> list[ResearchMonitorRow]:
+        stmt = select(ResearchMonitorRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(ResearchMonitorRow.owner_principal_id == owner_principal_id)
+        return list(self._session.scalars(stmt.order_by(ResearchMonitorRow.updated_at.desc())).all())
 
     def list_monitor_runs(self, monitor_id: uuid.UUID) -> list[ResearchRunRow]:
         return list(

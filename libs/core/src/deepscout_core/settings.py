@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from deepscout_core.deployment import DeploymentMode
 from deepscout_core.types import ProviderKind
 
 if TYPE_CHECKING:
@@ -94,6 +95,44 @@ class Settings(BaseSettings):
     agent_skills_auto: bool = Field(default=True, alias="AGENT_SKILLS_AUTO")
     context_compaction_char_limit: int = Field(default=12000, alias="CONTEXT_COMPACTION_CHAR_LIMIT")
     research_straggler_timeout_s: int = Field(default=120, alias="RESEARCH_STRAGGLER_TIMEOUT_S")
+
+    deployment_mode: DeploymentMode = Field(
+        default=DeploymentMode.LOCAL,
+        alias="DEEPSCOUT_DEPLOYMENT_MODE",
+    )
+    public_base_url: str = Field(default="http://127.0.0.1:8000", alias="PUBLIC_BASE_URL")
+    session_secret: SecretStr | None = Field(default=None, alias="SESSION_SECRET")
+    credential_encryption_key: SecretStr | None = Field(
+        default=None, alias="CREDENTIAL_ENCRYPTION_KEY"
+    )
+    github_oauth_client_id: str | None = Field(default=None, alias="GITHUB_OAUTH_CLIENT_ID")
+    github_oauth_client_secret: SecretStr | None = Field(
+        default=None, alias="GITHUB_OAUTH_CLIENT_SECRET"
+    )
+    google_oauth_client_id: str | None = Field(default=None, alias="GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret: SecretStr | None = Field(
+        default=None, alias="GOOGLE_OAUTH_CLIENT_SECRET"
+    )
+    hosted_max_concurrent_runs_per_user: int = Field(
+        default=2, alias="HOSTED_MAX_CONCURRENT_RUNS_PER_USER"
+    )
+    hosted_max_monitors_per_user: int = Field(default=5, alias="HOSTED_MAX_MONITORS_PER_USER")
+    oauth_redirect_allowlist: str = Field(
+        default="/,/account,/research/new,/onboarding",
+        alias="OAUTH_REDIRECT_ALLOWLIST",
+    )
+
+    def is_hosted(self) -> bool:
+        return self.deployment_mode == DeploymentMode.HOSTED
+
+    def hosted_auth_ready(self) -> bool:
+        if not self.is_hosted():
+            return True
+        if self.session_secret is None or self.credential_encryption_key is None:
+            return False
+        github = bool(self.github_oauth_client_id and self.github_oauth_client_secret)
+        google = bool(self.google_oauth_client_id and self.google_oauth_client_secret)
+        return github or google
 
     def default_research_budget(self) -> "ResearchBudget":
         from deepscout_core.domain.budget import ResearchBudget

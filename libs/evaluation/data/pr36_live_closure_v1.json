@@ -1,0 +1,467 @@
+{
+  "providers": {
+    "google": true,
+    "tavily": true,
+    "langsmith_tracing": true,
+    "llm_provider": "google"
+  },
+  "root_create": {
+    "http": 201,
+    "run_id": "39928592-0a5a-474e-823a-1f573546ca0f"
+  },
+  "root_execute": {
+    "http": 202,
+    "accepted": {
+      "run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+      "status": "accepted",
+      "job_id": "11bdd3be-07e4-4814-bc0a-02727c7e4694"
+    },
+    "final": {
+      "id": "39928592-0a5a-474e-823a-1f573546ca0f",
+      "goal": "What is the ISO 4217 currency code for Japan, and which public institution issues that currency?",
+      "status": "completed",
+      "llm_provider": "google",
+      "llm_model": "gemini-3.7-flash",
+      "budget": {
+        "max_iterations": 2,
+        "max_wall_time_seconds": 180,
+        "max_total_tokens": 25000,
+        "max_cost_usd": 0.75,
+        "max_sources": 8,
+        "max_tool_calls": 6
+      },
+      "usage": {
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_input_tokens": null,
+        "reasoning_tokens": null,
+        "total_tokens": 21363,
+        "cost_usd": 0.006624600000000001,
+        "usage_status": "partial",
+        "cost_status": "estimated",
+        "pricing_version": "2026-08-21",
+        "evaluation_total_tokens": null,
+        "evaluation_cost_usd": null,
+        "cost_unknown_reason": null
+      },
+      "termination_reason": "no_active_tasks",
+      "research_mode": "quick",
+      "output_language": "en",
+      "created_at": "2026-08-21T19:39:30.443890Z",
+      "updated_at": "2026-08-21T19:39:49.182325Z",
+      "started_at": "2026-08-21T19:39:30.527038Z",
+      "completed_at": "2026-08-21T19:39:49.182328Z"
+    }
+  },
+  "root": {
+    "run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+    "goal": "What is the ISO 4217 currency code for Japan, and which public institution issues that currency?",
+    "status": "completed",
+    "lineage_kind": "none",
+    "parent_run_id": null,
+    "root_run_id": null,
+    "monitor_id": null,
+    "termination_reason": "no_active_tasks",
+    "tasks": [
+      {
+        "key": "japan_currency_lookup",
+        "depends_on": [],
+        "status": "completed"
+      }
+    ],
+    "workers": 1,
+    "sources": 3,
+    "source_urls": [
+      "https://en.wikipedia.org/wiki/ISO_4217",
+      "https://moneyswapp.com/currency/jpy",
+      "https://www.iban.com/currency-codes"
+    ],
+    "snapshots": 2,
+    "chunks": 46,
+    "embeddings": 46,
+    "claims": 1,
+    "evidence": 1,
+    "report": true,
+    "quote_resolution": {
+      "matched": 1,
+      "total": 1
+    },
+    "tokens": 21363,
+    "cost_usd": 0.006624600000000001,
+    "cost_status": "estimated",
+    "llm_provider": "google",
+    "llm_model": "gemini-3.7-flash"
+  },
+  "injection": {
+    "monitors_unchanged": true,
+    "prefs_unchanged": true,
+    "notes": 7
+  },
+  "pin": {
+    "http": 201,
+    "body": {
+      "id": "c4d9aed6-2d6e-47a3-b040-9aae01bc406d",
+      "research_run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+      "action": "pin",
+      "identity_kind": "url",
+      "identity_value": "https://en.wikipedia.org/wiki/ISO_4217",
+      "reason": "gate-a",
+      "origin": "user",
+      "created_at": "2026-08-21T19:39:49.241998Z"
+    }
+  },
+  "followup_create": {
+    "http": 202,
+    "run_id": "0aaf56c2-916b-40a2-a9e1-ba38c7a1c9f1"
+  },
+  "followup_context": {
+    "role": "untrusted_historical_DATA",
+    "authority": "Source \u2192 SourceSnapshot \u2192 Evidence. Report prose is not evidence.",
+    "chars": 1995,
+    "bounded": true
+  },
+  "followup_execute": {
+    "http": 202,
+    "accepted": {
+      "run_id": "0aaf56c2-916b-40a2-a9e1-ba38c7a1c9f1",
+      "status": "accepted",
+      "job_id": "b4fd3992-60ae-4bc0-851e-25bbfac97626"
+    },
+    "final": {
+      "id": "0aaf56c2-916b-40a2-a9e1-ba38c7a1c9f1",
+      "goal": "Find newer official evidence for the issuing institution named in the parent research.",
+      "status": "budget_exhausted",
+      "llm_provider": "google",
+      "llm_model": "gemini-3.7-flash",
+      "budget": {
+        "max_iterations": 2,
+        "max_wall_time_seconds": 300,
+        "max_total_tokens": 40000,
+        "max_cost_usd": 1.0,
+        "max_sources": 8,
+        "max_tool_calls": 16
+      },
+      "usage": {
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_input_tokens": null,
+        "reasoning_tokens": null,
+        "total_tokens": 45446,
+        "cost_usd": 0.01099905,
+        "usage_status": "partial",
+        "cost_status": "estimated",
+        "pricing_version": "2026-08-21",
+        "evaluation_total_tokens": null,
+        "evaluation_cost_usd": null,
+        "cost_unknown_reason": null
+      },
+      "termination_reason": "budget_exhausted",
+      "research_mode": "quick",
+      "output_language": "en",
+      "created_at": "2026-08-21T19:39:49.259365Z",
+      "updated_at": "2026-08-21T19:40:18.505727Z",
+      "started_at": "2026-08-21T19:39:49.307188Z",
+      "completed_at": "2026-08-21T19:40:18.505730Z"
+    }
+  },
+  "followup": {
+    "run_id": "0aaf56c2-916b-40a2-a9e1-ba38c7a1c9f1",
+    "goal": "Find newer official evidence for the issuing institution named in the parent research.",
+    "status": "budget_exhausted",
+    "lineage_kind": "followup",
+    "parent_run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+    "root_run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+    "monitor_id": null,
+    "termination_reason": "budget_exhausted",
+    "tasks": [
+      {
+        "key": "find_japan_currency_issuer_and_code",
+        "depends_on": [],
+        "status": "completed"
+      }
+    ],
+    "workers": 1,
+    "sources": 4,
+    "source_urls": [
+      "https://en.wikipedia.org/wiki/ISO_4217",
+      "https://en.japantravel.com/guide/money-in-japan/22045",
+      "https://en.wikipedia.org/wiki/Japanese_yen",
+      "https://moneyswapp.com/currency/jpy"
+    ],
+    "snapshots": 3,
+    "chunks": 100,
+    "embeddings": 100,
+    "claims": 2,
+    "evidence": 2,
+    "report": true,
+    "quote_resolution": {
+      "matched": 2,
+      "total": 2
+    },
+    "tokens": 45446,
+    "cost_usd": 0.01099905,
+    "cost_status": "estimated",
+    "llm_provider": "google",
+    "llm_model": "gemini-3.7-flash",
+    "inherited_prefs": [
+      {
+        "action": "pin",
+        "origin": "inherited",
+        "identity_value": "https://en.wikipedia.org/wiki/ISO_4217"
+      }
+    ]
+  },
+  "parent_unchanged": {
+    "status": true,
+    "sources": true,
+    "claims": true
+  },
+  "exclude": {
+    "http": 201,
+    "identity": "moneyswapp.com",
+    "canonical": "https://moneyswapp.com/currency/jpy"
+  },
+  "precedence": {
+    "effective": "exclude",
+    "exclude_wins": true
+  },
+  "exclude_followup_create": {
+    "http": 202,
+    "run_id": "3cfb11cc-3a30-457c-8426-34e57cc91e64"
+  },
+  "exclude_followup_execute": {
+    "http": 202,
+    "accepted": {
+      "run_id": "3cfb11cc-3a30-457c-8426-34e57cc91e64",
+      "status": "accepted",
+      "job_id": "cacf69c2-c460-40c1-bf61-8fdea40680c7"
+    },
+    "final": {
+      "id": "3cfb11cc-3a30-457c-8426-34e57cc91e64",
+      "goal": "Verify the currency code using sources other than the excluded domain.",
+      "status": "completed",
+      "llm_provider": "google",
+      "llm_model": "gemini-3.7-flash",
+      "budget": {
+        "max_iterations": 2,
+        "max_wall_time_seconds": 300,
+        "max_total_tokens": 40000,
+        "max_cost_usd": 1.0,
+        "max_sources": 8,
+        "max_tool_calls": 16
+      },
+      "usage": {
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_input_tokens": null,
+        "reasoning_tokens": null,
+        "total_tokens": 19040,
+        "cost_usd": 0.0065689500000000005,
+        "usage_status": "partial",
+        "cost_status": "estimated",
+        "pricing_version": "2026-08-21",
+        "evaluation_total_tokens": null,
+        "evaluation_cost_usd": null,
+        "cost_unknown_reason": null
+      },
+      "termination_reason": "no_active_tasks",
+      "research_mode": "quick",
+      "output_language": "en",
+      "created_at": "2026-08-21T19:40:18.548848Z",
+      "updated_at": "2026-08-21T19:40:45.916937Z",
+      "started_at": "2026-08-21T19:40:18.575707Z",
+      "completed_at": "2026-08-21T19:40:45.916940Z"
+    }
+  },
+  "exclude_followup": {
+    "run_id": "3cfb11cc-3a30-457c-8426-34e57cc91e64",
+    "goal": "Verify the currency code using sources other than the excluded domain.",
+    "status": "completed",
+    "lineage_kind": "followup",
+    "parent_run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+    "root_run_id": "39928592-0a5a-474e-823a-1f573546ca0f",
+    "monitor_id": null,
+    "termination_reason": "no_active_tasks",
+    "tasks": [
+      {
+        "key": "verify_japan_currency_code_and_issuer",
+        "depends_on": [],
+        "status": "completed"
+      }
+    ],
+    "workers": 1,
+    "sources": 3,
+    "source_urls": [
+      "https://en.wikipedia.org/wiki/ISO_4217",
+      "https://www.exchangerate.com/The_currency_iso_for_the_yen_is.html",
+      "https://www.thomsonreuters.com/en-us/help/legal-tracker/company/international-currencies/list-of-currency-codes.html"
+    ],
+    "snapshots": 2,
+    "chunks": 39,
+    "embeddings": 39,
+    "claims": 1,
+    "evidence": 1,
+    "report": true,
+    "quote_resolution": {
+      "matched": 1,
+      "total": 1
+    },
+    "tokens": 19040,
+    "cost_usd": 0.0065689500000000005,
+    "cost_status": "estimated",
+    "llm_provider": "google",
+    "llm_model": "gemini-3.7-flash"
+  },
+  "exclude_path": {
+    "tavily_candidates_matching_host": false,
+    "tavily_candidate_count": 3,
+    "ingested_source": false,
+    "new_evidence_from_excluded": 0,
+    "historical_parent_still_has_source": true,
+    "rag": {
+      "error": null,
+      "candidates": 8,
+      "excluded_in_fused": 0
+    }
+  },
+  "monitor_create": {
+    "http": 201,
+    "body": {
+      "id": "a39ace09-1e40-4d8e-890e-005fb5474571",
+      "name": "Gate A ISO monitor",
+      "goal": "What is the ISO 4217 currency code for Japan, and which public institution issues that currency?",
+      "schedule_kind": "daily",
+      "timezone": "Europe/Rome",
+      "hour": 9,
+      "minute": 0,
+      "weekday": 0,
+      "interval_minutes": 1440,
+      "enabled": true,
+      "status": "active",
+      "research_mode": "quick",
+      "template_id": null,
+      "last_run_id": null,
+      "last_run_at": null,
+      "next_run_at": "2026-08-22T07:00:00Z",
+      "last_success_at": null,
+      "last_change_at": null,
+      "created_at": "2026-08-21T19:40:46.825491Z",
+      "updated_at": "2026-08-21T19:40:46.825491Z"
+    }
+  },
+  "monitor_run_now": {
+    "http": 202,
+    "run_id": "b884ff9d-6654-434f-8273-86d677a37059"
+  },
+  "monitor_idempotency": {
+    "duplicate_http": 409,
+    "blocked": true
+  },
+  "monitor_execute": {
+    "http": 202,
+    "accepted": {
+      "run_id": "b884ff9d-6654-434f-8273-86d677a37059",
+      "status": "accepted",
+      "job_id": "be6c9890-ef62-49db-ae56-a4fda19ebb48"
+    },
+    "final": {
+      "id": "b884ff9d-6654-434f-8273-86d677a37059",
+      "goal": "What is the ISO 4217 currency code for Japan, and which public institution issues that currency?",
+      "status": "completed",
+      "llm_provider": "google",
+      "llm_model": "gemini-3.7-flash",
+      "budget": {
+        "max_iterations": 2,
+        "max_wall_time_seconds": 300,
+        "max_total_tokens": 40000,
+        "max_cost_usd": 1.0,
+        "max_sources": 8,
+        "max_tool_calls": 16
+      },
+      "usage": {
+        "input_tokens": null,
+        "output_tokens": null,
+        "cached_input_tokens": null,
+        "reasoning_tokens": null,
+        "total_tokens": 21398,
+        "cost_usd": 0.006543800000000001,
+        "usage_status": "partial",
+        "cost_status": "estimated",
+        "pricing_version": "2026-08-21",
+        "evaluation_total_tokens": null,
+        "evaluation_cost_usd": null,
+        "cost_unknown_reason": null
+      },
+      "termination_reason": "no_active_tasks",
+      "research_mode": "quick",
+      "output_language": "en",
+      "created_at": "2026-08-21T19:40:46.844387Z",
+      "updated_at": "2026-08-21T19:41:15.570590Z",
+      "started_at": "2026-08-21T19:40:46.888698Z",
+      "completed_at": "2026-08-21T19:41:15.570591Z"
+    }
+  },
+  "monitor_run": {
+    "run_id": "b884ff9d-6654-434f-8273-86d677a37059",
+    "goal": "What is the ISO 4217 currency code for Japan, and which public institution issues that currency?",
+    "status": "completed",
+    "lineage_kind": "monitor",
+    "parent_run_id": null,
+    "root_run_id": null,
+    "monitor_id": "a39ace09-1e40-4d8e-890e-005fb5474571",
+    "termination_reason": "no_active_tasks",
+    "tasks": [
+      {
+        "key": "japan_currency_info",
+        "depends_on": [],
+        "status": "completed"
+      }
+    ],
+    "workers": 1,
+    "sources": 3,
+    "source_urls": [
+      "https://en.wikipedia.org/wiki/ISO_4217",
+      "https://www.iban.com/currency-codes",
+      "https://www.thomsonreuters.com/en-us/help/legal-tracker/company/international-currencies/list-of-currency-codes.html"
+    ],
+    "snapshots": 3,
+    "chunks": 47,
+    "embeddings": 47,
+    "claims": 2,
+    "evidence": 2,
+    "report": true,
+    "quote_resolution": {
+      "matched": 2,
+      "total": 2
+    },
+    "tokens": 21398,
+    "cost_usd": 0.006543800000000001,
+    "cost_status": "estimated",
+    "llm_provider": "google",
+    "llm_model": "gemini-3.7-flash"
+  },
+  "change_detection": {
+    "changed": true,
+    "signals": [
+      "new_sources",
+      "removed_sources",
+      "changed_snapshot_hash",
+      "new_claims"
+    ],
+    "added_sources": [
+      "https://www.thomsonreuters.com/en-us/help/legal-tracker/company/international-currencies/list-of-currency-codes.html"
+    ],
+    "removed_sources": [
+      "https://moneyswapp.com/currency/jpy"
+    ]
+  },
+  "pass": true,
+  "gates": {
+    "root": true,
+    "followup": true,
+    "exclude": true,
+    "monitor": true,
+    "injection": true,
+    "idempotency": true
+  }
+}

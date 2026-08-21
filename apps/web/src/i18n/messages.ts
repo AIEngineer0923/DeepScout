@@ -5,7 +5,7 @@ export const UI_LOCALE_KEY = "deepscout.ui_locale";
 
 export const MESSAGES: Record<Locale, Record<string, string>> = {
   en: {
-    "brand.name": "DeepScout",
+    "brand.name": "Deep Scout",
     "nav.overview": "Overview",
     "nav.newResearch": "New Research",
     "nav.research": "Research",
@@ -458,7 +458,7 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "action.delete": "Delete",
   },
   it: {
-    "brand.name": "DeepScout",
+    "brand.name": "Deep Scout",
     "nav.overview": "Panoramica",
     "nav.newResearch": "Nuova ricerca",
     "nav.research": "Ricerca",

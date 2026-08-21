@@ -14,7 +14,7 @@ describe("i18n", () => {
   });
 
   it("falls back to English then the key", () => {
-    expect(translate("it", "brand.name")).toBe("DeepScout");
+    expect(translate("it", "brand.name")).toBe("Deep Scout");
     expect(translate("en", "missing.never.defined")).toBe("missing.never.defined");
   });
 

@@ -53,8 +53,11 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
             time.sleep(poll_interval_s)
             continue
         try:
-            with TavilyWebSearchProvider(settings) as search:
-                orchestrator = ResearchOrchestrator(store, settings, search)
+            from deepscout_research.credentials.runtime import resolve_run_settings
+
+            run_settings = resolve_run_settings(store, settings, job.research_run_id)
+            with TavilyWebSearchProvider(run_settings) as search:
+                orchestrator = ResearchOrchestrator(store, run_settings, search)
                 orchestrator.execute(job.research_run_id)
             session.commit()
             jobs.complete(job.id, owner, job.lease_token or "")

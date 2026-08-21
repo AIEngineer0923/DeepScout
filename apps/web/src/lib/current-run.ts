@@ -16,3 +16,8 @@ export function rememberRunId(runId: string | null) {
   if (typeof window === "undefined" || !runId || !UUID.test(runId)) return;
   window.localStorage.setItem(LAST_RUN_KEY, runId);
 }
+
+export function clearLastRunId() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(LAST_RUN_KEY);
+}

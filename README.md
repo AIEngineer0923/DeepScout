@@ -1,17 +1,21 @@
-# DeepScout
+# Deep Scout
 
 **Autonomous Research & Decision Intelligence** — open-source agentic research system.
 
-DeepScout receives a complex research objective, builds a bounded research plan,
-collects sources, extracts claims and evidence, detects contradictions, iterates when
-evidence is insufficient, runs a critic pass, and produces a documented decision or
-synthesis with provenance and confidence.
+## Live Demo / Run Locally / Deploy Your Own
 
-This is **not** a chatbot or a simple RAG demo.
+| Path | What you get |
+|---|---|
+| **Explore Demo** | `/demo` — read-only published runs, no signup, zero provider spend |
+| **Run locally (MODE A)** | Clone, `.env` provider keys, no account |
+| **Hosted (MODE B)** | GitHub/Google login, BYOK vault, tenant isolation |
+| **Deploy your own** | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — generic OAuth/DB/keys, no personal-account hardcoding |
 
-**Deployment model (MODE A):** DeepScout is a local / trusted-network workstation.
-There is no user authentication. Do not expose the API to the public Internet.
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
+One-click Vercel is not offered: the agent runtime needs a persistent FastAPI worker.
+
+See [docs/adr/011-mode-b-hosted.md](docs/adr/011-mode-b-hosted.md).
+
+This is **not** a chatbot, a SaaS billing product, or a simple RAG demo.
 
 ## Status
 
@@ -20,6 +24,8 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
 | Phase 0 | Architecture approved |
 | Phase 0.5 | Public repository baseline |
 | Phase 1 | Monorepo scaffold, provider factory, smoke agent |
+| Product runtime | Planner, follow-up, PIN/EXCLUDE, monitors, RUM |
+| Mode B | Hosted auth, tenancy, BYOK, public demo |
 
 ## Architecture at a glance
 

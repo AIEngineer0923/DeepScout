@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 from deepscout_api.main import configure_observability
 from deepscout_api.probes import probe_postgres, probe_redis
+from deepscout_api.routes.account import router as account_router
+from deepscout_api.routes.auth import router as auth_router
 from deepscout_api.routes.knowledge import router as knowledge_router
 from deepscout_api.routes.monitors import router as monitors_router
 from deepscout_api.routes.product import router as product_router
@@ -36,6 +38,8 @@ app = FastAPI(
     openapi_url=None,
 )
 install_security_middleware(app, get_settings())
+app.include_router(auth_router)
+app.include_router(account_router)
 app.include_router(research_runs_router)
 app.include_router(product_router)
 app.include_router(reviews_router)
@@ -102,7 +106,7 @@ def smoke_agent(
     body: SmokeAgentRequest,
     settings: Settings = Depends(get_settings),
 ) -> SmokeAgentResponseBody:
-    if not settings.enable_smoke_agent:
+    if settings.is_hosted() or not settings.enable_smoke_agent:
         raise HTTPException(status_code=404, detail="Not found")
     try:
         result = run_smoke_agent(settings, user_message=body.message)

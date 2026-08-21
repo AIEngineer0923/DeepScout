@@ -12,6 +12,8 @@ dependencies = [
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
     "redis>=5.2",
+    "authlib>=1.5",
+    "httpx>=0.28",
 ]
 
 [build-system]

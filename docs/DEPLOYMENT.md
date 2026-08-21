@@ -1,43 +1,61 @@
 # DeepScout deployment
 
-## Architecture decision: MODE A — local / trusted network
+## Three product modes
 
-DeepScout is an **open-source local research workstation**, not a multi-tenant SaaS.
+| Mode | Env | Auth | Credentials | Audience |
+|---|---|---|---|---|
+| **A — local / self-host** | `DEEPSCOUT_DEPLOYMENT_MODE=local` (default) | None | `GOOGLE_API_KEY`, `TAVILY_API_KEY`, … | Operator laptop |
+| **B — hosted authenticated** | `hosted` | GitHub + Google OAuth | User vault only | Signed-in researchers |
+| **Public demo** | either | None | None | Recruiters / visitors |
 
-| Mode | Status |
-|---|---|
-| **A — local / trusted network** | Supported. This is the intended product. |
-| **B — public Internet with first-party auth** | **Not supported.** There is no authentication or authorization boundary. |
+Hosted + missing `SESSION_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`, or OAuth clients fails closed.
+It never silently becomes MODE A.
 
-Do not bind the API to a public address and call that a cloud product. UUID routes are capabilities: anyone who can reach the API can create, execute, cancel, and export every run.
+## MODE A — run locally
 
-Production URL and multi-user identity remain TBD (Phase 10+). Until a real identity layer exists, the security gate for public Internet deployment is **FAIL**.
+1. Clone, copy `.env.example`, set provider keys.
+2. Start Postgres with pgvector (`infra/docker/docker-compose.yml`).
+3. `uv run alembic upgrade head` from `libs/persistence`.
+4. API: `uv run deepscout-api` (default bind `127.0.0.1`).
+5. Web: `npm run dev` in `apps/web`.
 
-## Supported layouts
+Do not bind `0.0.0.0` unless you understand that MODE A has no login.
 
-1. **Developer workstation** — `uv` + `npm` + Compose Postgres/Redis. API default `API_HOST=127.0.0.1`.
-2. **Docker Compose on the same host** — published ports bound to `127.0.0.1` only.
-3. **Trusted private network** — place an authenticating reverse proxy in front if more than one operator can reach the host. DeepScout itself still has no users.
+## MODE B — self-host hosted mode
 
-## Compose defaults are local-only
+Another operator configures **their** OAuth apps, database, session secret, and encryption key.
+Nothing is hardcoded to a personal Vercel account.
 
-`infra/docker/docker-compose.yml` uses `POSTGRES_PASSWORD=deepscout` for disposable local databases.
+Required:
 
-- Never use that password for a shared or remote database.
-- Never publish Compose ports on `0.0.0.0` unless the host firewall and a trusted network already isolate the machine.
-- Provide a real `DATABASE_URL` / `REDIS_URL` for anything beyond a laptop.
+```
+DEEPSCOUT_DEPLOYMENT_MODE=hosted
+SESSION_SECRET=                    # long random
+CREDENTIAL_ENCRYPTION_KEY=         # 32 raw bytes or urlsafe base64 of 32 bytes
+GITHUB_OAUTH_CLIENT_ID=
+GITHUB_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+PUBLIC_BASE_URL=https://your-api.example
+CORS_ORIGINS=https://your-web.example
+DATABASE_URL=postgresql+psycopg://...
+```
 
-## Runtime defaults
+OAuth callback URLs:
 
-- `API_HOST=127.0.0.1`
-- `APP_DEBUG=false`
-- `ENABLE_SMOKE_AGENT=false`
-- `LANGSMITH_TRACING=false` (opt in; research text may leave the machine when enabled)
-- `RATE_LIMIT_ENABLED=true` in the API container; optional for a single-user `uv` process
-- CORS origins must be explicit local web origins, never `*`
+- `{PUBLIC_BASE_URL}/api/v1/auth/callback/github`
+- `{PUBLIC_BASE_URL}/api/v1/auth/callback/google`
+
+Hosted users paste their own Gemini/OpenAI/Anthropic/Tavily keys. Maintainer env keys are never used
+for user research.
+
+## Vercel
+
+The Next.js app can be deployed to Vercel. Long-running research, SSE, LISTEN/NOTIFY, and the worker
+do **not** fit Vercel Function lifetime. Production research needs a persistent FastAPI + worker.
+
+One-click Vercel is not offered: it would imply a working agent runtime that Vercel cannot host.
 
 ## Public Internet
 
-Not a supported DeepScout mode. If you need remote access, terminate TLS and authentication on a gateway you control, keep DeepScout on loopback, and accept that the app still has no per-object authorization.
-
-See [HTTP_PRODUCTION_CONTRACT.md](architecture/HTTP_PRODUCTION_CONTRACT.md) and [SECURITY.md](../SECURITY.md).
+MODE A on a public bind is unsafe. MODE B is the public-Internet architecture, plus a persistent worker.
