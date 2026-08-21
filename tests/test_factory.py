@@ -64,6 +64,7 @@ def test_openai_factory_uses_provider_neutral_config(mock_chat: MagicMock) -> No
     kwargs = mock_chat.call_args.kwargs
     assert kwargs["model"] == "gpt-4.1-mini"
     assert kwargs["api_key"] == "test-openai-key"
+    assert kwargs["max_retries"] == 0
     assert "temperature" not in kwargs
 
 
@@ -80,4 +81,20 @@ def test_anthropic_factory_uses_provider_neutral_config(mock_chat: MagicMock) ->
     kwargs = mock_chat.call_args.kwargs
     assert kwargs["model"] == "claude-haiku-4-5-20251001"
     assert kwargs["api_key"] == "test-anthropic-key"
+    assert kwargs["max_retries"] == 0
     assert "temperature" not in kwargs
+
+
+@patch("langchain_google_genai.ChatGoogleGenerativeAI")
+def test_google_default_options_disable_transport_retries(mock_chat: MagicMock) -> None:
+    settings = Settings(
+        _env_file=None,
+        LLM_PROVIDER=ProviderKind.GOOGLE,
+        GOOGLE_API_KEY=SecretStr("test-google-key"),
+        LLM_MAX_RETRIES=4,
+    )
+    build_chat_model(settings)
+    kwargs = mock_chat.call_args.kwargs
+    # LLM_MAX_RETRIES must NOT amplify LangChain retries.
+    assert kwargs["max_retries"] == 0
+    assert kwargs["timeout"] == 60.0

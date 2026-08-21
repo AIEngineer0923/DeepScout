@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `LLM_TIMEOUT_S` / `LLM_MAX_RETRIES` now wire into LangChain model build options via `options_from_settings`
+- Retry ownership consistency: LangChain/provider transport `max_retries` forced to **0**; `LLM_MAX_RETRIES` drives application `RetryPolicy` only (planner/synthesis/`invoke_with_resilience`); `LLM_TIMEOUT_S` still wires via `options_from_settings`
 - Dependency health reports `redis_required=false` (Redis remains optional MODE A probe)
 
 ### Security

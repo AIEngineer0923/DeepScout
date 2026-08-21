@@ -43,8 +43,9 @@ Settings (LLM_PROVIDER / LLM_MODEL / timeouts)
 ```
 
 Application retry ownership: `deepscout_research.retry.run_with_retry` and
-`routing.resilient_invoke.invoke_with_resilience`. LangChain `max_retries` is wired
-from `LLM_MAX_RETRIES` but must stay modest to avoid nested storms.
+`routing.resilient_invoke.invoke_with_resilience` are the **sole** logical retry
+authorities. LangChain `max_retries` is fixed at `PROVIDER_TRANSPORT_MAX_RETRIES=0`
+via `options_from_settings` — never mirrored from `LLM_MAX_RETRIES`.
 
 ## LiteLLM evaluation
 
@@ -69,12 +70,25 @@ future. `approval.py` ensures model/retrieved text cannot spoof approval.
 
 ## Retry ownership (single model)
 
-1. Application `RetryPolicy` owns transient HTTP/provider retries for search and
-   resilient invoke helpers.
-2. LangChain client `max_retries` mirrors settings (bounded).
-3. Job/task reclaim owns domain redelivery — not LLM HTTP retries.
-4. Never retry security/policy/cancel/budget permanent failures.
-5. Do not stack unbounded orchestrator retries on top.
+1. **Application `RetryPolicy` / `run_with_retry` / `invoke_with_resilience`
+   own all logical retries** for model and search invocations.
+2. **`LLM_MAX_RETRIES`** sets application `max_attempts` only
+   (`application_retry_policy`).
+3. **LangChain/provider transport `max_retries` is always
+   `PROVIDER_TRANSPORT_MAX_RETRIES` (0)** — Google treats 0/1 as no retries;
+   OpenAI/Anthropic honor 0. This prevents nested amplification
+   (`app_attempts × provider_retries`).
+4. Job/task reclaim owns domain redelivery — not LLM HTTP retries.
+5. Never retry security/policy/cancel/budget permanent failures.
+6. Do not stack unbounded orchestrator retries on top.
+
+**Max effective provider requests** (transport retries disabled):
+
+- no fallback: `LLM_MAX_RETRIES`
+- fallback allowed: `LLM_MAX_RETRIES × 2` (primary then fallback)
+
+Failed attempts do not invent `cost=0`; usage is recorded only after a successful
+response with provider metadata (otherwise UNKNOWN).
 
 ## Fallback policy
 

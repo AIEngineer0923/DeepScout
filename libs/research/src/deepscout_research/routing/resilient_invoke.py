@@ -8,6 +8,7 @@ from typing import TypeVar
 
 from deepscout_core.domain.enums import AgentRole
 from deepscout_core.settings import Settings
+from deepscout_providers.config import application_retry_policy
 from deepscout_research.errors import classify_exception, is_fallback_eligible
 from deepscout_research.retry import RetryPolicy, run_with_retry
 from deepscout_research.routing.capabilities import ModelRequirements
@@ -42,16 +43,14 @@ def invoke_with_resilience[T](
 ) -> RoutedInvokeResult[T]:
     """Application-owned retry; fallback only when requirements.fallback_allowed.
 
-    Retry ownership: this helper + ``run_with_retry`` own transient retries for
-    application-level provider calls. Keep LangChain ``max_retries`` modest via
-    Settings to avoid nested retry storms. Embedding callers must never use
-    cross-provider fallback (embedding spaces are not interchangeable).
+    Retry ownership: this helper + ``run_with_retry`` are the sole logical retry
+    authority. LangChain/provider ``max_retries`` must stay at
+    ``PROVIDER_TRANSPORT_MAX_RETRIES`` (0). Embedding callers must never use
+    cross-provider fallback.
     """
     active_health = health
     router = router or ModelRouter(settings, health=active_health)
-    policy = retry_policy or RetryPolicy(
-        max_attempts=max(1, min(5, int(settings.llm_max_retries)))
-    )
+    policy = retry_policy or application_retry_policy(settings)
     attempts = 0
     last_exc: BaseException | None = None
 
@@ -100,3 +99,13 @@ def invoke_with_resilience[T](
         attempts=attempts,
         error_class=classify_exception(last_exc).value if last_exc else None,
     )
+
+
+def max_effective_provider_attempts(
+    *,
+    llm_max_retries: int,
+    fallback_allowed: bool,
+) -> int:
+    """Upper bound when transport retries are disabled (max_retries=0)."""
+    per_model = max(1, int(llm_max_retries))
+    return per_model * (2 if fallback_allowed else 1)

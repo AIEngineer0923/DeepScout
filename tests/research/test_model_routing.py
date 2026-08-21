@@ -28,12 +28,17 @@ def _settings(**kwargs: object) -> Settings:
     )
 
 
-def test_options_from_settings_wires_timeout() -> None:
-    from deepscout_providers.config import options_from_settings
+def test_options_from_settings_wires_timeout_not_transport_retries() -> None:
+    from deepscout_providers.config import (
+        PROVIDER_TRANSPORT_MAX_RETRIES,
+        application_retry_policy,
+        options_from_settings,
+    )
 
     opts = options_from_settings(_settings())
     assert opts.timeout == 12.0
-    assert opts.max_retries == 2
+    assert opts.max_retries == PROVIDER_TRANSPORT_MAX_RETRIES == 0
+    assert application_retry_policy(_settings()).max_attempts == 2
 
 
 def test_capability_filter_rejects_embedding_as_chat() -> None:

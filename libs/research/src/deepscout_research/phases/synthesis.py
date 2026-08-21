@@ -8,11 +8,13 @@ from deepscout_core.domain.enums import AgentRole, ClaimVerificationStatus, Rese
 from deepscout_core.domain.schemas import DecisionWrite, SynthesisOutput
 from deepscout_core.settings import Settings
 from deepscout_persistence.store import ResearchStore
+from deepscout_providers.config import application_retry_policy
 from langchain_core.messages import HumanMessage, SystemMessage
 from langsmith import traceable
 
 from deepscout_research.context import ContextAssembly
 from deepscout_research.prompts import SYNTHESIS_V1, compose_system_message
+from deepscout_research.retry import run_with_retry
 from deepscout_research.routing.model_router import ModelRouter
 from deepscout_research.usage.recorder import langsmith_metadata, record_model_usage
 
@@ -64,13 +66,17 @@ def synthesize_decision(
     model, selection = router.build_chat_model(AgentRole.SYNTHESIS)
     structured = model.with_structured_output(SynthesisOutput, include_raw=True)
     trace_meta = langsmith_metadata(prompt=SYNTHESIS_V1, selection=selection, run_id=run_id)
-    raw_result = structured.invoke(
-        [
-            SystemMessage(content=compose_system_message(SYNTHESIS_V1)),
-            HumanMessage(content=context.render_user_content()),
-        ],
-        config={"metadata": trace_meta},
-    )
+
+    def _invoke() -> object:
+        return structured.invoke(
+            [
+                SystemMessage(content=compose_system_message(SYNTHESIS_V1)),
+                HumanMessage(content=context.render_user_content()),
+            ],
+            config={"metadata": trace_meta},
+        )
+
+    raw_result = run_with_retry(_invoke, policy=application_retry_policy(settings))
     if isinstance(raw_result, dict):
         synthesis = raw_result.get("parsed")
         raw_message = raw_result.get("raw")
