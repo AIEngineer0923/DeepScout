@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from deepscout_api.main import configure_observability
 from deepscout_api.probes import probe_postgres, probe_redis
 from deepscout_api.routes.account import router as account_router
-from deepscout_api.routes.demos import router as demos_router
 from deepscout_api.routes.auth import router as auth_router
+from deepscout_api.routes.demos import router as demos_router
 from deepscout_api.routes.knowledge import router as knowledge_router
 from deepscout_api.routes.monitors import router as monitors_router
 from deepscout_api.routes.product import router as product_router

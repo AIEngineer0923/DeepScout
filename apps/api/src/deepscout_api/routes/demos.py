@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from deepscout_core.settings import Settings, get_settings
 from deepscout_persistence.models import ResearchRunRow
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -29,9 +28,7 @@ def _demo_card(row: ResearchRunRow, metrics: dict[str, int]) -> dict:
 @router.get("/demos")
 def list_public_demos(
     store=Depends(get_research_store),
-    settings: Settings = Depends(get_settings),
 ) -> dict:
-    del settings
     rows, _total = store.list_runs(limit=50, offset=0, public_demo_only=True)
     metrics = store.list_run_card_metrics([row.id for row in rows])
     items = [_demo_card(row, metrics[row.id]) for row in rows if row.status.value == "completed"]
