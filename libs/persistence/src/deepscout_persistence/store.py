@@ -668,6 +668,21 @@ class ResearchStore:
         row = self._session.get(ResearchTaskRow, task_id)
         if row is None:
             raise LookupError(f"ResearchTask {task_id} not found")
+        if row.status == ResearchTaskStatus.COMPLETED and status != ResearchTaskStatus.COMPLETED:
+            return row
+        if (
+            worker_id is not None
+            and row.worker_id is not None
+            and row.worker_id != worker_id
+        ):
+            return row
+        if (
+            worker_id is not None
+            and row.status
+            in {ResearchTaskStatus.READY, ResearchTaskStatus.PENDING, ResearchTaskStatus.CANCELLED}
+            and status in {ResearchTaskStatus.COMPLETED, ResearchTaskStatus.FAILED}
+        ):
+            return row
         row.status = status
         if worker_id is not None:
             row.worker_id = worker_id
@@ -684,6 +699,62 @@ class ResearchStore:
             row.completed_at = now
         self._session.flush()
         return row
+
+    def claim_ready_task(self, task_id: uuid.UUID, worker_id: uuid.UUID) -> bool:
+        """Atomically claim a READY task. Returns False if another worker won."""
+        row = self._session.scalar(
+            select(ResearchTaskRow)
+            .where(
+                ResearchTaskRow.id == task_id,
+                ResearchTaskRow.status == ResearchTaskStatus.READY,
+            )
+            .with_for_update(skip_locked=True)
+        )
+        if row is None:
+            return False
+        row.status = ResearchTaskStatus.RUNNING
+        row.worker_id = worker_id
+        row.started_at = row.started_at or datetime.now(UTC)
+        self._session.flush()
+        return True
+
+    def reclaim_stale_running_tasks(
+        self, run_id: uuid.UUID, *, stale_after_seconds: int = 180
+    ) -> int:
+        """Return RUNNING tasks to READY after interruption, unless already finalized."""
+        self._require_run(run_id)
+        now = datetime.now(UTC)
+        rows = list(
+            self._session.scalars(
+                select(ResearchTaskRow).where(
+                    ResearchTaskRow.research_run_id == run_id,
+                    ResearchTaskRow.status == ResearchTaskStatus.RUNNING,
+                )
+            ).all()
+        )
+        reclaimed = 0
+        for row in rows:
+            checkpoint = row.checkpoint or {}
+            if (
+                checkpoint.get("phase") == "research"
+                and checkpoint.get("sources_added") is not None
+            ):
+                row.status = ResearchTaskStatus.COMPLETED
+                row.completed_at = row.completed_at or now
+                continue
+            started = row.started_at or row.created_at
+            if started is not None and (now - started).total_seconds() < stale_after_seconds:
+                continue
+            row.status = ResearchTaskStatus.READY
+            row.worker_id = None
+            row.error_message = "reclaimed_after_interruption"
+            reclaimed += 1
+        self._session.flush()
+        return reclaimed
+
+    def get_report(self, run_id: uuid.UUID) -> ReportRow | None:
+        self._require_run(run_id)
+        return self._session.scalar(select(ReportRow).where(ReportRow.research_run_id == run_id))
 
     def save_task_checkpoint(self, task_id: uuid.UUID, checkpoint: dict) -> None:
         row = self._session.get(ResearchTaskRow, task_id)
@@ -750,7 +821,7 @@ class ResearchStore:
         )
         self._session.add(row)
         run = self._require_run(usage.research_run_id)
-        if usage.total_tokens is not None:
+        if usage.total_tokens is not None and usage.agent_role.value != "evaluator":
             current = run.consumed_total_tokens or 0
             run.consumed_total_tokens = current + usage.total_tokens
             run.usage_report_status = UsageReportStatus.PARTIAL
@@ -761,16 +832,17 @@ class ResearchStore:
         records = self._session.scalars(
             select(TokenUsageRecordRow).where(TokenUsageRecordRow.research_run_id == run_id)
         ).all()
+        application = [record for record in records if record.agent_role != "evaluator"]
 
         def _sum(values: list[int | None]) -> int | None:
             known = [value for value in values if value is not None]
             return sum(known) if known else None
 
         return RunUsageSummary(
-            input_tokens=_sum([record.input_tokens for record in records]),
-            output_tokens=_sum([record.output_tokens for record in records]),
-            cached_input_tokens=_sum([record.cached_input_tokens for record in records]),
-            reasoning_tokens=_sum([record.reasoning_tokens for record in records]),
+            input_tokens=_sum([record.input_tokens for record in application]),
+            output_tokens=_sum([record.output_tokens for record in application]),
+            cached_input_tokens=_sum([record.cached_input_tokens for record in application]),
+            reasoning_tokens=_sum([record.reasoning_tokens for record in application]),
             total_tokens=row.consumed_total_tokens,
             cost_usd=row.consumed_cost_usd if row.cost_report_status.value != "unknown" else None,
             usage_status=row.usage_report_status,
@@ -813,23 +885,28 @@ class ResearchStore:
         self._session.flush()
         return row
 
-    def claim_next_job(self, owner: str, *, lease_seconds: int) -> ResearchJobRow | None:
+    def claim_next_job(
+        self, owner: str, *, lease_seconds: int, job_id: uuid.UUID | None = None
+    ) -> ResearchJobRow | None:
         import secrets
 
         now = datetime.now(UTC)
+        conditions = [
+            ResearchJobRow.status.in_(
+                [
+                    ResearchJobStatus.PENDING,
+                    ResearchJobStatus.CLAIMED,
+                    ResearchJobStatus.RUNNING,
+                ]
+            ),
+            (ResearchJobRow.lease_expires_at.is_(None))
+            | (ResearchJobRow.lease_expires_at < now),
+        ]
+        if job_id is not None:
+            conditions.append(ResearchJobRow.id == job_id)
         row = self._session.scalar(
             select(ResearchJobRow)
-            .where(
-                ResearchJobRow.status.in_(
-                    [
-                        ResearchJobStatus.PENDING,
-                        ResearchJobStatus.CLAIMED,
-                        ResearchJobStatus.RUNNING,
-                    ]
-                ),
-                (ResearchJobRow.lease_expires_at.is_(None))
-                | (ResearchJobRow.lease_expires_at < now),
-            )
+            .where(*conditions)
             .order_by(ResearchJobRow.created_at)
             .with_for_update(skip_locked=True)
             .limit(1)

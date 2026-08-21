@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 from deepscout_core.domain.schemas import SearchResult
 from deepscout_core.settings import Settings
+from deepscout_research.retry import run_with_retry
 
 
 class TavilyWebSearchProvider:
@@ -21,17 +22,21 @@ class TavilyWebSearchProvider:
         max_results: int = 5,
         timeout_s: float = 15.0,
     ) -> list[SearchResult]:
-        response = self._client.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": self._api_key,
-                "query": query,
-                "max_results": max_results,
-                "include_answer": False,
-            },
-            timeout=timeout_s,
-        )
-        response.raise_for_status()
+        def _post() -> httpx.Response:
+            response = self._client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": self._api_key,
+                    "query": query,
+                    "max_results": max_results,
+                    "include_answer": False,
+                },
+                timeout=timeout_s,
+            )
+            response.raise_for_status()
+            return response
+
+        response = run_with_retry(_post)
         payload = response.json()
         results: list[SearchResult] = []
         for item in payload.get("results", [])[:max_results]:

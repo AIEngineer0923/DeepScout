@@ -134,7 +134,13 @@ def test_runtime_gate_full_pipeline(store, db_session) -> None:
     assert report_events, "Expected report phase events"
     assert any(event.event_type == "phase.completed" for event in report_events)
 
+    from deepscout_evaluation.run_evals import evaluate_research_run
     from langsmith import Client
+
+    eval_result = evaluate_research_run(store, run.id)
+    assert eval_result["claim_has_evidence"] is True
+    assert eval_result["termination_correct"] is True
+    assert eval_result["budget_sources"] is True
 
     configure_langsmith_env(live)
     client = Client()
@@ -175,7 +181,7 @@ def test_runtime_gate_baseline_vs_multi_agent_metrics(store, db_session) -> None
             "tasks": len(store.list_tasks(created.id)),
             "sources": len(store.list_sources(created.id)),
             "evidence": len(store.list_evidence(created.id)),
-            "tokens": store.get_usage_summary(created.id).total_tokens or 0,
+            "tokens": store.get_usage_summary(created.id).total_tokens,
         }
 
     multi = _run(legacy=False)

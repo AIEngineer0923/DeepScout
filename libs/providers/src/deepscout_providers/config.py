@@ -15,4 +15,4 @@ class ModelBuildOptions:
     max_retries: int | None = None
 
 
-DEFAULT_MODEL_BUILD_OPTIONS = ModelBuildOptions(max_retries=6)
+DEFAULT_MODEL_BUILD_OPTIONS = ModelBuildOptions(timeout=60.0, max_retries=3)

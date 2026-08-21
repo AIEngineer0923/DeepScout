@@ -36,6 +36,8 @@ def _prepare(state: WorkerGraphState) -> WorkerGraphState:
 def _search(state: WorkerGraphState, config) -> WorkerGraphState:
     if state.get("status") == "completed":
         return state
+    if state.get("status") == "searched" and state.get("search_results"):
+        return state
     configurable = config.get("configurable", {})
     if configurable.get("cancelled"):
         return {**state, "status": "failed", "error": "run_cancelled"}
@@ -45,6 +47,8 @@ def _search(state: WorkerGraphState, config) -> WorkerGraphState:
     query = state.get("query", "")
     try:
         results = search_provider.search(query, max_results=3)
+        if configurable.get("cancelled"):
+            return {**state, "status": "failed", "error": "run_cancelled"}
         serialized = [
             {"url": item.url, "title": item.title, "snippet": item.snippet, "score": item.score}
             for item in results
@@ -85,15 +89,18 @@ def compile_research_worker(
     with_checkpoint: bool = True,
     database_url: str | None = None,
     durable_checkpoint: bool = True,
+    interrupt_after: list[str] | None = None,
 ):
     graph = build_research_worker_graph()
+    kwargs: dict[str, object] = {}
     if with_checkpoint:
-        checkpointer = get_worker_checkpointer(
+        kwargs["checkpointer"] = get_worker_checkpointer(
             database_url=database_url,
             durable=durable_checkpoint,
         )
-        return graph.compile(checkpointer=checkpointer)
-    return graph.compile()
+    if interrupt_after:
+        kwargs["interrupt_after"] = interrupt_after
+    return graph.compile(**kwargs)
 
 
 def worker_thread_id(*, run_id: UUID, task_id: UUID) -> str:
@@ -111,11 +118,13 @@ def run_worker_graph(
     database_url: str | None = None,
     durable_checkpoint: bool = True,
     cancelled: bool = False,
+    interrupt_after: list[str] | None = None,
 ) -> WorkerGraphState:
     app = compile_research_worker(
         with_checkpoint=True,
         database_url=database_url,
         durable_checkpoint=durable_checkpoint,
+        interrupt_after=interrupt_after,
     )
     thread_id = worker_thread_id(run_id=run_id, task_id=task_id)
     config = {
@@ -125,12 +134,13 @@ def run_worker_graph(
             "cancelled": cancelled,
         }
     }
+    durability = "sync" if durable_checkpoint else None
     if resume:
         snapshot = app.get_state(config)
         if snapshot.values:
             if snapshot.values.get("status") == "completed":
                 return snapshot.values
-            return app.invoke(None, config=config)
+            return app.invoke(None, config=config, durability=durability)
     initial: WorkerGraphState = {
         "run_id": str(run_id),
         "task_id": str(task_id),
@@ -139,4 +149,4 @@ def run_worker_graph(
         "result_count": 0,
         "search_results": [],
     }
-    return app.invoke(initial, config=config)
+    return app.invoke(initial, config=config, durability=durability)

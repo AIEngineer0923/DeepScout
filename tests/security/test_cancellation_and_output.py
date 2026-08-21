@@ -47,3 +47,4 @@ def test_locate_quote_rejects_injection_markup() -> None:
     content = "NMC batteries use nickel manganese cobalt cathodes for energy density."
     assert locate_quote_in_content("nickel manganese cobalt cathodes", content) is not None
     assert locate_quote_in_content("<script>alert(1)</script>", content) is None
+    assert locate_quote_in_content("javascript:alert(1)", content) is None

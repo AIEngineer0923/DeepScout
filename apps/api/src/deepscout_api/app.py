@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from deepscout_core.settings import Settings, get_settings
 from deepscout_research.smoke_agent import run_smoke_agent
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from redis import Redis
 from sqlalchemy import create_engine, text
@@ -18,6 +19,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="DeepScout API", version="0.2.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 app.include_router(research_runs_router)
 
 

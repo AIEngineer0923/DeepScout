@@ -102,6 +102,7 @@ class AgentRole(StrEnum):
     CRITIC = "critic"
     SYNTHESIS = "synthesis"
     REPORT = "report"
+    EVALUATOR = "evaluator"
 
 
 class UsageReportStatus(StrEnum):

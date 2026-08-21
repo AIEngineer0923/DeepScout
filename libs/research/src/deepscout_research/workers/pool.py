@@ -116,11 +116,15 @@ class ResearchWorkerPool:
 
         budget = BudgetGate(store)
         try:
-            store.update_task_status(
-                task.id,
-                ResearchTaskStatus.RUNNING,
-                worker_id=worker_id,
-            )
+            claimed = store.claim_ready_task(task.id, worker_id)
+            if not claimed:
+                current = next(
+                    (item for item in store.list_tasks(run_id) if item.id == task.id),
+                    task,
+                )
+                if current.status == ResearchTaskStatus.COMPLETED:
+                    return WorkerResult(task.id, worker_id, success=True, sources_added=0)
+                return WorkerResult(task.id, worker_id, success=False, error="not_claimed")
             if task.question_id is not None:
                 store.update_question_status(task.question_id, ResearchQuestionStatus.RESEARCHING)
 
@@ -146,12 +150,23 @@ class ResearchWorkerPool:
                     worker_id=worker_id,
                     objective=task.objective,
                     search_provider=self._search,
+                    resume=True,
                     database_url=self._settings.database_url,
                     durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,
                     cancelled=run is not None and run.status.value == "cancelled",
                 )
                 if graph_state.get("status") == "failed":
                     raise RuntimeError(graph_state.get("error") or "worker_graph_failed")
+                run = store.get_run(run_id)
+                if run is not None and run.status.value == "cancelled":
+                    store.update_task_status(
+                        task.id,
+                        ResearchTaskStatus.CANCELLED,
+                        worker_id=worker_id,
+                        error_message="run_cancelled",
+                    )
+                    self._persist(session, owns_session)
+                    return WorkerResult(task.id, worker_id, success=False, error="run_cancelled")
                 query = graph_state.get("query", query)
                 results = [
                     SearchResult.model_validate(item)

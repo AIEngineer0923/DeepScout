@@ -93,6 +93,9 @@ class ResearchOrchestrator:
             raise LookupError(f"ResearchRun {run_id} not found")
 
         self._store.update_run_status(run_id, ResearchRunStatus.RUNNING)
+        self._store.reclaim_stale_running_tasks(
+            run_id, stale_after_seconds=self._settings.research_task_stale_after_s
+        )
         self._emit(ResearchEvent(event_type=ResearchEventType.RUN_STARTED, run_id=run_id))
 
         iterations = 0
@@ -150,6 +153,24 @@ class ResearchOrchestrator:
                 events=list(self._events),
             )
         except BudgetExhaustedError:
+            if self._settings.research_finalize_on_budget_exhausted:
+                try:
+                    self._ensure_active(run_id)
+                    self._run_post_research_phases(run_id)
+                except RunCancelledError:
+                    self._store.set_termination_reason(run_id, "cancelled")
+                    self._store.update_run_status(run_id, ResearchRunStatus.CANCELLED)
+                    return OrchestratorResult(
+                        run_id=run_id,
+                        final_status=ResearchRunStatus.CANCELLED,
+                        iterations=iterations,
+                        events=list(self._events),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Finalization after budget exhaustion failed",
+                        extra={"run_id": str(run_id)},
+                    )
             self._store.set_termination_reason(run_id, "budget_exhausted")
             self._store.update_run_status(run_id, ResearchRunStatus.BUDGET_EXHAUSTED)
             self._emit(
@@ -378,8 +399,6 @@ class ResearchOrchestrator:
     def _run_post_research_phases(self, run_id: uuid.UUID) -> None:
         run = self._store.get_run(run_id)
         if run is None:
-            return
-        if run.status == ResearchRunStatus.BUDGET_EXHAUSTED:
             return
 
         self._ensure_active(run_id)
