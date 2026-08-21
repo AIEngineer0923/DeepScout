@@ -15,6 +15,7 @@ from deepscout_core.domain.enums import (
     ResearchTaskStatus,
     ToolExecutionStatus,
 )
+from deepscout_core.domain.events import ResearchEventType
 from deepscout_core.domain.schemas import (
     ResearchTaskRead,
     SearchCandidateWrite,
@@ -55,7 +56,7 @@ class ResearchWorkerPool:
         self._session_factory = session_factory
         self._settings = settings
         self._search = search_provider
-        self._max_workers = max(1, max_workers)
+        self._max_workers = max(0, max_workers)
         self._inline_store = inline_store
 
     @traceable(name="fan_out_research", run_type="chain")
@@ -66,7 +67,7 @@ class ResearchWorkerPool:
         *,
         iteration: int,
     ) -> list[WorkerResult]:
-        if not tasks:
+        if not tasks or self._max_workers <= 0:
             return []
         capped = tasks[: self._max_workers]
         if self._inline_store is not None:
@@ -119,13 +120,19 @@ class ResearchWorkerPool:
         try:
             claimed = store.claim_ready_task(task.id, worker_id)
             if not claimed:
-                current = next(
-                    (item for item in store.list_tasks(run_id) if item.id == task.id),
-                    task,
-                )
-                if current.status == ResearchTaskStatus.COMPLETED:
-                    return WorkerResult(task.id, worker_id, success=True, sources_added=0)
+                self._persist(session, owns_session)
                 return WorkerResult(task.id, worker_id, success=False, error="not_claimed")
+            store.append_run_event(
+                run_id,
+                ResearchEventType.WORKER_STARTED.value,
+                {
+                    "task_id": str(task.id),
+                    "worker_id": str(worker_id),
+                    "task_key": task.task_key,
+                    "layer": "worker",
+                },
+            )
+            self._persist(session, owns_session)
             if task.question_id is not None:
                 store.update_question_status(task.question_id, ResearchQuestionStatus.RESEARCHING)
 
@@ -156,6 +163,17 @@ class ResearchWorkerPool:
                         skill.skill_id,
                         skill.version,
                         task_id=task.id,
+                    )
+                    store.append_run_event(
+                        run_id,
+                        ResearchEventType.SKILL_SELECTED.value,
+                        {
+                            "skill_id": skill.skill_id,
+                            "skill_version": skill.version,
+                            "task_id": str(task.id),
+                            "channel": "task_objective",
+                            "layer": "worker",
+                        },
                     )
                     memory.remember(f"skill:{skill.skill_id}", skill.body[:1500])
 
@@ -270,6 +288,16 @@ class ResearchWorkerPool:
                 except BudgetExhaustedError:
                     break
                 sources_added += 1
+                store.append_run_event(
+                    run_id,
+                    ResearchEventType.SOURCE_DISCOVERED.value,
+                    {
+                        "task_id": str(task.id),
+                        "worker_id": str(worker_id),
+                        "url": safe_url,
+                        "layer": "tool",
+                    },
+                )
 
             if task.question_id is not None:
                 status = (
@@ -280,6 +308,17 @@ class ResearchWorkerPool:
                 store.update_question_status(task.question_id, status)
 
             store.update_task_status(task.id, ResearchTaskStatus.COMPLETED, worker_id=worker_id)
+            store.append_run_event(
+                run_id,
+                ResearchEventType.WORKER_COMPLETED.value,
+                {
+                    "task_id": str(task.id),
+                    "worker_id": str(worker_id),
+                    "task_key": task.task_key,
+                    "sources_added": sources_added,
+                    "layer": "worker",
+                },
+            )
             store.save_task_checkpoint(
                 task.id,
                 {
@@ -301,6 +340,16 @@ class ResearchWorkerPool:
                     ResearchTaskStatus.FAILED,
                     worker_id=worker_id,
                     error_message=str(exc)[:4000],
+                )
+                store.append_run_event(
+                    run_id,
+                    ResearchEventType.WORKER_FAILED.value,
+                    {
+                        "task_id": str(task.id),
+                        "worker_id": str(worker_id),
+                        "task_key": task.task_key,
+                        "layer": "worker",
+                    },
                 )
                 if owns_session:
                     session.commit()

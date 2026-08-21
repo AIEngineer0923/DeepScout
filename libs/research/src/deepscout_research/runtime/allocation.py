@@ -31,12 +31,19 @@ def allocate_workers(
     ready = graph.ready_tasks()
     independent = [task for task in ready if not task.depends_on]
     n = len(ready)
+    if remaining_tool_calls <= 0:
+        return AllocationDecision(
+            AllocationClass.SINGLE_AGENT,
+            max_workers=0,
+            ready_count=n,
+            reason="no_tool_budget",
+        )
     hard_cap = max(
         1,
         min(
             concurrency_limit,
             settings.agent_max_total_workers,
-            max(1, remaining_tool_calls),
+            remaining_tool_calls,
             n or 1,
         ),
     )

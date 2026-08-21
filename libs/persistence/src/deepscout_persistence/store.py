@@ -1486,6 +1486,15 @@ class ResearchStore:
         self._session.flush()
         return row.id
 
+    def list_compaction_records(self, run_id: uuid.UUID) -> list[ContextCompactionRecordRow]:
+        return list(
+            self._session.scalars(
+                select(ContextCompactionRecordRow).where(
+                    ContextCompactionRecordRow.research_run_id == run_id
+                )
+            ).all()
+        )
+
     def list_skill_bindings(self, run_id: uuid.UUID) -> list[RunSkillBindingRow]:
         return list(
             self._session.scalars(

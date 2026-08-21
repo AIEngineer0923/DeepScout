@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 from deepscout_core.settings import Settings
 from deepscout_persistence.retrieval import dense_search, lexical_search, load_chunks
@@ -68,8 +69,31 @@ class RetrievalService:
         strategy = resolve_strategy(self._settings)
         mode = request.mode if request.mode in {"dense", "lexical", "hybrid"} else strategy_to_mode(strategy)
 
+        # Overlap provider embedding wait with local FTS. The SQLAlchemy session
+        # stays on this thread; only embed_query runs off-thread.
+        embed_future = None
+        executor: ThreadPoolExecutor | None = None
         if mode in {"dense", "hybrid"}:
-            vector = embed_query(self._client, request.query)
+            executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rag-embed")
+            embed_future = executor.submit(embed_query, self._client, request.query)
+
+        if mode in {"lexical", "hybrid"}:
+            lexical_hits = lexical_search(
+                session,
+                run_id=request.run_id,
+                query=request.query,
+                limit=request.candidate_k,
+                source_ids=source_ids,
+            )
+            lexical_ranked = [item_id for item_id, _ in lexical_hits]
+            lexical_scores = {item_id: score for item_id, score in lexical_hits}
+
+        if embed_future is not None:
+            try:
+                vector = embed_future.result()
+            finally:
+                if executor is not None:
+                    executor.shutdown(wait=False)
             if len(vector) != self._spec.dimensions:
                 raise ValueError("query embedding dimension does not match stored space")
             dense_hits = dense_search(
@@ -85,17 +109,6 @@ class RetrievalService:
             )
             dense_ranked = [item_id for item_id, _ in dense_hits]
             dense_scores = {item_id: score for item_id, score in dense_hits}
-
-        if mode in {"lexical", "hybrid"}:
-            lexical_hits = lexical_search(
-                session,
-                run_id=request.run_id,
-                query=request.query,
-                limit=request.candidate_k,
-                source_ids=source_ids,
-            )
-            lexical_ranked = [item_id for item_id, _ in lexical_hits]
-            lexical_scores = {item_id: score for item_id, score in lexical_hits}
 
         lists = [item for item in (dense_ranked, lexical_ranked) if item]
         fused = reciprocal_rank_fusion(lists) if lists else {}

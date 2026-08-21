@@ -43,7 +43,7 @@ class BudgetExtensionPayload(BaseModel):
     consumed_iterations: int
     consumed_tool_calls: int
     consumed_sources: int
-    consumed_cost_usd: float
+    consumed_cost_usd: float | None = None
     cost_status: str = "unknown"
 
     @field_validator(
@@ -143,7 +143,7 @@ class HumanReviewService:
             consumed_iterations=consumption.iterations,
             consumed_tool_calls=consumption.tool_calls,
             consumed_sources=consumption.sources,
-            consumed_cost_usd=float(consumption.cost_usd or 0.0),
+            consumed_cost_usd=run.usage.cost_usd if run.usage is not None else None,
             cost_status=cost_status,
         )
         body = payload.model_dump()

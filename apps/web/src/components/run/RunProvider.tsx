@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, apiUrl } from "@/lib/api";
 import { rememberRunId } from "@/lib/current-run";
+import { connectRunEventSource } from "@/lib/run-events";
 import type { Workspace } from "@/lib/types";
 
 type Ctx = {
@@ -27,12 +28,10 @@ export function RunProvider({ runId, children }: { runId: string; children: Reac
   }, [reload, runId]);
 
   useEffect(() => {
-    const source = new EventSource(`${apiUrl}/api/v1/research-runs/${runId}/events`);
-    source.onmessage = () => {
+    const stop = connectRunEventSource(`${apiUrl}/api/v1/research-runs/${runId}/events`, () => {
       api.workspace(runId).then(setWorkspace).catch(() => undefined);
-    };
-    source.onerror = () => source.close();
-    return () => source.close();
+    });
+    return stop;
   }, [runId]);
 
   const value = useMemo(() => ({ workspace, error, reload }), [workspace, error, reload]);

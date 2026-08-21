@@ -94,6 +94,14 @@ def test_allocation_matrix_respects_dag_and_budget() -> None:
         remaining_tool_calls=1,
     )
     assert starved.max_workers == 1
+    none = allocate_workers(
+        [_task(f"q{i}") for i in range(3)],
+        settings=settings,
+        concurrency_limit=8,
+        remaining_tool_calls=0,
+    )
+    assert none.max_workers == 0
+    assert none.reason == "no_tool_budget"
 
 
 def test_factory_clamps_tools_and_depth() -> None:

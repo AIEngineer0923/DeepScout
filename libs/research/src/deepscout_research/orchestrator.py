@@ -90,6 +90,62 @@ class ResearchOrchestrator:
             },
         )
 
+    def _has_unfinished_research(self, run_id: uuid.UUID) -> bool:
+        return any(
+            task.status.value in {"pending", "ready", "running"}
+            for task in self._store.list_tasks(run_id)
+        )
+
+    def _pause_for_budget_review(
+        self, run_id: uuid.UUID, iterations: int
+    ) -> OrchestratorResult | None:
+        from deepscout_core.domain.enums import ReviewReasonCode
+
+        from deepscout_research.hitl import HumanReviewService, PolicyVerdict, evaluate_policy
+
+        if not self._has_unfinished_research(run_id):
+            return None
+        if (
+            evaluate_policy(ReviewReasonCode.BUDGET_EXTENSION, self._settings)
+            != PolicyVerdict.REQUIRE_REVIEW
+        ):
+            return None
+        service = HumanReviewService(self._store, self._settings)
+        review_id = service.create_budget_extension_review(run_id)
+        self._store.set_termination_reason(run_id, "awaiting_budget_extension")
+        self._store.update_run_status(run_id, ResearchRunStatus.PAUSED)
+        self._store.append_review_event(
+            review_id,
+            run_id,
+            event_type="paused",
+            actor_source="system",
+            actor_identity="orchestrator",
+        )
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.RUN_PAUSED,
+                run_id=run_id,
+                payload={
+                    "reason": "awaiting_budget_extension",
+                    "review_request_id": str(review_id),
+                },
+            )
+        )
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.REVIEW_REQUESTED,
+                run_id=run_id,
+                payload={"review_request_id": str(review_id)},
+            )
+        )
+        self._store.commit()
+        return OrchestratorResult(
+            run_id=run_id,
+            final_status=ResearchRunStatus.PAUSED,
+            iterations=iterations,
+            events=list(self._events),
+        )
+
     @traceable(name="research_run_execute", run_type="chain")
     def execute(self, run_id: uuid.UUID) -> OrchestratorResult:
         run = self._store.get_run(run_id)
@@ -119,6 +175,10 @@ class ResearchOrchestrator:
                 iterations += 1
                 decision = self.execute_research_batch(run_id, iteration=iterations)
                 if decision.should_stop:
+                    if decision.reason == "budget_exhausted":
+                        paused = self._pause_for_budget_review(run_id, iterations)
+                        if paused is not None:
+                            return paused
                     break
 
             self._ensure_active(run_id)
@@ -166,48 +226,9 @@ class ResearchOrchestrator:
                 events=list(self._events),
             )
         except BudgetExhaustedError:
-            from deepscout_core.domain.enums import ReviewReasonCode
-
-            from deepscout_research.hitl import HumanReviewService, PolicyVerdict, evaluate_policy
-
-            if (
-                evaluate_policy(ReviewReasonCode.BUDGET_EXTENSION, self._settings)
-                == PolicyVerdict.REQUIRE_REVIEW
-            ):
-                service = HumanReviewService(self._store, self._settings)
-                review_id = service.create_budget_extension_review(run_id)
-                self._store.set_termination_reason(run_id, "awaiting_budget_extension")
-                self._store.update_run_status(run_id, ResearchRunStatus.PAUSED)
-                self._store.append_review_event(
-                    review_id,
-                    run_id,
-                    event_type="paused",
-                    actor_source="system",
-                    actor_identity="orchestrator",
-                )
-                self._emit(
-                    ResearchEvent(
-                        event_type=ResearchEventType.RUN_PAUSED,
-                        run_id=run_id,
-                        payload={
-                            "reason": "awaiting_budget_extension",
-                            "review_request_id": str(review_id),
-                        },
-                    )
-                )
-                self._emit(
-                    ResearchEvent(
-                        event_type=ResearchEventType.REVIEW_REQUESTED,
-                        run_id=run_id,
-                        payload={"review_request_id": str(review_id)},
-                    )
-                )
-                return OrchestratorResult(
-                    run_id=run_id,
-                    final_status=ResearchRunStatus.PAUSED,
-                    iterations=iterations,
-                    events=list(self._events),
-                )
+            paused = self._pause_for_budget_review(run_id, iterations)
+            if paused is not None:
+                return paused
             if self._settings.research_finalize_on_budget_exhausted:
                 try:
                     self._ensure_active(run_id)
@@ -328,6 +349,19 @@ class ResearchOrchestrator:
         for task in ready:
             if task.status == ResearchTaskStatus.PENDING:
                 self._store.update_task_status(task.id, ResearchTaskStatus.READY)
+                self._emit(
+                    ResearchEvent(
+                        event_type=ResearchEventType.TASK_READY,
+                        run_id=run_id,
+                        phase=ResearchPhase.RESEARCH,
+                        iteration=iteration,
+                        payload={
+                            "task_id": str(task.id),
+                            "task_key": task.task_key,
+                            "layer": "orchestrator",
+                        },
+                    )
+                )
 
         consumption = self._store.get_consumption(run_id)
         pre_decision = evaluate_termination(
@@ -347,9 +381,6 @@ class ResearchOrchestrator:
                 tasks=self._store.list_tasks(run_id),
             )
 
-        self._store.commit()
-        self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
-        self._store.commit()
         remaining_tools = max(0, run.budget.max_tool_calls - consumption.tool_calls)
         from deepscout_research.runtime.allocation import allocate_workers
 
@@ -359,6 +390,17 @@ class ResearchOrchestrator:
             concurrency_limit=self._store.get_concurrency_limit(run_id),
             remaining_tool_calls=remaining_tools,
         )
+        if allocation.max_workers <= 0:
+            return evaluate_termination(
+                budget=run.budget,
+                consumption=self._store.get_consumption(run_id),
+                questions=self._store.list_questions(run_id),
+                tasks=self._store.list_tasks(run_id),
+            )
+
+        self._store.commit()
+        self._budget.reserve_iteration(run_id, note=f"iteration:{iteration}")
+        self._store.commit()
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.WORKERS_ALLOCATED,
@@ -373,6 +415,7 @@ class ResearchOrchestrator:
                 },
             )
         )
+        self._store.commit()
         pool = ResearchWorkerPool(
             get_session_factory(self._settings.database_url),
             self._settings,
@@ -522,6 +565,29 @@ class ResearchOrchestrator:
             questions=self._store.list_questions(run_id),
         )
 
+    def _compile_knowledge_phase(self, run_id: uuid.UUID) -> None:
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.COMPILE_KNOWLEDGE,
+            )
+        )
+        try:
+            compile_stats = compile_knowledge_for_run(self._store, run_id)
+        except Exception:
+            logger.exception("Compile knowledge phase failed", extra={"run_id": str(run_id)})
+            compile_stats = {"statements_created": 0}
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.COMPILE_KNOWLEDGE,
+                payload=compile_stats,
+            )
+        )
+
     def _run_post_research_phases(self, run_id: uuid.UUID) -> None:
         run = self._store.get_run(run_id)
         if run is None:
@@ -650,28 +716,6 @@ class ResearchOrchestrator:
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_STARTED,
                 run_id=run_id,
-                phase=ResearchPhase.COMPILE_KNOWLEDGE,
-            )
-        )
-        try:
-            compile_stats = compile_knowledge_for_run(self._store, run_id)
-        except Exception:
-            logger.exception("Compile knowledge phase failed", extra={"run_id": str(run_id)})
-            compile_stats = {"statements_created": 0}
-        self._store.commit()
-        self._emit(
-            ResearchEvent(
-                event_type=ResearchEventType.PHASE_COMPLETED,
-                run_id=run_id,
-                phase=ResearchPhase.COMPILE_KNOWLEDGE,
-                payload=compile_stats,
-            )
-        )
-
-        self._emit(
-            ResearchEvent(
-                event_type=ResearchEventType.PHASE_STARTED,
-                run_id=run_id,
                 phase=ResearchPhase.CRITIC,
             )
         )
@@ -749,3 +793,6 @@ class ResearchOrchestrator:
                 payload={"report_id": str(report_id)},
             )
         )
+        # Derived Wiki must not block report delivery. Compile after REPORT so
+        # SSE can surface the trustworthy report while compilation continues.
+        self._compile_knowledge_phase(run_id)

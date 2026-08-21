@@ -33,6 +33,7 @@ def settings() -> Settings:
         LLM_PROVIDER=ProviderKind.GOOGLE,
         HITL_ENABLED=True,
         HITL_BUDGET_EXTENSION_REQUIRES_REVIEW=True,
+        RESEARCH_WORKERS_INLINE=True,
     )
 
 
@@ -140,6 +141,50 @@ def test_cancel_supersedes_pending_reviews(store, settings) -> None:
     updated = store.get_run(run.id)
     assert updated is not None
     assert updated.status == ResearchRunStatus.CANCELLED
+
+
+@pytest.mark.postgres
+def test_tool_budget_with_leftover_tasks_pauses_for_hitl(store, settings) -> None:
+    from unittest.mock import patch
+
+    from deepscout_core.domain.budget import ResearchBudget
+    from deepscout_core.domain.schemas import PlannerOutput, PlannerQuestion, SearchResult
+    from deepscout_research.orchestrator import ResearchOrchestrator
+
+    class FakeSearch:
+        provider_name = "fake"
+
+        def search(self, query: str, *, max_results: int = 5, timeout_s: float = 15.0):
+            return [SearchResult(url="https://example.com/lfp", title="LFP", snippet="LFP packs")]
+
+    run = store.create_run(
+        ResearchRunCreate(
+            goal="HITL leftover tasks",
+            budget=ResearchBudget(
+                max_iterations=2,
+                max_wall_time_seconds=60,
+                max_total_tokens=20_000,
+                max_cost_usd=1.0,
+                max_sources=8,
+                max_tool_calls=1,
+            ),
+        ),
+        settings,
+    )
+    fake_plan = PlannerOutput(
+        approach="two questions",
+        success_criteria="both answered",
+        questions=[
+            PlannerQuestion(text="What is LFP?", priority=1),
+            PlannerQuestion(text="What is NMC?", priority=2),
+        ],
+    )
+    with patch("deepscout_research.orchestrator.build_research_plan", return_value=fake_plan):
+        result = ResearchOrchestrator(store, settings, FakeSearch()).execute(run.id)
+    assert result.final_status == ResearchRunStatus.PAUSED
+    pending = store.get_pending_review(run.id, ReviewReasonCode.BUDGET_EXTENSION)
+    assert pending is not None
+    assert store.get_run(run.id).status == ResearchRunStatus.PAUSED
 
 
 def test_spoof_text_unit() -> None:

@@ -17,8 +17,8 @@ def get_engine(database_url: str | None = None) -> Engine:
             engine = create_engine(
                 url,
                 pool_pre_ping=True,
-                pool_size=5,
-                max_overflow=10,
+                pool_size=8,
+                max_overflow=16,
                 pool_recycle=1800,
             )
             _ENGINES[url] = engine

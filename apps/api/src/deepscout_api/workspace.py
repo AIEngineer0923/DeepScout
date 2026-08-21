@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from uuid import UUID
 
+from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
 from deepscout_evaluation.run_evals import evaluate_research_run
 from deepscout_persistence.store import ResearchStore
@@ -24,7 +26,13 @@ def _task_index_map(tasks: list) -> dict[str, int]:
     return {task.task_key: index + 1 for index, task in enumerate(tasks)}
 
 
-def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
+def assemble_workspace(
+    store: ResearchStore,
+    run_id: UUID,
+    *,
+    include_evals: bool | None = None,
+) -> dict:
+    started = time.perf_counter()
     run = store.get_run(run_id)
     if run is None:
         raise LookupError("run not found")
@@ -42,6 +50,7 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
     events = store.list_run_events(run_id)
     report = store.get_report(run_id)
     candidates = store.list_search_candidates(run_id)
+    db_ms = (time.perf_counter() - started) * 1000
 
     completed_phases: list[str] = []
     phase_timings: dict[str, str] = {}
@@ -231,29 +240,34 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
             }
         )
 
-    evals = evaluate_research_run(store, run_id)
+    evals_started = time.perf_counter()
+    terminal = run.status in TERMINAL_RESEARCH_RUN_STATUSES
+    do_evals = include_evals if include_evals is not None else terminal
     eval_rows = []
-    for spec in BUILTIN_EVALUATOR_MATRIX:
-        value = evals.get(spec.evaluator_id)
-        if spec.evaluator_id == "citation_correctness":
-            value = evals.get("citation_resolve_rate")
-        if spec.evaluator_id == "provenance_complete":
-            value = evals.get("provenance_complete_rate")
-        if spec.evaluator_id == "dag_cycle_free":
-            value = evals.get("dag_cycle_free")
-        if spec.evaluator_id == "termination_correctness":
-            value = evals.get("termination_correct")
-        eval_rows.append(
-            {
-                "evaluator_id": spec.evaluator_id,
-                "version": spec.version,
-                "category": spec.category,
-                "method": spec.method.value,
-                "applicability": spec.applicability.value,
-                "description": spec.description,
-                "value": value,
-            }
-        )
+    if do_evals:
+        evals = evaluate_research_run(store, run_id)
+        for spec in BUILTIN_EVALUATOR_MATRIX:
+            value = evals.get(spec.evaluator_id)
+            if spec.evaluator_id == "citation_correctness":
+                value = evals.get("citation_resolve_rate")
+            if spec.evaluator_id == "provenance_complete":
+                value = evals.get("provenance_complete_rate")
+            if spec.evaluator_id == "dag_cycle_free":
+                value = evals.get("dag_cycle_free")
+            if spec.evaluator_id == "termination_correctness":
+                value = evals.get("termination_correct")
+            eval_rows.append(
+                {
+                    "evaluator_id": spec.evaluator_id,
+                    "version": spec.version,
+                    "category": spec.category,
+                    "method": spec.method.value,
+                    "applicability": spec.applicability.value,
+                    "description": spec.description,
+                    "value": value,
+                }
+            )
+    evals_ms = (time.perf_counter() - evals_started) * 1000
 
     completed_tasks = [task for task in tasks if task.status.value == "completed"]
     remaining_tasks = [
@@ -355,6 +369,12 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
             for tool in tools[:80]
         ],
         "evaluations": eval_rows,
+        "evaluations_deferred": not do_evals,
+        "timings_ms": {
+            "db_load": round(db_ms, 2),
+            "evals": round(evals_ms, 2),
+            "total": round((time.perf_counter() - started) * 1000, 2),
+        },
         "resume": {
             "domain_authority": "postgresql",
             "checkpoint_role": "langgraph_worker_execution_only",
@@ -397,7 +417,7 @@ def assemble_workspace(store: ResearchStore, run_id: UUID) -> dict:
 
 
 def snapshot_detail(store: ResearchStore, run_id: UUID, snapshot_id: UUID) -> dict:
-    workspace = assemble_workspace(store, run_id)
+    workspace = assemble_workspace(store, run_id, include_evals=False)
     snapshot = store.get_snapshot(snapshot_id)
     if snapshot is None:
         raise LookupError("snapshot not found")

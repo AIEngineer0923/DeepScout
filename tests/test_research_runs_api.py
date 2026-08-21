@@ -71,7 +71,20 @@ def test_cancel_research_run(api_client: TestClient) -> None:
     cancel = api_client.post(f"/api/v1/research-runs/{run_id}/cancel")
     assert cancel.status_code == 200
     assert cancel.json()["status"] == "cancelled"
+    events = api_client.get(f"/api/v1/research-runs/{run_id}/events")
+    assert events.status_code == 200
+    assert events.headers["content-type"].startswith("text/event-stream")
+    assert "id:" in events.text or events.text == ""
 
+
+@pytest.mark.postgres
+def test_sse_replay_uses_after_query(api_client: TestClient) -> None:
+    create = api_client.post("/api/v1/research-runs", json={"goal": "SSE replay"})
+    run_id = create.json()["id"]
+    api_client.post(f"/api/v1/research-runs/{run_id}/cancel")
+    replay = api_client.get(f"/api/v1/research-runs/{run_id}/events?after=999999")
+    assert replay.status_code == 200
+    assert replay.text == "" or ": keepalive" in replay.text or "id:" in replay.text
 
 @pytest.mark.postgres
 def test_get_unknown_run_returns_404(api_client: TestClient) -> None:

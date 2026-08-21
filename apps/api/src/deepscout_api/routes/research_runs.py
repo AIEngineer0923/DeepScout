@@ -1,4 +1,4 @@
-import json
+import asyncio
 from datetime import datetime
 from uuid import UUID
 
@@ -6,8 +6,16 @@ from deepscout_core.domain.schemas import ResearchRunCreate, ResearchRunRead
 from deepscout_core.security.csv import render_csv
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
+from deepscout_persistence.session import get_session_factory
+from deepscout_persistence.store import ResearchStore
 from deepscout_research.jobs.service import JobService
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from deepscout_research.streaming.policy import layer_for
+from deepscout_research.streaming.sse import (
+    format_sse_comment,
+    format_sse_event,
+    parse_last_event_id,
+)
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
@@ -219,37 +227,66 @@ def get_research_run(
 
 
 @router.get("/{run_id}/events")
-def stream_run_events(run_id: UUID, store=Depends(get_research_store)):
-    run = store.get_run(run_id)
-    if run is None:
-        raise HTTPException(status_code=404, detail="Research run not found")
+def stream_run_events(
+    run_id: UUID,
+    request: Request,
+    after: int | None = Query(default=None, ge=0),
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    settings: Settings = Depends(get_settings),
+):
+    factory = get_session_factory(settings.database_url)
+    probe = factory()
+    try:
+        if ResearchStore(probe).get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail="Research run not found")
+    finally:
+        probe.close()
 
-    def event_generator():
-        last_sequence = 0
+    start_after = parse_last_event_id(last_event_id, after)
+
+    async def event_generator():
+        last_sequence = start_after
+        terminal = {
+            "completed",
+            "failed",
+            "cancelled",
+            "budget_exhausted",
+        }
         while True:
-            events = store.list_run_events(run_id, after_sequence=last_sequence)
-            for event in events:
-                last_sequence = event.sequence
-                payload = {
-                    "sequence": event.sequence,
-                    "type": event.event_type,
-                    "payload": event.payload,
-                    "created_at": event.created_at.isoformat(),
-                }
-                yield f"data: {json.dumps(payload)}\n\n"
-            if events:
-                continue
-            run_state = store.get_run(run_id)
-            if run_state and run_state.status.value in {
-                "completed",
-                "failed",
-                "cancelled",
-                "budget_exhausted",
-            }:
+            if await request.is_disconnected():
                 break
-            import time
-
-            time.sleep(1)
+            session = factory()
+            try:
+                store = ResearchStore(session)
+                events = store.list_run_events(run_id, after_sequence=last_sequence)
+                payloads = []
+                for event in events:
+                    last_sequence = event.sequence
+                    payloads.append(
+                        format_sse_event(
+                            sequence=event.sequence,
+                            event_type=event.event_type,
+                            payload={
+                                "sequence": event.sequence,
+                                "type": event.event_type,
+                                "layer": layer_for(event.event_type).value,
+                                "payload": event.payload,
+                                "created_at": event.created_at.isoformat(),
+                            },
+                        )
+                    )
+                run_state = store.get_run(run_id)
+                status = run_state.status.value if run_state else "failed"
+            finally:
+                session.close()
+            for frame in payloads:
+                yield frame
+            if payloads:
+                continue
+            if status in terminal:
+                break
+            yield format_sse_comment()
+            await asyncio.sleep(0.4 if status == "running" else 0.8)
 
     return StreamingResponse(
         event_generator(),
@@ -293,13 +330,20 @@ def get_research_run_summary(
 @router.get("/{run_id}/workspace")
 def get_research_run_workspace(
     run_id: UUID,
+    response: Response,
+    include_evals: bool | None = Query(default=None),
     store=Depends(get_research_store),
 ) -> dict:
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    payload = assemble_workspace(store, run_id)
+    payload = assemble_workspace(store, run_id, include_evals=include_evals)
     payload.pop("_task_by_id", None)
+    timings = payload.get("timings_ms") or {}
+    if timings:
+        response.headers["Server-Timing"] = ",".join(
+            f"{key};dur={value}" for key, value in timings.items()
+        )
     return payload
 
 
@@ -437,7 +481,7 @@ def get_run_evaluations(
 ) -> dict:
     if store.get_run(run_id) is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    workspace = assemble_workspace(store, run_id)
+    workspace = assemble_workspace(store, run_id, include_evals=True)
     return {
         "run_id": str(run_id),
         "evaluations": workspace["evaluations"],
@@ -465,7 +509,7 @@ def export_research_run(
 ):
     if store.get_run(run_id) is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    workspace = assemble_workspace(store, run_id)
+    workspace = assemble_workspace(store, run_id, include_evals=True)
     workspace.pop("_task_by_id", None)
     if format == "json":
         return workspace
