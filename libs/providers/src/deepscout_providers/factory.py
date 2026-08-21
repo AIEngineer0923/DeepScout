@@ -5,7 +5,7 @@ from deepscout_core.types import ProviderKind
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from deepscout_providers.config import DEFAULT_MODEL_BUILD_OPTIONS, ModelBuildOptions
+from deepscout_providers.config import ModelBuildOptions, options_from_settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS, DEFAULT_EMBEDDING_MODELS
 
 
@@ -72,7 +72,7 @@ def build_chat_model(
     model_name: str | None = None,
 ) -> BaseChatModel:
     """Return a LangChain chat model for the configured or overridden provider."""
-    build_options = options or DEFAULT_MODEL_BUILD_OPTIONS
+    build_options = options or options_from_settings(settings)
     resolved_provider = provider or settings.llm_provider
     resolved_model = model_name or settings.llm_model or DEFAULT_CHAT_MODELS[resolved_provider]
     match resolved_provider:

@@ -14,10 +14,10 @@ Public project document. Status: **IMPLEMENTED** | **FOUNDATION** | **DEFERRED**
 | Procedural memory | DEFERRED | Prompts live in code, not self-modifying store |
 | History compaction | DEFERRED | LangSmith audit trail; compaction later |
 | Prompt/context caching | FOUNDATION | Provider capability hooks; no blind caching |
-| Application caching | DEFERRED | Redis reserved; no search/fetch cache in Phase 3 |
+| Application caching | REJECTED (MODE A) | Redis probe-only; Postgres owns jobs/checkpoints |
 | Token accounting | IMPLEMENTED | Provider metadata recorded; UNKNOWN never coerced to 0; evaluator usage excluded from application totals |
 | Token optimization | FOUNDATION | Bounded context assembly; phase budgets planned |
-| Model routing | DEFERRED | Single configured model per run |
+| Model routing | IMPLEMENTED | Capability registry + role policies; optional configured fallback |
 | Thinking/reasoning effort | FOUNDATION | Provider layer owns Gemini thinking levels |
 | Tool result compression | FOUNDATION | Search normalized + top-N persisted as candidates |
 | Self-correction | IMPLEMENTED | Deterministic critic + bounded re-verify; LangGraph correction graph is unit-tested only |
@@ -33,9 +33,9 @@ Public project document. Status: **IMPLEMENTED** | **FOUNDATION** | **DEFERRED**
 | Confidence calibration | DEFERRED | Qualitative statuses preferred over fake floats |
 | Uncertainty | FOUNDATION | `insufficient_evidence` terminal question state |
 | Multi-agent specialization | IMPLEMENTED | Planner vs research worker vs critic/synthesis/report |
-| HITL | DEFERRED | Hooks planned for high-impact decisions |
+| HITL | DEFERRED | Approval spoofing blocked; product pause/API not shipped for normal research |
 | Observability | IMPLEMENTED | LangSmith phases + typed domain events |
-| Fallback models | DEFERRED | No silent model swap |
+| Fallback models | IMPLEMENTED_OPTIONAL | Capability + privacy + health gated; no silent downgrade |
 
 ## Core loops
 

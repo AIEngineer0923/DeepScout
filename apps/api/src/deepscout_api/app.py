@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
 from deepscout_core.settings import Settings, get_settings
+from deepscout_persistence.session import dispose_all_engines
 from deepscout_research.smoke_agent import run_smoke_agent
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from deepscout_api.main import configure_observability
@@ -15,7 +16,10 @@ from deepscout_api.security import install_security_middleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_observability(get_settings())
-    yield
+    try:
+        yield
+    finally:
+        dispose_all_engines()
 
 
 app = FastAPI(
@@ -38,6 +42,12 @@ class HealthResponse(BaseModel):
 class DependencyHealthResponse(BaseModel):
     postgres: str
     redis: str
+    redis_required: bool = False
+
+
+class ReadinessResponse(BaseModel):
+    status: str
+    postgres: str
 
 
 class SmokeAgentRequest(BaseModel):
@@ -52,8 +62,20 @@ class SmokeAgentResponseBody(BaseModel):
 
 
 @app.get("/health", response_model=HealthResponse)
+@app.get("/live", response_model=HealthResponse)
 def health() -> HealthResponse:
+    """Liveness: process is up. Does not probe optional deps (LangSmith/Redis)."""
     return HealthResponse(status="ok")
+
+
+@app.get("/ready", response_model=ReadinessResponse)
+def ready(response: Response, settings: Settings = Depends(get_settings)) -> ReadinessResponse:
+    """Readiness: authoritative Postgres must be available. Redis is optional MODE A probe."""
+    postgres = probe_postgres(settings.database_url)
+    status = "ok" if postgres == "ok" else "unavailable"
+    if status != "ok":
+        response.status_code = 503
+    return ReadinessResponse(status=status, postgres=postgres)
 
 
 @app.get("/api/v1/health/deps", response_model=DependencyHealthResponse)
@@ -61,6 +83,7 @@ def health_dependencies(settings: Settings = Depends(get_settings)) -> Dependenc
     return DependencyHealthResponse(
         postgres=probe_postgres(settings.database_url),
         redis=probe_redis(settings.redis_url),
+        redis_required=False,
     )
 
 

@@ -42,3 +42,13 @@ def get_session_factory(database_url: str | None = None) -> sessionmaker[Session
 
 def get_settings_session() -> Session:
     return get_session_factory(get_settings().database_url)()
+
+
+def dispose_all_engines() -> None:
+    """Dispose pooled engines on graceful shutdown (SIGTERM / lifespan end)."""
+    with _LOCK:
+        engines = list(_ENGINES.values())
+        _ENGINES.clear()
+        _FACTORIES.clear()
+    for engine in engines:
+        engine.dispose()

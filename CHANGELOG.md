@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ADR-010 production resilience: capability registry, optional capability/privacy-gated fallback, error taxonomy, in-process provider health, `/live`+`/ready`, engine dispose on shutdown
+- `invoke_with_resilience` helper with application-owned retry ownership; approval spoofing guards (HITL product pause still deferred)
 - Phase 5 hybrid retrieval: pgvector + PostgreSQL FTS, RRF fusion, deterministic rerank, run-scoped indexing pipeline
 - Document chunks and embedding records derived from immutable `SourceSnapshot` rows with versioning metadata
 - Structured retrieval planner, strategy policy, retrieval grader, and bounded re-retrieval
@@ -17,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 5 closure gate (`scripts/phase5_closure_gate.py`): symmetric 768-vs-1536, isolated pre-RAG vs RAG, category ablation, LangSmith live experiments
 - Default Google embedding dimensions set to **768** after measured parity with 1536 on retrieval-benchmark-v1.1
 - Optional run-scoped compiled knowledge layer (ADR-009): WikiPage/WikiStatement with claim→evidence provenance, deterministic compiler, Obsidian Markdown export, Graphify rejected for DeepScout runtime
+
+### Changed
+
+- `LLM_TIMEOUT_S` / `LLM_MAX_RETRIES` now wire into LangChain model build options via `options_from_settings`
+- Dependency health reports `redis_required=false` (Redis remains optional MODE A probe)
 
 ### Security
 
@@ -31,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV formula-injection sanitization, security headers, optional IP rate limits
 - Smoke agent disabled by default; API docs disabled; default bind 127.0.0.1
 - Worker tool allowlists clamp unknown tools; search URLs are filtered before persistence
+- Model/retrieved text cannot spoof human approval; malicious provider-style strings cannot alter routing policy
 
 ### Added
 
