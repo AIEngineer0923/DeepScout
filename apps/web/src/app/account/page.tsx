@@ -27,7 +27,7 @@ export default function AccountPage() {
   async function logout() {
     await api.logout();
     clearLastRunId();
-    window.location.href = "/login";
+    window.location.href = "/";
   }
 
   const credentials = (account?.credentials as Array<Record<string, unknown>> | undefined) ?? [];
@@ -96,7 +96,7 @@ export default function AccountPage() {
           onClick={async () => {
             await api.logoutAll();
             clearLastRunId();
-            window.location.href = "/login";
+            window.location.href = "/";
           }}
         >
           Log out all sessions
@@ -109,7 +109,7 @@ export default function AccountPage() {
             if (!window.confirm("Delete this account and all owned research?")) return;
             await api.deleteAccount();
             clearLastRunId();
-            window.location.href = "/login";
+            window.location.href = "/";
           }}
         >
           Delete account

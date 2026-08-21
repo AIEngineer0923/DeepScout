@@ -12,7 +12,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <div className="public-shell">
+    <div className="public-shell" data-testid="public-shell">
       <header className="public-header">
         <Link href="/" className="brand">
           <span className="brand-mark">S</span>
