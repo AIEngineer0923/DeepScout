@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from uuid import UUID
 
+from sqlalchemy import text
+
 CHANNEL = "deepscout_run_events"
 
 
@@ -12,6 +14,19 @@ def listen_dsn(database_url: str) -> str:
     return database_url.replace("postgresql+psycopg://", "postgresql://", 1).replace(
         "postgresql+psycopg2://", "postgresql://", 1
     )
+
+
+def notify_run_events(bind, run_ids: set[UUID]) -> None:
+    """Fire NOTIFY on a dedicated AUTOCOMMIT connection after the event transaction commits.
+
+    NOTIFY is a wake signal only. run_events remains the durable log.
+    """
+    if not run_ids:
+        return
+    with bind.connect() as conn:
+        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+        for run_id in run_ids:
+            conn.execute(text("SELECT pg_notify(:c, :p)"), {"c": CHANNEL, "p": str(run_id)})
 
 
 class NotifyWaiter:
@@ -23,7 +38,6 @@ class NotifyWaiter:
 
     def wait(self, run_id: UUID, timeout_s: float) -> bool:
         deadline = time.monotonic() + max(0.05, timeout_s)
-        remaining = timeout_s
         try:
             import psycopg
 
@@ -34,6 +48,7 @@ class NotifyWaiter:
                     connect_timeout=2,
                 )
                 self._conn.execute(f"LISTEN {CHANNEL}")
+            remaining = max(0.05, deadline - time.monotonic())
             for notify in self._conn.notifies(timeout=remaining, stop_after=1):
                 if str(notify.payload) == str(run_id):
                     return True

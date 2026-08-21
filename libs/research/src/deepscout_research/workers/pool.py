@@ -272,9 +272,14 @@ class ResearchWorkerPool:
             )
 
             sources_added = 0
+            prefs = store.list_source_preferences(run_id)
+            from deepscout_research.source_policy import is_excluded
+
             for result in results:
                 safe_url = public_http_url_or_none(result.url)
                 if safe_url is None:
+                    continue
+                if is_excluded(safe_url, prefs):
                     continue
                 domain = urlparse(safe_url).netloc
                 _, created = store.add_source(

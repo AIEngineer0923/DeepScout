@@ -59,6 +59,8 @@ class RunListItem(BaseModel):
     claim_count: int
     task_count: int
     completed_task_count: int
+    parent_run_id: UUID | None = None
+    lineage_kind: str = "none"
 
 
 class RunListResponse(BaseModel):
@@ -115,6 +117,8 @@ def _list_item(row, metrics: dict[str, int]) -> RunListItem:
         claim_count=metrics["claim_count"],
         task_count=metrics["task_count"],
         completed_task_count=metrics["completed_task_count"],
+        parent_run_id=row.parent_run_id,
+        lineage_kind=getattr(row, "lineage_kind", None) or "none",
     )
 
 
@@ -460,11 +464,115 @@ def fork_research_run(
         config_snapshot=_snapshot(settings),
         parent_run_id=run_id,
         fork_reason=body.reason[:128],
+        root_run_id=run_id,
+        lineage_kind="fork",
     )
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(created.id)
     _kick_worker(background_tasks, settings)
     return ExecuteResponse(run_id=created.id, status="accepted", job_id=job.id)
+
+
+class FollowUpBody(BaseModel):
+    goal: str
+    inherit_source_preferences: bool = True
+    research_mode: str | None = None
+    output_language: str | None = None
+
+
+@router.post("/{run_id}/follow-up", response_model=ExecuteResponse, status_code=202)
+def follow_up_research_run(
+    run_id: UUID,
+    body: FollowUpBody,
+    background_tasks: BackgroundTasks,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> ExecuteResponse:
+    from deepscout_core.domain.enums import RunLineageKind
+    from deepscout_core.domain.schemas import FollowUpCreate, ResearchRunCreate
+    from deepscout_research.followup import select_followup_context
+
+    parent = store.get_run(run_id)
+    if parent is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    if parent.status.value not in {"completed", "budget_exhausted", "failed"}:
+        raise HTTPException(status_code=409, detail="Follow-up requires a finished run")
+    payload = FollowUpCreate(
+        goal=body.goal.strip(),
+        inherit_source_preferences=body.inherit_source_preferences,
+        research_mode=body.research_mode or parent.research_mode,  # type: ignore[arg-type]
+        output_language=body.output_language or parent.output_language,
+    )
+    parent_row = store.get_run_row(run_id)
+    root_id = (parent_row.root_run_id or run_id) if parent_row else run_id
+    snapshot = _snapshot(settings)
+    snapshot["followup_context"] = select_followup_context(store, run_id, payload.goal)
+    snapshot["lineage"] = {"kind": "followup", "parent_run_id": str(run_id)}
+    created = store.create_run(
+        ResearchRunCreate(
+            goal=payload.goal,
+            research_mode=payload.research_mode,
+            output_language=payload.output_language,
+        ),
+        settings,
+        config_snapshot=snapshot,
+        parent_run_id=run_id,
+        fork_reason="followup",
+        root_run_id=root_id,
+        lineage_kind=RunLineageKind.FOLLOWUP.value,
+    )
+    if payload.inherit_source_preferences:
+        store.copy_source_preferences(run_id, created.id)
+    jobs = JobService(store)
+    job = jobs.enqueue_execute_run(created.id)
+    _kick_worker(background_tasks, settings)
+    return ExecuteResponse(run_id=created.id, status="accepted", job_id=job.id)
+
+
+@router.get("/{run_id}/source-preferences")
+def list_source_preferences(run_id: UUID, store=Depends(get_research_store)) -> list[dict]:
+    if store.get_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    return [item.model_dump(mode="json") for item in store.list_source_preferences(run_id)]
+
+
+@router.post("/{run_id}/source-preferences", status_code=201)
+def create_source_preference(run_id: UUID, body: dict, store=Depends(get_research_store)) -> dict:
+    from deepscout_core.domain.schemas import SourcePreferenceWrite
+    from deepscout_research.fetch.url_normalize import normalize_source_url
+
+    if store.get_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    try:
+        payload = SourcePreferenceWrite.model_validate(body)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="invalid preference") from exc
+    if payload.identity_kind == "url":
+        payload = payload.model_copy(update={"identity_value": normalize_source_url(payload.identity_value)})
+    row = store.upsert_source_preference(run_id, payload, origin="user")
+    store.commit()
+    return row.model_dump(mode="json")
+
+
+@router.delete("/{run_id}/source-preferences/{preference_id}", status_code=204)
+def delete_source_preference(
+    run_id: UUID, preference_id: UUID, store=Depends(get_research_store)
+) -> None:
+    if not store.delete_source_preference(run_id, preference_id):
+        raise HTTPException(status_code=404, detail="preference not found")
+    store.commit()
+
+
+@router.get("/{run_id}/diff/{other_id}")
+def diff_research_runs(run_id: UUID, other_id: UUID, store=Depends(get_research_store)) -> dict:
+    from deepscout_research.run_diff import compare_runs
+
+    try:
+        return compare_runs(store, run_id, other_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as extra:
+        raise HTTPException(status_code=404, detail=str(extra)) from extra
 
 
 @router.get("/{run_id}/snapshots/{snapshot_id}")

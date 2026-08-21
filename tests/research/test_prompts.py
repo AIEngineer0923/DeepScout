@@ -11,6 +11,8 @@ def test_prompt_registry_contains_planner() -> None:
     assert v1.prompt_version == "1"
     assert v1.status == PromptStatus.ACTIVE
     assert get_prompt("planner") is not v1
+    validator = get_prompt("planner_dependency_validator")
+    assert validator.prompt_version == "1"
 
 
 def test_compose_system_message_layers() -> None:

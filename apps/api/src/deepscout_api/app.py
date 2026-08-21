@@ -8,9 +8,12 @@ from pydantic import BaseModel, Field
 
 from deepscout_api.main import configure_observability
 from deepscout_api.probes import probe_postgres, probe_redis
+from deepscout_api.routes.knowledge import router as knowledge_router
+from deepscout_api.routes.monitors import router as monitors_router
 from deepscout_api.routes.product import router as product_router
 from deepscout_api.routes.research_runs import router as research_runs_router
 from deepscout_api.routes.reviews import router as reviews_router
+from deepscout_api.routes.rum import router as rum_router
 from deepscout_api.routes.templates import router as templates_router
 from deepscout_api.security import install_security_middleware
 
@@ -37,6 +40,9 @@ app.include_router(research_runs_router)
 app.include_router(product_router)
 app.include_router(reviews_router)
 app.include_router(templates_router)
+app.include_router(knowledge_router)
+app.include_router(monitors_router)
+app.include_router(rum_router)
 
 
 class HealthResponse(BaseModel):

@@ -37,6 +37,14 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
         recovered = jobs.recover_stale()
         if recovered:
             logger.info("Recovered stale jobs", extra={"count": recovered})
+        from deepscout_research.monitors.service import dispatch_due_monitors
+
+        try:
+            dispatch_due_monitors(store, settings, owner=owner)
+            store.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("Monitor dispatch failed")
         job = jobs.claim_next(owner)
         if job is None:
             session.close()

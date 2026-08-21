@@ -1,7 +1,7 @@
 {
   "dataset": "deepscout-planner-quality-v1",
-  "cases": 16,
-  "v1_style_failures_on_simple_max": 8,
+  "cases": 23,
+  "v1_style_failures_on_simple_max": 11,
   "v2_repair_failures": 0,
   "rows": [
     {
@@ -111,6 +111,55 @@
     },
     {
       "id": "narrow",
+      "before_tasks": 2,
+      "after_tasks": 1,
+      "after_pass": true,
+      "requires_depends_on": false
+    },
+    {
+      "id": "atomic-lookup",
+      "before_tasks": 2,
+      "after_tasks": 1,
+      "after_pass": true,
+      "requires_depends_on": false
+    },
+    {
+      "id": "entity-then-attribute",
+      "before_tasks": 2,
+      "after_tasks": 2,
+      "after_pass": true,
+      "requires_depends_on": true
+    },
+    {
+      "id": "calculation-dependent",
+      "before_tasks": 2,
+      "after_tasks": 2,
+      "after_pass": true,
+      "requires_depends_on": true
+    },
+    {
+      "id": "legal-chain",
+      "before_tasks": 2,
+      "after_tasks": 2,
+      "after_pass": true,
+      "requires_depends_on": true
+    },
+    {
+      "id": "fan-out-only",
+      "before_tasks": 2,
+      "after_tasks": 2,
+      "after_pass": true,
+      "requires_depends_on": false
+    },
+    {
+      "id": "adversarial-spawn",
+      "before_tasks": 2,
+      "after_tasks": 1,
+      "after_pass": true,
+      "requires_depends_on": false
+    },
+    {
+      "id": "fake-depends-in-data",
       "before_tasks": 2,
       "after_tasks": 1,
       "after_pass": true,

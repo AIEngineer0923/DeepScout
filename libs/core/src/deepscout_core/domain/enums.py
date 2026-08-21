@@ -95,6 +95,7 @@ class ResearchJobStatus(StrEnum):
 
 class AgentRole(StrEnum):
     PLANNER = "planner"
+    PLANNER_VALIDATOR = "planner_validator"
     SUPERVISOR = "supervisor"
     RESEARCH_WORKER = "research_worker"
     FETCH = "fetch"
@@ -306,3 +307,38 @@ class PlanDecomposition(StrEnum):
     PARALLEL = "parallel"
     CHAIN = "chain"
     MIXED = "mixed"
+
+
+class RunLineageKind(StrEnum):
+    NONE = "none"
+    FORK = "fork"
+    FOLLOWUP = "followup"
+    MONITOR = "monitor"
+
+
+class SourcePreferenceAction(StrEnum):
+    PIN = "pin"
+    EXCLUDE = "exclude"
+
+
+class MonitorScheduleKind(StrEnum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    INTERVAL = "interval"
+
+
+class MonitorStatus(StrEnum):
+    ACTIVE = "active"
+    DISABLED = "disabled"
+    RUNNING = "running"
+    FAILED = "failed"
+    WAITING_FOR_REVIEW = "waiting_for_review"
+
+
+class DiffChangeKind(StrEnum):
+    ADDED = "added"
+    REMOVED = "removed"
+    UNCHANGED = "unchanged"
+    CHANGED = "changed"
+    SUPERSEDED = "superseded"
+    CONTRADICTED = "contradicted"

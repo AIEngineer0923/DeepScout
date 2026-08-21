@@ -14,6 +14,8 @@ export type RunListItem = {
   total_tokens: number | null;
   cost_usd: number | null;
   cost_status: string;
+  parent_run_id?: string | null;
+  lineage_kind?: string;
   source_count: number;
   evidence_count: number;
   claim_count: number;
@@ -123,7 +125,9 @@ export type Workspace = {
     task_id: string | null;
     task_key: string | null;
     worker_index: number | null;
+    preference?: string;
   }>;
+  source_preferences?: Array<{ id: string; action: string; identity_kind: string; identity_value: string; reason: string }>;
   snapshots: Array<{
     id: string;
     source_id: string;
@@ -180,6 +184,16 @@ export type Workspace = {
     description: string;
     value: unknown;
   }>;
+  runtime?: {
+    parent_run_id: string | null;
+    root_run_id?: string | null;
+    lineage_kind?: string;
+    fork_reason: string | null;
+    monitor_id?: string | null;
+    replans_used: number;
+    config_schema_version?: string | number | null;
+    max_delegation_depth?: number;
+  };
   resume: {
     domain_authority: string;
     checkpoint_role: string;

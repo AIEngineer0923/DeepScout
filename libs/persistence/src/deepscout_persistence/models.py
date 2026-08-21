@@ -33,6 +33,7 @@ from deepscout_core.domain.enums import (
 )
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -101,6 +102,13 @@ class ResearchRunRow(Base):
     )
     fork_reason: Mapped[str | None] = mapped_column(String(128))
     replans_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    root_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL")
+    )
+    monitor_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_monitors.id", ondelete="SET NULL")
+    )
+    lineage_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="none")
 
     plan: Mapped["ResearchPlanRow | None"] = relationship(back_populates="run", uselist=False)
     sources: Mapped[list["SourceRow"]] = relationship(back_populates="run")
@@ -417,6 +425,7 @@ class ResearchTaskRow(Base):
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120)
     error_message: Mapped[str | None] = mapped_column(Text)
     checkpoint: Mapped[dict | None] = mapped_column(JSONB)
+    task_meta: Mapped[dict | None] = mapped_column(JSONB)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -851,3 +860,85 @@ class ResearchTemplateRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ResearchSourcePreferenceRow(Base):
+    __tablename__ = "research_source_preferences"
+    __table_args__ = (
+        UniqueConstraint(
+            "research_run_id",
+            "action",
+            "identity_kind",
+            "identity_value",
+            name="uq_source_pref_run_identity",
+        ),
+        Index("ix_source_preferences_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    identity_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    identity_value: Mapped[str] = mapped_column(String(2048), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    origin: Mapped[str] = mapped_column(String(32), nullable=False, default="user")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchMonitorRow(Base):
+    __tablename__ = "research_monitors"
+    __table_args__ = (
+        Index("ix_research_monitors_next_run_at", "next_run_at"),
+        Index("ix_research_monitors_enabled", "enabled"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    goal: Mapped[str] = mapped_column(Text, nullable=False)
+    schedule_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="daily")
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    hour: Mapped[int] = mapped_column(Integer, nullable=False, default=9)
+    minute: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    weekday: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=1440)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    research_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="standard")
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_templates.id", ondelete="SET NULL")
+    )
+    last_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL")
+    )
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_change_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class WebVitalSampleRow(Base):
+    __tablename__ = "web_vital_samples"
+    __table_args__ = (
+        Index("ix_web_vital_samples_created_at", "created_at"),
+        Index("ix_web_vital_samples_route", "route"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    route: Mapped[str] = mapped_column(String(128), nullable=False)
+    lcp_ms: Mapped[float | None] = mapped_column(Float)
+    inp_ms: Mapped[float | None] = mapped_column(Float)
+    cls: Mapped[float | None] = mapped_column(Float)
+    ttfb_ms: Mapped[float | None] = mapped_column(Float)
+    fcp_ms: Mapped[float | None] = mapped_column(Float)
+    navigation_type: Mapped[str] = mapped_column(String(32), nullable=False, default="navigate")
+    device_class: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
+    network_class: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="field")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -74,6 +74,7 @@ Details: [docs/architecture/RESEARCH_LIFECYCLE.md](docs/architecture/RESEARCH_LI
 | [ADR-004](docs/architecture/adr/ADR-004-bounded-research-loop.md) | Bounded research loop |
 | [ADR-005](docs/architecture/adr/ADR-005-sse-streaming.md) | SSE streaming |
 | [ADR-006](docs/architecture/adr/ADR-006-tavily-search-adapter.md) | Tavily search adapter |
+| [ADR-017](docs/architecture/adr/ADR-017-product-runtime-completion.md) | Product completion: semantic planner, follow-up, monitors, knowledge, RUM |
 
 ## Further reading
 

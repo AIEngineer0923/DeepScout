@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bounded semantic dependency validator (Planner v2 → validator → `repair_plan`) with `dependency_reason` (ADR-017)
+- Follow-up research lineage (`lineage_kind=followup`) with bounded inherited context and no HITL copy
+- Source PIN/EXCLUDE preferences applied through search, fetch, and hybrid retrieval
+- Timezone-aware research monitors with Postgres leases, run-now, and deterministic change detection
+- Knowledge browser (pages, statements, provenance drill-down, bounded graph + table fallback)
+- Run comparison / evaluation diff UI and API
+- LISTEN/NOTIFY after commit (wake signal); poll fallback unchanged
+- Field RUM for LCP/INP/CLS/TTFB/FCP stored in PostgreSQL (`web_vital_samples`)
 - Planner v2 DAG output (`decomposition`, task `depends_on` / completion criteria) with bounded plan repair and deterministic DAG evaluators (ADR-014)
 - PostgreSQL LISTEN/NOTIFY wake-up for resumable SSE (poll remains the fallback)
 - Local research templates / saved presets on New Research (ADR-016)
@@ -17,12 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Config snapshot schema version 9
+- Default LISTEN/NOTIFY notify happens after durable `run_events` commit
 - Default planner prompt is v2; v1 remains retrievable and ACTIVE for rollback
 - Workspace SSE reloads skip React state updates when `event_head` is unchanged
 - Snapshot listing uses one join query instead of per-source selects
 
 ### Security
 
+- Retrieved/report text cannot create monitors, mutate source policy, or approve HITL
+- RUM rejects query strings, non-path routes, and unbounded cardinality routes; sampled and rate-limited
 - Template CRUD is MODE A local-only; Redis/Neo4j remain non-authoritative / not default
 
 

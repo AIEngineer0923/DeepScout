@@ -13,7 +13,7 @@ def build_config_snapshot(settings: Settings) -> dict:
         for spec in PROMPT_REGISTRY.values()
     }
     return {
-        "state_schema_version": 8,
+        "state_schema_version": 9,
         "hitl_policy_version": "hitl-v1",
         "context_policy_version": "ctx-v1",
         "tool_registry_version": "1",
@@ -21,6 +21,7 @@ def build_config_snapshot(settings: Settings) -> dict:
         "max_delegation_depth": settings.agent_max_delegation_depth,
         "max_replans": settings.agent_max_replans,
         "prompts": prompts,
+        "planner_dependency_validator": "1",
         "llm_provider": settings.llm_provider.value,
         "retrieval_enabled": True,
         "retry_owner": "application",

@@ -80,6 +80,15 @@ export function HistoryScreen() {
                   <td className="wrap-text">
                     <Link href={`/research/${run.id}`}>{run.goal}</Link>
                     <div className="mono muted">{run.id}</div>
+                    {run.parent_run_id ? (
+                      <div className="muted">
+                        {run.lineage_kind === "followup" ? t("lineage.followup") : run.lineage_kind === "monitor" ? t("lineage.monitor") : t("lineage.fork")}
+                        {" · "}
+                        <Link href={`/research/${run.parent_run_id}`}>{t("followup.parent")}</Link>
+                        {" · "}
+                        <Link href={`/compare?left=${run.parent_run_id}&right=${run.id}`}>{t("compare.open")}</Link>
+                      </div>
+                    ) : null}
                   </td>
                   <td>
                     <StatusBadge status={run.status} />

@@ -115,6 +115,10 @@ class RetrievalService:
         ordered_ids = sorted(fused, key=fused.get, reverse=True)
         rows = load_chunks(session, ordered_ids)
         snapshots = {row.id: row for row in self._store.list_snapshots_for_run(request.run_id)}
+        sources = {item.id: item for item in self._store.list_sources(request.run_id)}
+        prefs = self._store.list_source_preferences(request.run_id)
+        from deepscout_research.source_policy import is_excluded, is_pinned
+
         candidates: list[RetrievedChunk] = []
         for chunk_id in ordered_ids:
             row = rows.get(chunk_id)
@@ -124,6 +128,9 @@ class RetrievalService:
                 raise CrossRunIsolationError("chunk run_id mismatch")
             snapshot = snapshots.get(row.source_snapshot_id)
             if snapshot is None or snapshot.source_id != row.source_id:
+                continue
+            source = sources.get(row.source_id)
+            if source is not None and is_excluded(source.canonical_url, prefs):
                 continue
             if request.fresher_than and snapshot.retrieved_at and snapshot.retrieved_at < request.fresher_than:
                 continue
@@ -151,6 +158,10 @@ class RetrievalService:
                     retrieval_reason="injection-flagged" if looks_like_injection(text) else "",
                 )
             )
+        for item in candidates:
+            source = sources.get(item.source_id)
+            if source is not None and is_pinned(source.canonical_url, prefs):
+                item.fused_score = item.fused_score + 0.15
         if not request.apply_rerank:
             return candidates[: request.top_k]
         return rerank_candidates(candidates, query=request.query, limit=request.top_k)

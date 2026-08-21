@@ -26,6 +26,27 @@ def _task_index_map(tasks: list) -> dict[str, int]:
     return {task.task_key: index + 1 for index, task in enumerate(tasks)}
 
 
+def _source_preference(url: str, domain: str, preferences: list) -> str:
+    exclude = False
+    pin = False
+    for item in preferences:
+        if item.identity_kind == "url" and item.identity_value == url:
+            if item.action == "exclude":
+                exclude = True
+            if item.action == "pin":
+                pin = True
+        if item.identity_kind == "domain" and domain.lower().endswith(item.identity_value.lower()):
+            if item.action == "exclude":
+                exclude = True
+            if item.action == "pin":
+                pin = True
+    if exclude:
+        return "exclude"
+    if pin:
+        return "pin"
+    return "normal"
+
+
 def assemble_workspace(
     store: ResearchStore,
     run_id: UUID,
@@ -50,6 +71,7 @@ def assemble_workspace(
     events = store.list_run_events(run_id)
     report = store.get_report(run_id)
     candidates = store.list_search_candidates(run_id)
+    preferences = store.list_source_preferences(run_id)
     db_ms = (time.perf_counter() - started) * 1000
 
     completed_phases: list[str] = []
@@ -150,6 +172,7 @@ def assemble_workspace(
                 "task_id": str(discovering_task.id) if discovering_task else None,
                 "task_key": discovering_task.task_key if discovering_task else None,
                 "worker_index": indexes.get(discovering_task.task_key) if discovering_task else None,
+                "preference": _source_preference(source.canonical_url, source.domain, preferences),
             }
         )
 
@@ -354,6 +377,7 @@ def assemble_workspace(
         ],
         "workers": workers,
         "sources": source_payloads,
+        "source_preferences": [item.model_dump(mode="json") for item in preferences],
         "snapshots": snapshot_payloads,
         "claims": claim_payloads,
         "evidence": evidence_payloads,
@@ -394,7 +418,10 @@ def assemble_workspace(
         },
         "runtime": {
             "parent_run_id": str(row.parent_run_id) if row and row.parent_run_id else None,
+            "root_run_id": str(row.root_run_id) if row and row.root_run_id else None,
+            "lineage_kind": row.lineage_kind if row else "none",
             "fork_reason": row.fork_reason if row else None,
+            "monitor_id": str(row.monitor_id) if row and row.monitor_id else None,
             "replans_used": int(row.replans_used or 0) if row else 0,
             "config_schema_version": (row.config_snapshot or {}).get("state_schema_version")
             if row and row.config_snapshot

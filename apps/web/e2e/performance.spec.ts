@@ -27,6 +27,10 @@ test.describe("lab network matrix", () => {
       const started = Date.now();
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.locator(".page-title, h1, #content").first()).toBeVisible({ timeout: 20_000 });
+      for (const path of ["/knowledge", "/monitors", "/compare", "/history"]) {
+        await page.goto(path, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("#content").first()).toBeVisible({ timeout: 20_000 });
+      }
       results.push({ name: profile.name, visibleMs: Date.now() - started });
     }
     await session.send("Network.emulateNetworkConditions", {

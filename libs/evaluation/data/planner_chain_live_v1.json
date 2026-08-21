@@ -1,0 +1,125 @@
+{
+  "pass": true,
+  "cases": [
+    {
+      "goal": "Identify the current UN Secretary-General, then determine the statutory duties of the person identified.",
+      "decomposition": "chain",
+      "task_count": 2,
+      "edges": [
+        {
+          "task_key": "identify_current_secretary_general",
+          "depends_on": []
+        },
+        {
+          "task_key": "determine_statutory_duties",
+          "depends_on": [
+            "identify_current_secretary_general"
+          ]
+        }
+      ],
+      "has_dependency": true,
+      "diagnostics": {
+        "initial_decomposition": "chain",
+        "validator_applied": true,
+        "false_simple": false,
+        "notes": "The planner correctly structured the workflow as a sequential dependency chain where identifying the specific officeholder precedes analyzing the duties of the person identified.",
+        "error": null,
+        "validator_decomposition": "chain",
+        "final_decomposition": "chain",
+        "final_task_count": 2,
+        "final_edges": [
+          {
+            "task_key": "identify_current_secretary_general",
+            "depends_on": []
+          },
+          {
+            "task_key": "determine_statutory_duties",
+            "depends_on": [
+              "identify_current_secretary_general"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "goal": "Identify the current WHO Director-General, then report that person's appointment process.",
+      "decomposition": "chain",
+      "task_count": 2,
+      "edges": [
+        {
+          "task_key": "identify_current_who_dg",
+          "depends_on": []
+        },
+        {
+          "task_key": "investigate_appointment_process",
+          "depends_on": [
+            "identify_current_who_dg"
+          ]
+        }
+      ],
+      "has_dependency": true,
+      "diagnostics": {
+        "initial_decomposition": "chain",
+        "validator_applied": true,
+        "false_simple": false,
+        "notes": "The DAG correctly identifies the dependency between determining the incumbent WHO Director-General and researching their specific appointment process.",
+        "error": null,
+        "validator_decomposition": "chain",
+        "final_decomposition": "chain",
+        "final_task_count": 2,
+        "final_edges": [
+          {
+            "task_key": "identify_current_who_dg",
+            "depends_on": []
+          },
+          {
+            "task_key": "investigate_appointment_process",
+            "depends_on": [
+              "identify_current_who_dg"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "goal": "Identify the current US Poet Laureate, then list that person's most recent published collection.",
+      "decomposition": "chain",
+      "task_count": 2,
+      "edges": [
+        {
+          "task_key": "identify_poet_laureate",
+          "depends_on": []
+        },
+        {
+          "task_key": "find_recent_collection",
+          "depends_on": [
+            "identify_poet_laureate"
+          ]
+        }
+      ],
+      "has_dependency": true,
+      "diagnostics": {
+        "initial_decomposition": "chain",
+        "validator_applied": true,
+        "false_simple": false,
+        "notes": "The DAG dependency is properly structured; the bibliography task strictly depends on resolving the identity of the current US Poet Laureate.",
+        "error": null,
+        "validator_decomposition": "chain",
+        "final_decomposition": "chain",
+        "final_task_count": 2,
+        "final_edges": [
+          {
+            "task_key": "identify_poet_laureate",
+            "depends_on": []
+          },
+          {
+            "task_key": "find_recent_collection",
+            "depends_on": [
+              "identify_poet_laureate"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

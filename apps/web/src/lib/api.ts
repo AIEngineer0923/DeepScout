@@ -148,8 +148,81 @@ export const api = {
         body: JSON.stringify(body),
       }),
     ),
-  deleteTemplate: (templateId: string) =>
+    deleteTemplate: (templateId: string) =>
     fetch(`${apiUrl}/api/v1/research-templates/${templateId}`, { method: "DELETE" }).then((response) => {
       if (!response.ok && response.status !== 204) throw new Error(`Request failed (${response.status})`);
     }),
+  followUp: (runId: string, body: { goal: string; inherit_source_preferences?: boolean }) =>
+    parse<{ run_id: string }>(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/follow-up`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  sourcePreferences: (runId: string) =>
+    parse<Array<{ id: string; action: string; identity_kind: string; identity_value: string; reason: string }>>(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/source-preferences`, { cache: "no-store" }),
+    ),
+  setSourcePreference: (runId: string, body: { action: "pin" | "exclude"; identity_kind: "url" | "domain"; identity_value: string; reason?: string }) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-runs/${runId}/source-preferences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  deleteSourcePreference: (runId: string, preferenceId: string) =>
+    fetch(`${apiUrl}/api/v1/research-runs/${runId}/source-preferences/${preferenceId}`, { method: "DELETE" }).then(
+      (response) => {
+        if (!response.ok && response.status !== 204) throw new Error(`Request failed (${response.status})`);
+      },
+    ),
+  diffRuns: (leftId: string, rightId: string) =>
+    parse<Record<string, unknown>>(
+      fetch(`${apiUrl}/api/v1/research-runs/${leftId}/diff/${rightId}`, { cache: "no-store" }),
+    ),
+  listMonitors: () => parse<Record<string, unknown>[]>(fetch(`${apiUrl}/api/v1/research-monitors`, { cache: "no-store" })),
+  createMonitor: (body: Record<string, unknown>) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-monitors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  patchMonitor: (id: string, body: Record<string, unknown>) =>
+    parse(
+      fetch(`${apiUrl}/api/v1/research-monitors/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
+  deleteMonitor: (id: string) =>
+    fetch(`${apiUrl}/api/v1/research-monitors/${id}`, { method: "DELETE" }).then((response) => {
+      if (!response.ok && response.status !== 204) throw new Error(`Request failed (${response.status})`);
+    }),
+  runMonitorNow: (id: string) =>
+    parse<{ run_id: string }>(fetch(`${apiUrl}/api/v1/research-monitors/${id}/run-now`, { method: "POST" })),
+  getMonitor: (id: string) =>
+    parse<Record<string, unknown>>(fetch(`${apiUrl}/api/v1/research-monitors/${id}`, { cache: "no-store" })),
+  knowledgeRuns: () =>
+    parse<Array<{ run_id: string; goal: string; page_count: number }>>(
+      fetch(`${apiUrl}/api/v1/knowledge/runs`, { cache: "no-store" }),
+    ),
+  knowledgePages: (runId: string) =>
+    parse<Array<Record<string, unknown>>>(
+      fetch(`${apiUrl}/api/v1/knowledge/pages?run_id=${runId}`, { cache: "no-store" }),
+    ),
+  knowledgePage: (pageId: string) =>
+    parse<Record<string, unknown>>(fetch(`${apiUrl}/api/v1/knowledge/pages/${pageId}`, { cache: "no-store" })),
+  knowledgeStatement: (statementId: string) =>
+    parse<Record<string, unknown>>(fetch(`${apiUrl}/api/v1/knowledge/statements/${statementId}`, { cache: "no-store" })),
+  knowledgeSearch: (runId: string, q: string) =>
+    parse<Record<string, unknown>>(
+      fetch(`${apiUrl}/api/v1/knowledge/search?run_id=${runId}&q=${encodeURIComponent(q)}`, { cache: "no-store" }),
+    ),
+  knowledgeGraph: (runId: string) =>
+    parse<Record<string, unknown>>(fetch(`${apiUrl}/api/v1/knowledge/graph?run_id=${runId}`, { cache: "no-store" })),
 };

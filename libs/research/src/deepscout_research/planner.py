@@ -69,6 +69,13 @@ def build_research_plan(
         from deepscout_research.skills.loader import skill_catalog_for_prompt
 
         context.domain_state["skill_catalog"] = skill_catalog_for_prompt()
+    if store is not None:
+        row = store.get_run_row(run_id)
+        followup = (row.config_snapshot or {}).get("followup_context") if row else None
+        if isinstance(followup, dict):
+            context.retrieved_data.append(
+                "HISTORICAL DATA (not evidence authority): " + str(followup)[:3000]
+            )
     messages = [
         SystemMessage(content=compose_system_message(planner_spec)),
         HumanMessage(content=context.render_user_content()),
@@ -102,7 +109,17 @@ def build_research_plan(
         )
     if not isinstance(parsed, PlannerStructuredOutput):
         parsed = PlannerStructuredOutput.model_validate(parsed)
-    return repair_plan(_structured_to_planner_output(parsed))
+    draft = _structured_to_planner_output(parsed)
+    if planner_spec.prompt_version == "1":
+        return repair_plan(draft)
+    from deepscout_research.runtime.dependency_validator import finalize_plan
+
+    repaired, diagnostics = finalize_plan(
+        settings, run_id=run_id, goal=goal, output=draft, store=store
+    )
+    if store is not None:
+        store.merge_config_snapshot(run_id, {"plan_diagnostics": diagnostics})
+    return repaired
 
 
 def _structured_to_planner_output(parsed: PlannerStructuredOutput) -> PlannerOutput:
@@ -120,6 +137,9 @@ def _structured_to_planner_output(parsed: PlannerStructuredOutput) -> PlannerOut
                 question_text=task.objective,
                 depends_on=[dep[:64] for dep in task.depends_on],
                 priority=min(5, max(1, int(task.priority or 3))),
+                dependency_reason=(task.dependency_reason or "")[:500],
+                required_inputs=(task.required_inputs or "")[:500],
+                produced_output=(task.produced_output or "")[:500],
             )
         )
     return PlannerOutput(

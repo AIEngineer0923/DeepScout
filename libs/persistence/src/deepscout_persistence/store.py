@@ -45,6 +45,8 @@ from deepscout_core.domain.schemas import (
     DecisionWrite,
     EvidenceWrite,
     ReportWrite,
+    ResearchMonitorCreate,
+    ResearchMonitorRead,
     ResearchPlanWrite,
     ResearchQuestionRead,
     ResearchRunCreate,
@@ -53,9 +55,12 @@ from deepscout_core.domain.schemas import (
     ResearchTemplateCreate,
     ResearchTemplateRead,
     SearchCandidateWrite,
+    SourcePreferenceRead,
+    SourcePreferenceWrite,
     SourceSnapshotWrite,
     SourceWrite,
     ToolExecutionWrite,
+    WebVitalWrite,
 )
 from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
@@ -77,9 +82,11 @@ from deepscout_persistence.models import (
     ReportEvidenceRow,
     ReportRow,
     ResearchJobRow,
+    ResearchMonitorRow,
     ResearchPlanRow,
     ResearchQuestionRow,
     ResearchRunRow,
+    ResearchSourcePreferenceRow,
     ResearchTaskRow,
     ResearchTemplateRow,
     ReviewEventRow,
@@ -91,12 +98,14 @@ from deepscout_persistence.models import (
     SourceSnapshotRow,
     TokenUsageRecordRow,
     ToolExecutionRow,
+    WebVitalSampleRow,
 )
 
 
 class ResearchStore:
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._pending_notifies: set[uuid.UUID] = set()
 
     def create_run(
         self,
@@ -106,6 +115,9 @@ class ResearchStore:
         config_snapshot: dict | None = None,
         parent_run_id: uuid.UUID | None = None,
         fork_reason: str | None = None,
+        root_run_id: uuid.UUID | None = None,
+        monitor_id: uuid.UUID | None = None,
+        lineage_kind: str = "none",
     ) -> ResearchRunRead:
         budget = payload.budget or settings.default_research_budget()
         budget = _budget_for_mode(budget, payload.research_mode)
@@ -127,6 +139,9 @@ class ResearchStore:
             config_snapshot=config_snapshot,
             parent_run_id=parent_run_id,
             fork_reason=fork_reason,
+            root_run_id=root_run_id or parent_run_id,
+            monitor_id=monitor_id,
+            lineage_kind=lineage_kind,
         )
         self._session.add(row)
         self._session.flush()
@@ -292,6 +307,12 @@ class ResearchStore:
                     priority=task.priority,
                     depends_on=list(task.depends_on),
                     allowed_tools=list(task.allowed_tools),
+                    task_meta={
+                        "dependency_reason": task.dependency_reason,
+                        "required_inputs": task.required_inputs,
+                        "produced_output": task.produced_output,
+                        "parallel_safe": task.parallel_safe,
+                    },
                 )
             )
         self._session.flush()
@@ -1150,13 +1171,7 @@ class ResearchStore:
         )
         self._session.add(row)
         self._session.flush()
-        try:
-            self._session.execute(
-                text("SELECT pg_notify('deepscout_run_events', :payload)"),
-                {"payload": str(run_id)},
-            )
-        except Exception:
-            pass
+        self._pending_notifies.add(run_id)
         return row
 
     def list_run_events(self, run_id: uuid.UUID, *, after_sequence: int = 0) -> list[RunEventRow]:
@@ -1463,7 +1478,22 @@ class ResearchStore:
         self._session.expire_all()
 
     def commit(self) -> None:
+        pending = set(self._pending_notifies)
+        self._pending_notifies.clear()
         self._session.commit()
+        if not pending:
+            return
+        try:
+            bind = self._session.get_bind()
+            with bind.connect() as conn:
+                autocommit = conn.execution_options(isolation_level="AUTOCOMMIT")
+                for run_id in pending:
+                    autocommit.execute(
+                        text("SELECT pg_notify('deepscout_run_events', :payload)"),
+                        {"payload": str(run_id)},
+                    )
+        except Exception:
+            pass
 
     def get_concurrency_limit(self, run_id: uuid.UUID) -> int:
         return self._require_run(run_id).concurrency_limit
@@ -1602,6 +1632,240 @@ class ResearchStore:
         self._session.flush()
         return True
 
+    def merge_config_snapshot(self, run_id: uuid.UUID, extra: dict) -> None:
+        row = self._require_run(run_id)
+        snap = dict(row.config_snapshot or {})
+        snap.update(extra)
+        row.config_snapshot = snap
+        self._session.flush()
+
+    def list_source_preferences(self, run_id: uuid.UUID) -> list[SourcePreferenceRead]:
+        rows = self._session.scalars(
+            select(ResearchSourcePreferenceRow)
+            .where(ResearchSourcePreferenceRow.research_run_id == run_id)
+            .order_by(ResearchSourcePreferenceRow.created_at)
+        ).all()
+        return [_pref_to_read(row) for row in rows]
+
+    def upsert_source_preference(
+        self, run_id: uuid.UUID, payload: SourcePreferenceWrite, *, origin: str = "user"
+    ) -> SourcePreferenceRead:
+        self._require_run(run_id)
+        identity = payload.identity_value.strip()[:2048]
+        if payload.identity_kind == "domain":
+            identity = identity.lower().lstrip(".")
+        existing = self._session.scalar(
+            select(ResearchSourcePreferenceRow).where(
+                ResearchSourcePreferenceRow.research_run_id == run_id,
+                ResearchSourcePreferenceRow.action == payload.action,
+                ResearchSourcePreferenceRow.identity_kind == payload.identity_kind,
+                ResearchSourcePreferenceRow.identity_value == identity,
+            )
+        )
+        if existing is not None:
+            existing.reason = payload.reason
+            existing.origin = origin
+            self._session.flush()
+            return _pref_to_read(existing)
+        row = ResearchSourcePreferenceRow(
+            research_run_id=run_id,
+            action=payload.action,
+            identity_kind=payload.identity_kind,
+            identity_value=identity,
+            reason=payload.reason,
+            origin=origin,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return _pref_to_read(row)
+
+    def delete_source_preference(self, run_id: uuid.UUID, preference_id: uuid.UUID) -> bool:
+        row = self._session.get(ResearchSourcePreferenceRow, preference_id)
+        if row is None or row.research_run_id != run_id:
+            return False
+        self._session.delete(row)
+        self._session.flush()
+        return True
+
+    def copy_source_preferences(self, from_run_id: uuid.UUID, to_run_id: uuid.UUID) -> int:
+        copied = 0
+        for item in self.list_source_preferences(from_run_id):
+            self.upsert_source_preference(
+                to_run_id,
+                SourcePreferenceWrite(
+                    action=item.action,  # type: ignore[arg-type]
+                    identity_kind=item.identity_kind,  # type: ignore[arg-type]
+                    identity_value=item.identity_value,
+                    reason=item.reason,
+                ),
+                origin="inherited",
+            )
+            copied += 1
+        return copied
+
+    def count_monitors(self) -> int:
+        return int(self._session.scalar(select(func.count()).select_from(ResearchMonitorRow)) or 0)
+
+    def create_monitor(
+        self, payload: ResearchMonitorCreate, *, next_run_at: datetime
+    ) -> ResearchMonitorRow:
+        row = ResearchMonitorRow(
+            name=payload.name.strip(),
+            goal=payload.goal.strip(),
+            schedule_kind=payload.schedule_kind,
+            timezone=payload.timezone,
+            hour=payload.hour,
+            minute=payload.minute,
+            weekday=payload.weekday,
+            interval_minutes=payload.interval_minutes,
+            enabled=payload.enabled,
+            research_mode=payload.research_mode,
+            template_id=payload.template_id,
+            next_run_at=next_run_at,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row
+
+    def get_monitor(self, monitor_id: uuid.UUID) -> ResearchMonitorRow | None:
+        return self._session.get(ResearchMonitorRow, monitor_id)
+
+    def list_monitors(self) -> list[ResearchMonitorRow]:
+        return list(
+            self._session.scalars(
+                select(ResearchMonitorRow).order_by(ResearchMonitorRow.updated_at.desc())
+            ).all()
+        )
+
+    def list_monitor_runs(self, monitor_id: uuid.UUID) -> list[ResearchRunRow]:
+        return list(
+            self._session.scalars(
+                select(ResearchRunRow)
+                .where(ResearchRunRow.monitor_id == monitor_id)
+                .order_by(ResearchRunRow.created_at.desc())
+                .limit(50)
+            ).all()
+        )
+
+    def claim_due_monitors(
+        self, owner: str, *, now: datetime, lease_seconds: int
+    ) -> list[ResearchMonitorRow]:
+        lease_until = now + timedelta(seconds=lease_seconds)
+        rows = list(
+            self._session.scalars(
+                select(ResearchMonitorRow)
+                .where(
+                    ResearchMonitorRow.enabled.is_(True),
+                    ResearchMonitorRow.next_run_at <= now,
+                    (ResearchMonitorRow.lease_until.is_(None))
+                    | (ResearchMonitorRow.lease_until < now),
+                )
+                .order_by(ResearchMonitorRow.next_run_at)
+                .limit(5)
+                .with_for_update(skip_locked=True)
+            ).all()
+        )
+        for row in rows:
+            row.lease_owner = owner
+            row.lease_until = lease_until
+        self._session.flush()
+        return rows
+
+    def monitor_has_active_run(self, monitor_id: uuid.UUID) -> bool:
+        row = self._session.scalar(
+            select(ResearchRunRow).where(
+                ResearchRunRow.monitor_id == monitor_id,
+                ResearchRunRow.status.in_(
+                    [
+                        ResearchRunStatus.PENDING,
+                        ResearchRunStatus.RUNNING,
+                        ResearchRunStatus.PAUSED,
+                    ]
+                ),
+            )
+        )
+        return row is not None
+
+    def complete_monitor_dispatch(
+        self,
+        monitor_id: uuid.UUID,
+        *,
+        run_id: uuid.UUID,
+        next_run_at: datetime,
+        now: datetime,
+    ) -> None:
+        row = self.get_monitor(monitor_id)
+        if row is None:
+            return
+        row.last_run_id = run_id
+        row.last_run_at = now
+        row.next_run_at = next_run_at
+        row.lease_until = None
+        row.lease_owner = None
+        self._session.flush()
+
+    def release_monitor_lease(self, monitor_id: uuid.UUID, *, next_run_at: datetime) -> None:
+        row = self.get_monitor(monitor_id)
+        if row is None:
+            return
+        row.next_run_at = next_run_at
+        row.lease_until = None
+        row.lease_owner = None
+        self._session.flush()
+
+    def fail_monitor_dispatch(self, monitor_id: uuid.UUID, *, next_run_at: datetime) -> None:
+        self.release_monitor_lease(monitor_id, next_run_at=next_run_at)
+
+    def record_monitor_change(self, monitor_id: uuid.UUID, *, now: datetime) -> None:
+        row = self.get_monitor(monitor_id)
+        if row is None:
+            return
+        row.last_change_at = now
+        row.last_success_at = now
+        self._session.flush()
+
+    def record_web_vital(self, payload: WebVitalWrite) -> None:
+        route = payload.route[:128]
+        allowed_exact = {
+            "/",
+            "/research/new",
+            "/history",
+            "/reviews",
+            "/settings",
+            "/knowledge",
+            "/monitors",
+            "/compare",
+            "/research",
+        }
+        allowed_prefixes = ("/research/", "/knowledge/", "/monitors/", "/resume/")
+        if route not in allowed_exact and not any(route.startswith(prefix) for prefix in allowed_prefixes):
+            return
+        recent = int(
+            self._session.scalar(
+                select(func.count())
+                .select_from(WebVitalSampleRow)
+                .where(WebVitalSampleRow.created_at > datetime.now(UTC) - timedelta(minutes=1))
+            )
+            or 0
+        )
+        if recent >= 60:
+            return
+        self._session.add(
+            WebVitalSampleRow(
+                route=route,
+                lcp_ms=payload.lcp_ms,
+                inp_ms=payload.inp_ms,
+                cls=payload.cls,
+                ttfb_ms=payload.ttfb_ms,
+                fcp_ms=payload.fcp_ms,
+                navigation_type=payload.navigation_type[:32],
+                device_class=payload.device_class[:32],
+                network_class=payload.network_class[:32],
+                source=payload.source,
+            )
+        )
+        self._session.flush()
+
     def _require_run(self, run_id: uuid.UUID) -> ResearchRunRow:
         row = self._session.get(ResearchRunRow, run_id)
         if row is None:
@@ -1617,6 +1881,44 @@ def _template_to_read(row: ResearchTemplateRow) -> ResearchTemplateRead:
         goal=row.goal,
         research_mode=mode,
         output_language=row.output_language,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _pref_to_read(row: ResearchSourcePreferenceRow) -> SourcePreferenceRead:
+    return SourcePreferenceRead(
+        id=row.id,
+        research_run_id=row.research_run_id,
+        action=row.action,
+        identity_kind=row.identity_kind,
+        identity_value=row.identity_value,
+        reason=row.reason,
+        origin=row.origin,
+        created_at=row.created_at,
+    )
+
+
+def _monitor_to_read(row: ResearchMonitorRow, *, status: str = "active") -> ResearchMonitorRead:
+    return ResearchMonitorRead(
+        id=row.id,
+        name=row.name,
+        goal=row.goal,
+        schedule_kind=row.schedule_kind,
+        timezone=row.timezone,
+        hour=row.hour,
+        minute=row.minute,
+        weekday=row.weekday,
+        interval_minutes=row.interval_minutes,
+        enabled=row.enabled,
+        status=status,
+        research_mode=row.research_mode,
+        template_id=row.template_id,
+        last_run_id=row.last_run_id,
+        last_run_at=row.last_run_at,
+        next_run_at=row.next_run_at,
+        last_success_at=row.last_success_at,
+        last_change_at=row.last_change_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

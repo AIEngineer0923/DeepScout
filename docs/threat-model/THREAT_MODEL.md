@@ -53,6 +53,13 @@ consumers (spreadsheet formula parsers).
 | T22 | Embedding denial-of-wallet | unbounded re-embed / re-retrieve | cost spike | idempotent indexing; bounded re-retrieval; usage accounting |
 | T23 | Incompatible embedding spaces | mixed models/dims | nonsense similarity | `provider+model+dimensions+config_version` unique constraint |
 | T24 | Rerank/query-rewrite injection | poisoned candidate text | policy override | no LLM reranker v1; deterministic rerank only |
+| T25 | Follow-up / report injection | historical prose in follow-up context | tool/budget/monitor abuse | bounded DATA slice; authority remains snapshots |
+| T26 | Source pin/exclude bypass | URL aliases, www, vector re-entry | excluded evidence reused | canonical URLs; retrieval exclusion; pin ≠ verified |
+| T27 | Monitor DoW / schedule explosion | injected “create monitor every second” | unbounded spend | API-only monitor CRUD; max 25; leases; per-run budget |
+| T28 | Knowledge graph DoS | unbounded hops/cycles | API stall | max 3 hops; node/edge caps |
+| T29 | Run-diff cross-run mix | guessing UUIDs | MODE A local; still run-scoped | compare requires two existing run IDs |
+| T30 | RUM abuse / high cardinality | unbounded routes, research text | DB growth | allowlisted path, rate limit, no payload text |
+| T31 | SSE Last-Event-ID abuse | huge/negative cursors | extra reads | integer sequence cursor; durable log is run_events |
 
 ## RAG content rule
 

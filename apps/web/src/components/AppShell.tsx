@@ -146,6 +146,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <IconHistory />
             {t("nav.history")}
           </Link>
+          <Link href="/knowledge" className={`nav-link ${pathname.startsWith("/knowledge") ? "active" : ""}`}>
+            <IconClaims />
+            {t("nav.knowledge")}
+          </Link>
+          <Link href="/monitors" className={`nav-link ${pathname.startsWith("/monitors") ? "active" : ""}`}>
+            <IconLive />
+            {t("nav.monitors")}
+          </Link>
+          <Link href="/compare" className={`nav-link ${pathname.startsWith("/compare") ? "active" : ""}`}>
+            <IconEvals />
+            {t("nav.compare")}
+          </Link>
           {runId ? (
             <Link href={`/resume/${runId}`} className={`nav-link ${pathname.startsWith("/resume") ? "active" : ""}`}>
               <IconResume />
@@ -212,6 +224,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/research/new">{t("nav.mobile.new")}</Link>
           <Link href={runId ? `/research/${runId}` : "/research/select"}>{t("nav.mobile.run")}</Link>
           <Link href="/history">{t("nav.history")}</Link>
+          <Link href="/knowledge">{t("nav.knowledge")}</Link>
           <Link href="/settings">{t("nav.settings")}</Link>
         </nav>
       </div>

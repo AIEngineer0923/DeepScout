@@ -56,6 +56,9 @@ class PlannerTask(BaseModel):
     parallel_safe: bool = True
     expected_output: Literal["sources", "facts", "synthesis"] = "facts"
     skill_hint: str | None = Field(default=None, max_length=64)
+    dependency_reason: str = Field(default="", max_length=500)
+    required_inputs: str = Field(default="", max_length=500)
+    produced_output: str = Field(default="", max_length=500)
 
     @field_validator("allowed_tools")
     @classmethod
@@ -82,6 +85,29 @@ class PlannerStructuredTask(BaseModel):
     objective: str
     depends_on: list[str] = Field(default_factory=list)
     priority: int = 3
+    dependency_reason: str = ""
+    required_inputs: str = ""
+    produced_output: str = ""
+
+
+class DependencyValidatorTask(BaseModel):
+    """Gemini-safe validator task. May split a false-simple plan into a chain."""
+
+    task_key: str
+    objective: str
+    depends_on: list[str] = Field(default_factory=list)
+    dependency_reason: str = ""
+    parallel_safe: bool = True
+    priority: int = 3
+
+
+class DependencyValidatorOutput(BaseModel):
+    """One bounded semantic pass. Not chain-of-thought; auditable DAG corrections only."""
+
+    decomposition: str
+    false_simple: bool = False
+    notes: str = ""
+    tasks: list[DependencyValidatorTask] = Field(default_factory=list)
 
 
 class PlannerStructuredOutput(BaseModel):
@@ -237,3 +263,78 @@ class ResearchTemplateRead(BaseModel):
     output_language: str
     created_at: datetime
     updated_at: datetime
+
+
+class FollowUpCreate(BaseModel):
+    goal: str = Field(min_length=1, max_length=8000)
+    inherit_source_preferences: bool = True
+    research_mode: Literal["quick", "standard", "deep"] | None = None
+    output_language: str | None = Field(default=None, max_length=16)
+
+
+class SourcePreferenceWrite(BaseModel):
+    action: Literal["pin", "exclude"]
+    identity_kind: Literal["url", "domain"] = "url"
+    identity_value: str = Field(min_length=1, max_length=2048)
+    reason: str = Field(default="", max_length=500)
+
+
+class SourcePreferenceRead(BaseModel):
+    id: UUID
+    research_run_id: UUID
+    action: str
+    identity_kind: str
+    identity_value: str
+    reason: str
+    origin: str
+    created_at: datetime
+
+
+class ResearchMonitorCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    goal: str = Field(min_length=1, max_length=8000)
+    schedule_kind: Literal["daily", "weekly", "interval"] = "daily"
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
+    hour: int = Field(default=9, ge=0, le=23)
+    minute: int = Field(default=0, ge=0, le=59)
+    weekday: int = Field(default=0, ge=0, le=6)
+    interval_minutes: int = Field(default=1440, ge=15, le=10080)
+    research_mode: Literal["quick", "standard", "deep"] = "standard"
+    template_id: UUID | None = None
+    enabled: bool = True
+
+
+class ResearchMonitorRead(BaseModel):
+    id: UUID
+    name: str
+    goal: str
+    schedule_kind: str
+    timezone: str
+    hour: int
+    minute: int
+    weekday: int
+    interval_minutes: int
+    enabled: bool
+    status: str
+    research_mode: str
+    template_id: UUID | None = None
+    last_run_id: UUID | None = None
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    last_success_at: datetime | None = None
+    last_change_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class WebVitalWrite(BaseModel):
+    route: str = Field(min_length=1, max_length=128)
+    lcp_ms: float | None = Field(default=None, ge=0, le=120_000)
+    inp_ms: float | None = Field(default=None, ge=0, le=30_000)
+    cls: float | None = Field(default=None, ge=0, le=10)
+    ttfb_ms: float | None = Field(default=None, ge=0, le=60_000)
+    fcp_ms: float | None = Field(default=None, ge=0, le=60_000)
+    navigation_type: str = Field(default="navigate", max_length=32)
+    device_class: str = Field(default="unknown", max_length=32)
+    network_class: str = Field(default="unknown", max_length=32)
+    source: Literal["field", "lab"] = "field"

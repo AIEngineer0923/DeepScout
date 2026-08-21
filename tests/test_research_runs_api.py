@@ -170,3 +170,61 @@ def test_research_templates_crud(api_client: TestClient) -> None:
     deleted = api_client.delete(f"/api/v1/research-templates/{template_id}")
     assert deleted.status_code == 204
     assert api_client.get("/api/v1/research-templates").json() == []
+
+
+def test_followup_requires_finished_run(api_client: TestClient) -> None:
+    created = api_client.post("/api/v1/research-runs", json={"goal": "parent still running"})
+    run_id = created.json()["id"]
+    follow = api_client.post(
+        f"/api/v1/research-runs/{run_id}/follow-up",
+        json={"goal": "dig deeper"},
+    )
+    assert follow.status_code == 409
+
+
+def test_source_preference_and_rum(api_client: TestClient) -> None:
+    created = api_client.post("/api/v1/research-runs", json={"goal": "source control"})
+    run_id = created.json()["id"]
+    pinned = api_client.post(
+        f"/api/v1/research-runs/{run_id}/source-preferences",
+        json={"action": "pin", "identity_kind": "url", "identity_value": "https://example.com/a"},
+    )
+    assert pinned.status_code == 201
+    listed = api_client.get(f"/api/v1/research-runs/{run_id}/source-preferences")
+    assert listed.json()[0]["action"] == "pin"
+    rum = api_client.post(
+        "/api/v1/rum/vitals",
+        json={
+            "route": "/",
+            "lcp_ms": 1200,
+            "source": "lab",
+            "device_class": "desktop",
+            "network_class": "wifi",
+        },
+    )
+    assert rum.status_code == 204
+    bad = api_client.post("/api/v1/rum/vitals", json={"route": "not-a-path", "source": "field"})
+    assert bad.status_code == 400
+    cardinality = api_client.post("/api/v1/rum/vitals", json={"route": "/admin", "source": "field"})
+    assert cardinality.status_code == 400
+
+
+def test_monitor_crud_and_compare_same_run(api_client: TestClient) -> None:
+    created = api_client.post(
+        "/api/v1/research-monitors",
+        json={"name": "Daily", "goal": "Track battery regs", "timezone": "UTC", "hour": 9},
+    )
+    assert created.status_code == 201
+    monitor_id = created.json()["id"]
+    listed = api_client.get("/api/v1/research-monitors")
+    assert listed.json()[0]["name"] == "Daily"
+    patched = api_client.patch(f"/api/v1/research-monitors/{monitor_id}", json={"enabled": False})
+    assert patched.json()["enabled"] is False
+    run = api_client.post("/api/v1/research-runs", json={"goal": "compare"})
+    run_id = run.json()["id"]
+    same = api_client.get(f"/api/v1/research-runs/{run_id}/diff/{run_id}")
+    assert same.status_code == 400
+    knowledge = api_client.get("/api/v1/knowledge/runs")
+    assert knowledge.status_code == 200
+    deleted = api_client.delete(f"/api/v1/research-monitors/{monitor_id}")
+    assert deleted.status_code == 204

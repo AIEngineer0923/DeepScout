@@ -71,6 +71,47 @@ class ResearchOrchestrator:
         self._sink = event_sink
         self._max_correction_rounds = 1
 
+    def _seed_pinned_sources(self, run_id: uuid.UUID) -> None:
+        from urllib.parse import urlparse
+
+        from deepscout_core.domain.schemas import SourceWrite
+
+        from deepscout_research.fetch.secure import public_http_url_or_none
+
+        for pref in self._store.list_source_preferences(run_id):
+            if pref.action != "pin" or pref.identity_kind != "url":
+                continue
+            safe_url = public_http_url_or_none(pref.identity_value)
+            if safe_url is None:
+                continue
+            self._store.add_source(
+                run_id,
+                SourceWrite(
+                    canonical_url=safe_url,
+                    title=pref.identity_value,
+                    domain=urlparse(safe_url).netloc,
+                ),
+            )
+
+    def _record_monitor_change(self, run_id: uuid.UUID) -> None:
+        row = self._store.get_run_row(run_id)
+        if row is None or row.monitor_id is None:
+            return
+        previous = [
+            item
+            for item in self._store.list_monitor_runs(row.monitor_id)
+            if item.id != run_id and item.status.value == "completed"
+        ]
+        if not previous:
+            return
+        from datetime import UTC, datetime
+
+        from deepscout_research.monitors.change import detect_run_change
+
+        result = detect_run_change(self._store, previous[0].id, run_id)
+        if result["changed"]:
+            self._store.record_monitor_change(row.monitor_id, now=datetime.now(UTC))
+
     def _ensure_active(self, run_id: uuid.UUID) -> None:
         run = self._store.get_run(run_id)
         if run is not None and run.status == ResearchRunStatus.CANCELLED:
@@ -165,6 +206,7 @@ class ResearchOrchestrator:
         self._store.reclaim_stale_running_tasks(
             run_id, stale_after_seconds=self._settings.research_task_stale_after_s
         )
+        self._seed_pinned_sources(run_id)
         self._emit(ResearchEvent(event_type=ResearchEventType.RUN_STARTED, run_id=run_id))
 
         iterations = 0
@@ -203,6 +245,7 @@ class ResearchOrchestrator:
                     payload={"reason": reason},
                 )
             )
+            self._record_monitor_change(run_id)
             return OrchestratorResult(
                 run_id=run_id,
                 final_status=terminal_status,
@@ -543,6 +586,10 @@ class ResearchOrchestrator:
         for result in results:
             safe_url = public_http_url_or_none(result.url)
             if safe_url is None:
+                continue
+            from deepscout_research.source_policy import is_excluded
+
+            if is_excluded(safe_url, self._store.list_source_preferences(run_id)):
                 continue
             domain = urlparse(safe_url).netloc
             _, created = self._store.add_source(

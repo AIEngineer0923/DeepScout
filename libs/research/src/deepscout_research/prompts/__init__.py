@@ -2,6 +2,7 @@
 
 from deepscout_research.prompts.registry import (
     CRITIC_V1,
+    DEPENDENCY_VALIDATOR_V1,
     EXTRACTOR_V1,
     PLANNER_V1,
     PLANNER_V2,
@@ -17,6 +18,7 @@ from deepscout_research.prompts.spec import PromptSpec, PromptStatus
 
 __all__ = [
     "CRITIC_V1",
+    "DEPENDENCY_VALIDATOR_V1",
     "EXTRACTOR_V1",
     "PLANNER_V1",
     "PLANNER_V2",
