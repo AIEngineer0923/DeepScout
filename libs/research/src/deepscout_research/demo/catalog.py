@@ -73,7 +73,8 @@ DEMO_CATALOG: tuple[DemoCatalogEntry, ...] = (
         "slug": "transformer-attention-evidence",
         "goal": (
             "Review peer-reviewed evidence on scaling laws for transformer attention in large "
-            "language models, citing primary papers, official datasets, and reproducible benchmarks."
+            "language models, citing primary papers, official datasets, and "
+            "reproducible benchmarks."
         ),
         "category": "scientific",
         "title": "Transformer scaling evidence review",
