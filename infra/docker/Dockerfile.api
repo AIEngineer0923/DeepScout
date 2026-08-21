@@ -2,7 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN adduser --disabled-password --gecos "" --uid 10001 deepscout \
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && adduser --disabled-password --gecos "" --uid 10001 deepscout \
     && pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock ./
@@ -26,5 +29,7 @@ RUN uv sync --all-packages --no-dev \
 USER deepscout
 EXPOSE 8000
 ENV APP_ENV=production APP_DEBUG=false API_HOST=0.0.0.0 RATE_LIMIT_ENABLED=true
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
 
 CMD ["uv", "run", "deepscout-api"]

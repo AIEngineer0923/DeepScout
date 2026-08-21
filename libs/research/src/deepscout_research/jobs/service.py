@@ -16,6 +16,9 @@ class JobService:
         self._lease_seconds = lease_seconds
 
     def enqueue_execute_run(self, run_id: uuid.UUID) -> ResearchJobRow:
+        active = self._store.find_active_job(run_id)
+        if active is not None:
+            return active
         return self._store.enqueue_job(
             run_id,
             job_type=ResearchJobType.EXECUTE_RUN,
@@ -23,6 +26,9 @@ class JobService:
         )
 
     def enqueue_resume_run(self, run_id: uuid.UUID) -> ResearchJobRow:
+        active = self._store.find_active_job(run_id)
+        if active is not None:
+            return active
         return self._store.enqueue_job(
             run_id,
             job_type=ResearchJobType.RESUME_RUN,

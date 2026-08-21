@@ -18,13 +18,15 @@ Include: description, reproduction steps, impact, and suggested fix if available
 
 ## Threat assumptions
 
-DeepScout is a **local trusted single-user** research workstation.
+DeepScout is a **MODE A — local / trusted-network** research workstation.
 
 - There is no multi-user authentication, session, JWT, or tenant isolation.
 - Any process that can reach the API can create/execute/cancel/export every run.
 - Binding the API to a public interface without an authenticating reverse proxy
   is **not a supported production posture**.
 - Retrieved web content, model output, and export payloads are untrusted data.
+- **MODE B (public Internet with first-party auth) is not implemented** and is
+  not a current product goal. Do not treat UUID secrecy as authorization.
 
 ## Security principles
 
@@ -45,7 +47,16 @@ Recommended defaults for a workstation:
 - `RATE_LIMIT_ENABLED=true` if the host is shared
 - `ENABLE_SMOKE_AGENT=false`
 - `CORS_ORIGINS` limited to the local web origin
+- `LANGSMITH_TRACING=false` unless you explicitly accept remote research traces
 - provider keys only in `.env`, never in the browser
+- Compose ports published on `127.0.0.1` only; Compose DB password is local-lab only
+
+## Database
+
+- Queries go through SQLAlchemy bound parameters / the ORM. Do not concatenate SQL.
+- The Compose role `deepscout`/`deepscout` is a local lab credential only.
+- For a remote Postgres, use a least-privilege application role (CONNECT + DML on app schemas, no SUPERUSER) and `sslmode=require` in `DATABASE_URL`.
+- Connection pooling is per process (`pool_size=5`, `max_overflow=10`). Do not create engines per request.
 
 Internet-facing deployment requires, at minimum:
 

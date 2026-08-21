@@ -36,6 +36,9 @@ jobs:
             .env.example
             docs/PROJECT_SPEC.md
             docs/threat-model/THREAT_MODEL.md
+            docs/DEPLOYMENT.md
+            docs/architecture/LANGSMITH_PRIVACY.md
+            docs/architecture/HTTP_PRODUCTION_CONTRACT.md
             .semgrep.yml
           )
           for f in "${required[@]}"; do

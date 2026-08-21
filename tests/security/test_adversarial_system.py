@@ -47,6 +47,20 @@ def test_private_search_hits_are_dropped() -> None:
     assert public_http_url_or_none("https://example.com/ok") is not None
 
 
+def test_tracing_defaults_off_and_env_is_explicit() -> None:
+    import os
+
+    from deepscout_core.settings import Settings
+
+    from deepscout_api.main import configure_observability
+
+    settings = Settings(_env_file=None, LANGSMITH_TRACING=False, LANGSMITH_API_KEY=None)
+    os.environ["LANGSMITH_TRACING"] = "true"
+    configure_observability(settings)
+    assert settings.langsmith_tracing is False
+    assert os.environ["LANGSMITH_TRACING"] == "false"
+
+
 def test_trace_redaction_covers_authorization_aliases() -> None:
     redacted = redact_trace_inputs(
         {

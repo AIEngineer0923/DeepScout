@@ -245,7 +245,14 @@ def stream_run_events(run_id: UUID, store=Depends(get_research_store)):
 
             time.sleep(1)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{run_id}/summary", response_model=RunSummaryResponse)

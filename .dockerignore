@@ -1,5 +1,9 @@
 .git
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
 .venv
 **/__pycache__
 **/.pytest_cache
@@ -7,3 +11,7 @@
 **/node_modules
 **/.next
 apps/web/.next
+tests
+.github
+.cursor
+agent-transcripts

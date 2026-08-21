@@ -2,8 +2,11 @@
 
 ## Environment
 
+Tracing is **off by default**. Enabling it sends research content to LangSmith.
+See [LANGSMITH_PRIVACY.md](LANGSMITH_PRIVACY.md).
+
 ```bash
-LANGSMITH_TRACING=true
+LANGSMITH_TRACING=false
 LANGSMITH_API_KEY=<local only>
 LANGSMITH_PROJECT=deepscout-dev
 ```

@@ -9,6 +9,10 @@ synthesis with provenance and confidence.
 
 This is **not** a chatbot or a simple RAG demo.
 
+**Deployment model (MODE A):** DeepScout is a local / trusted-network workstation.
+There is no user authentication. Do not expose the API to the public Internet.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
+
 ## Status
 
 | Phase | State |
@@ -49,6 +53,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full picture.
 | [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md) | Project identity |
 | [docs/architecture/](docs/architecture/) | Detailed design |
 | [docs/threat-model/THREAT_MODEL.md](docs/threat-model/THREAT_MODEL.md) | Security threat model |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Local/trusted deployment (MODE A) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guide |
 | [SECURITY.md](SECURITY.md) | Security policy |
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from deepscout_core.settings import Settings, get_settings
 from fastapi import APIRouter, Depends
-from sqlalchemy import create_engine, text
 
 from deepscout_api.deps import get_research_store
+from deepscout_api.probes import probe_postgres
 from deepscout_api.routes.research_runs import _list_item
 
 router = APIRouter(prefix="/api/v1", tags=["product"])
@@ -47,15 +47,7 @@ def product_overview(
 
 @router.get("/settings")
 def product_settings(settings: Settings = Depends(get_settings)) -> dict:
-    postgres = "unknown"
-    try:
-        engine = create_engine(settings.database_url, pool_pre_ping=True)
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        postgres = "ok"
-        engine.dispose()
-    except Exception:
-        postgres = "unavailable"
+    postgres = probe_postgres(settings.database_url)
     return {
         "identity": {"label": "Local workspace", "role": "Operator", "plan": None},
         "providers": _provider_status(settings),

@@ -47,6 +47,7 @@ consumers (spreadsheet formula parsers).
 | T16 | Unauthenticated remote API | bind `0.0.0.0` | full data/cost access | default bind localhost; document as unsupported Internet posture |
 | T17 | CSV formula injection | export | spreadsheet code exec | prefix sanitization |
 | T18 | Checkpoint cross-run | forged thread id | state mix | `run_id:task_id` thread IDs; domain DB authoritative |
+| T19 | LangSmith data export | tracing left on | research text leaves host | default `LANGSMITH_TRACING=false`; key-name redaction; documented opt-in |
 
 ## Content rule
 

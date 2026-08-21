@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY")
 
-    langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
+    langsmith_tracing: bool = Field(default=False, alias="LANGSMITH_TRACING")
     langsmith_api_key: SecretStr | None = Field(default=None, alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(default="deepscout-dev", alias="LANGSMITH_PROJECT")
     langsmith_workspace_id: str | None = Field(default=None, alias="LANGSMITH_WORKSPACE_ID")

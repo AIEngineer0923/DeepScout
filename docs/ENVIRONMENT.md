@@ -75,7 +75,9 @@ External contributors do **not** need any private tooling to clone, test, or con
 
 ## Production
 
-Production host, domain, and deploy workflow: TBD (Phase 10+).
+Supported production-like use is **MODE A** (local or trusted network). See
+[DEPLOYMENT.md](DEPLOYMENT.md). Public Internet with first-party auth is not
+implemented (Phase 10+).
 
 `CONTROLLED_AUTO_DEPLOY=disabled_until_configured` until runtime map and rollback
 are defined.

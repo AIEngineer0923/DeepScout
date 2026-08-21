@@ -53,6 +53,7 @@ from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from deepscout_persistence.models import (
@@ -284,9 +285,21 @@ class ResearchStore:
             domain=source.domain,
             source_type=source.source_type,
         )
-        self._session.add(row)
-        self._session.flush()
-        return row, True
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+                self._session.flush()
+            return row, True
+        except IntegrityError:
+            existing = self._session.scalar(
+                select(SourceRow).where(
+                    SourceRow.research_run_id == run_id,
+                    SourceRow.canonical_url == source.canonical_url,
+                )
+            )
+            if existing is None:
+                raise
+            return existing, False
 
     def list_sources(self, run_id: uuid.UUID) -> list[SourceRow]:
         self._require_run(run_id)
@@ -961,6 +974,27 @@ class ResearchStore:
                 .where(TokenUsageRecordRow.research_run_id == run_id)
                 .order_by(TokenUsageRecordRow.created_at)
             ).all()
+        )
+
+    def find_active_job(
+        self,
+        run_id: uuid.UUID,
+        job_type: ResearchJobType | None = None,
+    ) -> ResearchJobRow | None:
+        conditions = [
+            ResearchJobRow.research_run_id == run_id,
+            ResearchJobRow.status.in_(
+                [
+                    ResearchJobStatus.PENDING,
+                    ResearchJobStatus.CLAIMED,
+                    ResearchJobStatus.RUNNING,
+                ]
+            ),
+        ]
+        if job_type is not None:
+            conditions.append(ResearchJobRow.job_type == job_type)
+        return self._session.scalar(
+            select(ResearchJobRow).where(*conditions).order_by(ResearchJobRow.created_at)
         )
 
     def enqueue_job(

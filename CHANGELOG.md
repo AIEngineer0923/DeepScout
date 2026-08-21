@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Document MODE A (local/trusted network) as the supported deployment; public Internet auth is not implemented
+- LangSmith tracing defaults to off; research content is opt-in for remote traces
+- Reuse a pooled SQLAlchemy engine per database URL; dispose health-check engines and Redis clients
+- Cap in-process rate-limit keys; reject oversized request bodies after read; `Cache-Control: no-store` on API responses
+- Duplicate execute/resume reuses an active job; source insert races return the existing row
+- Compose publishes ports on `127.0.0.1`; container healthchecks; expanded `.dockerignore`; API image OS packages upgraded; web runtime drops unused npm CLI
 - Pre-Phase-5 security gate: dependency upgrades (Next 15.5.23, Vitest 3.2.6, PostCSS 8.5.23, sharp 0.35.3), CodeQL, Semgrep, pip-audit, npm audit
 - Secure fetch now pins TCP connect to the DNS-checked IP
 - CSV formula-injection sanitization, security headers, optional IP rate limits

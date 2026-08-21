@@ -12,6 +12,7 @@ def test_health_sets_security_headers() -> None:
     assert response.status_code == 200
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Cache-Control"] == "no-store"
     assert "default-src 'none'" in response.headers["Content-Security-Policy"]
 
 

@@ -1,3 +1,8 @@
+# Local trusted workstation stack (MODE A).
+# Default passwords and published ports are for a single-machine lab only.
+# Bind to 127.0.0.1 so Compose is not reachable from other hosts.
+# Never reuse POSTGRES_PASSWORD=deepscout outside this disposable database.
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -6,7 +11,7 @@ services:
       POSTGRES_PASSWORD: deepscout
       POSTGRES_DB: deepscout
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,9 +43,10 @@ services:
       APP_DEBUG: "false"
       API_HOST: 0.0.0.0
       RATE_LIMIT_ENABLED: "true"
+      LANGSMITH_TRACING: "false"
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,7 +60,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - api
 

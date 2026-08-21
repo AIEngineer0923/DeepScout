@@ -1,6 +1,7 @@
 """SSRF policy tests including encodings, userinfo, and pinning helpers."""
 
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
 from deepscout_research.fetch.secure import (
@@ -70,7 +71,9 @@ def test_blocks_cgnat() -> None:
 
 def test_allows_public_https() -> None:
     url = assert_public_target("https://example.com/article")
-    assert url.startswith("https://example.com")
+    parsed = urlparse(url)
+    assert parsed.scheme == "https"
+    assert parsed.hostname == "example.com"
 
 
 def test_resolve_pins_resolved_ip() -> None:

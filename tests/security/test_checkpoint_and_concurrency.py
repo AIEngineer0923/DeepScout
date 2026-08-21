@@ -35,3 +35,46 @@ def test_worker_thread_id_is_run_and_task_scoped() -> None:
     task_b = uuid.uuid4()
     assert worker_thread_id(run_id=run_id, task_id=task_a) != worker_thread_id(run_id=run_id, task_id=task_b)
     assert str(run_id) in worker_thread_id(run_id=run_id, task_id=task_a)
+
+
+@pytest.mark.postgres
+def test_duplicate_execute_reuses_active_job(store, db_session) -> None:
+    from deepscout_research.jobs.service import JobService
+
+    settings = get_settings()
+    run = store.create_run(ResearchRunCreate(goal="Execute once"), settings)
+    jobs = JobService(store)
+    first = jobs.enqueue_execute_run(run.id)
+    second = jobs.enqueue_execute_run(run.id)
+    assert first.id == second.id
+
+
+@pytest.mark.postgres
+def test_resume_reuses_active_job_then_cancel_wins(store, db_session) -> None:
+    from deepscout_research.jobs.service import JobService
+
+    settings = get_settings()
+    run = store.create_run(ResearchRunCreate(goal="Resume once"), settings)
+    jobs = JobService(store)
+    first = jobs.enqueue_resume_run(run.id)
+    second = jobs.enqueue_resume_run(run.id)
+    assert first.id == second.id
+    store.cancel_run(run.id)
+    assert store.get_run(run.id).status.value == "cancelled"
+
+
+@pytest.mark.postgres
+def test_source_dedupe_returns_existing_row(store, db_session) -> None:
+    from deepscout_core.domain.schemas import SourceWrite
+
+    settings = get_settings()
+    run = store.create_run(ResearchRunCreate(goal="Source dedupe"), settings)
+    first, created_first = store.add_source(
+        run.id, SourceWrite(canonical_url="https://example.com/a")
+    )
+    second, created_second = store.add_source(
+        run.id, SourceWrite(canonical_url="https://example.com/a")
+    )
+    assert created_first is True
+    assert created_second is False
+    assert first.id == second.id

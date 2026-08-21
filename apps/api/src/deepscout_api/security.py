@@ -33,6 +33,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Content-Security-Policy",
             "default-src 'none'; frame-ancestors 'none'",
         )
+        response.headers.setdefault("Cache-Control", "no-store")
         if request.url.scheme == "https":
             response.headers.setdefault(
                 "Strict-Transport-Security",
@@ -42,11 +43,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, *, settings: Settings):
+    def __init__(self, app, *, settings: Settings, max_keys: int = 4096):
         super().__init__(app)
         self._settings = settings
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = Lock()
+        self._max_keys = max_keys
 
     def _allow(self, key: str, limit: int, window_s: int) -> bool:
         now = time.monotonic()
@@ -57,6 +59,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if len(bucket) >= limit:
                 return False
             bucket.append(now)
+            if len(self._hits) > self._max_keys:
+                stale = [
+                    existing
+                    for existing, values in self._hits.items()
+                    if existing != key and (not values or now - values[-1] > window_s)
+                ]
+                for existing in stale:
+                    self._hits.pop(existing, None)
             return True
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -88,8 +98,13 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
         self._max_bytes = max_bytes
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        if request.method not in {"POST", "PUT", "PATCH"}:
+            return await call_next(request)
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > self._max_bytes:
+            return JSONResponse({"detail": "Request body too large"}, status_code=413)
+        body = await request.body()
+        if len(body) > self._max_bytes:
             return JSONResponse({"detail": "Request body too large"}, status_code=413)
         return await call_next(request)
 
