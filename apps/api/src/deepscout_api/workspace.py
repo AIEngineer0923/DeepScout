@@ -310,6 +310,8 @@ def assemble_workspace(
         "llm_model": run.llm_model,
         "research_mode": run.research_mode,
         "output_language": run.output_language,
+        "is_public_demo": bool(row.is_public_demo) if row else False,
+        "public_slug": row.public_slug if row else None,
         "created_at": _iso(run.created_at),
         "updated_at": _iso(run.updated_at),
         "started_at": _iso(run.started_at),

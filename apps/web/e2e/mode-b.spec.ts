@@ -55,11 +55,47 @@ test.describe("mode B public surfaces", () => {
 
   test("demo is read-only copy", async ({ page }) => {
     await mockHostedAnonymous(page);
+    await page.route("**/api/v1/demos", async (route) =>
+      route.fulfill({
+        json: {
+          total: 1,
+          items: [
+            {
+              id: FIXTURE_RUN_ID,
+              goal: "Compare NMC and LFP battery chemistries",
+              status: "completed",
+              llm_provider: "google",
+              llm_model: "gemini-3.7-flash",
+              termination_reason: null,
+              created_at: "2026-08-21T10:00:00.000Z",
+              updated_at: "2026-08-21T10:02:00.000Z",
+              started_at: "2026-08-21T10:00:10.000Z",
+              completed_at: "2026-08-21T10:05:00.000Z",
+              total_tokens: 1200,
+              cost_usd: 0.04,
+              cost_status: "estimated",
+              source_count: 3,
+              evidence_count: 2,
+              claim_count: 2,
+              task_count: 3,
+              completed_task_count: 3,
+              public_slug: "battery-chemistry-tradeoffs",
+              is_public_demo: true,
+              demo_category: "multi-hop",
+              demo_title: "NMC vs LFP",
+              demo_summary: "Multi-hop dependency chain",
+              demo_why: "Shows DAG decomposition",
+            },
+          ],
+        },
+      }),
+    );
     await page.goto("/demo");
     await expect(page.getByTestId("public-shell")).toBeVisible();
     await expect(page.getByTestId("app-shell")).toHaveCount(0);
-    await expect(page.getByText(/No signup/)).toBeVisible();
-    await expect(page.getByRole("link", { name: /Run your own research/ })).toBeVisible();
+    await expect(page.getByTestId("demo-card")).toBeVisible();
+    await expect(page.getByText(/No signup|Nessuna registrazione/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Run your own research|Esegui la tua ricerca/i })).toBeVisible();
   });
 
   test("account secret fields stay password inputs", async ({ page }) => {

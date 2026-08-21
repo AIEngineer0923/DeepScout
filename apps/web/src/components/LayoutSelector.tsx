@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
+import { DemoReadOnlyProvider } from "@/components/DemoReadOnlyContext";
 import { DemoShell } from "@/components/DemoShell";
 import { HostedAppGate } from "@/components/HostedAppGate";
 import { PublicShell } from "@/components/PublicShell";
@@ -57,7 +58,9 @@ export function LayoutSelector({ children }: { children: ReactNode }) {
   if (shell === "demo") {
     return (
       <HostedAppGate>
-        <DemoShell>{children}</DemoShell>
+        <DemoReadOnlyProvider value>
+          <DemoShell>{children}</DemoShell>
+        </DemoReadOnlyProvider>
       </HostedAppGate>
     );
   }

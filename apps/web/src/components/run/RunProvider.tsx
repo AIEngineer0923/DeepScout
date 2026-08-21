@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, apiUrl } from "@/lib/api";
-import { rememberRunId } from "@/lib/current-run";
 import { connectRunEventSource } from "@/lib/run-events";
 import type { Workspace } from "@/lib/types";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 
 type Ctx = {
   workspace: Workspace | null;
@@ -15,6 +15,7 @@ type Ctx = {
 const RunContext = createContext<Ctx>({ workspace: null, error: null, reload: () => undefined });
 
 export function RunProvider({ runId, children }: { runId: string; children: React.ReactNode }) {
+  const demoReadOnly = useDemoReadOnly();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,19 +24,17 @@ export function RunProvider({ runId, children }: { runId: string; children: Reac
   }, [runId]);
 
   useEffect(() => {
-    rememberRunId(runId);
     reload();
-  }, [reload, runId]);
+  }, [reload]);
 
   useEffect(() => {
+    if (demoReadOnly) {
+      return undefined;
+    }
     const stop = connectRunEventSource(`${apiUrl}/api/v1/research-runs/${runId}/events`, () => {
       api.workspace(runId).then((next) => {
         setWorkspace((prev) => {
-          if (
-            prev &&
-            prev.event_head === next.event_head &&
-            prev.status === next.status
-          ) {
+          if (prev && prev.event_head === next.event_head && prev.status === next.status) {
             return prev;
           }
           return next;
@@ -43,7 +42,7 @@ export function RunProvider({ runId, children }: { runId: string; children: Reac
       }).catch(() => undefined);
     });
     return stop;
-  }, [runId]);
+  }, [demoReadOnly, runId]);
 
   const value = useMemo(() => ({ workspace, error, reload }), [workspace, error, reload]);
   return <RunContext.Provider value={value}>{children}</RunContext.Provider>;

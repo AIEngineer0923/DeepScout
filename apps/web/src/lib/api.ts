@@ -40,6 +40,10 @@ export type ResearchPreferencesPayload = {
 
 export const api = {
   overview: () => parse<Overview>(apiFetch(`${apiUrl}/api/v1/overview`, { cache: "no-store" })),
+  demos: () =>
+    parse<{ items: import("./types").DemoCatalogItem[]; total: number }>(
+      apiFetch(`${apiUrl}/api/v1/demos`, { cache: "no-store" }),
+    ),
   me: () =>
     parse<{
       authenticated: boolean;

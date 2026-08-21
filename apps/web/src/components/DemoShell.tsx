@@ -9,9 +9,13 @@ import { parseRunIdFromPath } from "@/lib/routing";
 const DEMO_TABS = [
   { id: "live", suffix: "" },
   { id: "plan", suffix: "/plan" },
+  { id: "workers", suffix: "/workers" },
   { id: "sources", suffix: "/sources" },
+  { id: "snapshot", suffix: "/snapshots" },
   { id: "claims", suffix: "/claims" },
+  { id: "quality", suffix: "/quality" },
   { id: "report", suffix: "/report" },
+  { id: "evaluations", suffix: "/evaluations" },
 ] as const;
 
 export function DemoShell({ children }: { children: ReactNode }) {
@@ -55,18 +59,21 @@ export function DemoShell({ children }: { children: ReactNode }) {
         <nav className="demo-run-nav" aria-label={t("nav.section.research")}>
           {DEMO_TABS.map((tab) => {
             const href = `/research/${runId}${tab.suffix}`;
+            const active = tab.suffix === "" ? pathname === href : pathname.startsWith(href);
             return (
-              <Link key={tab.id} href={href} className={pathname === href ? "active" : ""}>
+              <Link key={tab.id} href={href} className={active ? "active" : ""}>
                 {t(`nav.${tab.id}`)}
               </Link>
             );
           })}
         </nav>
       ) : null}
-      <main className="public-main">{children}</main>
+      <main className="public-main" id="content">
+        {children}
+      </main>
       <footer className="public-footer">
         <p className="muted" style={{ margin: 0 }}>
-          {t("demo.subtitle")}
+          {t("demo.readOnlyFooter")}
         </p>
       </footer>
     </div>
