@@ -22,6 +22,7 @@ from langsmith import traceable
 
 from deepscout_research.budget_gate import BudgetGate
 from deepscout_research.exceptions import RunCancelledError
+from deepscout_research.phases.compile_knowledge import compile_knowledge_for_run
 from deepscout_research.phases.contradiction import detect_contradictions_for_run
 from deepscout_research.phases.critic import run_critic_for_run
 from deepscout_research.phases.extract import extract_claims_for_run
@@ -526,6 +527,28 @@ class ResearchOrchestrator:
                 run_id=run_id,
                 phase=ResearchPhase.CONTRADICTION,
                 payload={"contradictions_detected": contradictions},
+            )
+        )
+
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_STARTED,
+                run_id=run_id,
+                phase=ResearchPhase.COMPILE_KNOWLEDGE,
+            )
+        )
+        try:
+            compile_stats = compile_knowledge_for_run(self._store, run_id)
+        except Exception:
+            logger.exception("Compile knowledge phase failed", extra={"run_id": str(run_id)})
+            compile_stats = {"statements_created": 0}
+        self._store.commit()
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.PHASE_COMPLETED,
+                run_id=run_id,
+                phase=ResearchPhase.COMPILE_KNOWLEDGE,
+                payload=compile_stats,
             )
         )
 

@@ -71,9 +71,9 @@ See `docs/architecture/RAG_TECHNIQUE_LANDSCAPE.md` for August 2026 review verdic
 
 ### LLM Wiki
 
-**Decision: EVALUATED_AND_DEFERRED — optional compiled layer in a future phase.**
+**Decision: IMPLEMENTED_OPTIONAL — see ADR-009.**
 
-Karpathy's LLM Wiki compiles navigable knowledge from sources; it excels at accumulated topic synthesis but risks stale/hallucinated compiled truth without strict provenance. DeepScout's authority chain already requires `Source → Snapshot → Evidence → Claim`. A Wiki would be **derived compiled knowledge**, never evidence. Benchmarks on MODE A corpora show hybrid RAG over raw snapshots satisfies extraction needs without Wiki compilation cost. **Trigger for reconsideration:** multi-run topic memory or repeated cross-run synthesis latency.
+Karpathy's LLM Wiki compiles navigable knowledge from sources. DeepScout implements a **run-scoped, provenance-linked** Wiki derived from Claims/Evidence. It does **not** replace hybrid RAG and is never treated as evidence.
 
 ### Obsidian
 

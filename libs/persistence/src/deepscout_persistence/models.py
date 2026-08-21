@@ -9,6 +9,8 @@ from deepscout_core.domain.enums import (
     ContradictionEvidenceStatus,
     CostReportStatus,
     IndexingStatus,
+    KnowledgeProvenanceKind,
+    KnowledgeRelationType,
     ResearchJobStatus,
     ResearchJobType,
     ResearchQuestionStatus,
@@ -17,6 +19,11 @@ from deepscout_core.domain.enums import (
     SourceType,
     ToolExecutionStatus,
     UsageReportStatus,
+    WikiChangeOp,
+    WikiLinkType,
+    WikiPageStatus,
+    WikiPageType,
+    WikiStatementStatus,
 )
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -560,3 +567,133 @@ class ChunkEmbeddingRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     chunk: Mapped[DocumentChunkRow] = relationship(back_populates="embeddings")
+
+
+class WikiPageRow(Base):
+    __tablename__ = "wiki_pages"
+    __table_args__ = (
+        UniqueConstraint("research_run_id", "slug", name="uq_wiki_pages_run_slug"),
+        Index("ix_wiki_pages_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    page_type: Mapped[WikiPageType] = mapped_column(pg_enum(WikiPageType, "wiki_page_type"), nullable=False)
+    status: Mapped[WikiPageStatus] = mapped_column(
+        pg_enum(WikiPageStatus, "wiki_page_status"),
+        nullable=False,
+        default=WikiPageStatus.ACTIVE,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    revisions: Mapped[list["WikiRevisionRow"]] = relationship(back_populates="page")
+    statements: Mapped[list["WikiStatementRow"]] = relationship(back_populates="page")
+
+
+class WikiRevisionRow(Base):
+    __tablename__ = "wiki_revisions"
+    __table_args__ = (UniqueConstraint("page_id", "revision", name="uq_wiki_revisions_page_rev"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_pages.id", ondelete="CASCADE")
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    change_op: Mapped[WikiChangeOp] = mapped_column(pg_enum(WikiChangeOp, "wiki_change_op"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    page: Mapped[WikiPageRow] = relationship(back_populates="revisions")
+
+
+class WikiStatementRow(Base):
+    __tablename__ = "wiki_statements"
+    __table_args__ = (
+        Index("ix_wiki_statements_run_id", "research_run_id"),
+        Index("ix_wiki_statements_claim_id", "claim_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_pages.id", ondelete="CASCADE")
+    )
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    statement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[WikiStatementStatus] = mapped_column(
+        pg_enum(WikiStatementStatus, "wiki_statement_status"),
+        nullable=False,
+        default=WikiStatementStatus.ACTIVE,
+    )
+    claim_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("claims.id", ondelete="RESTRICT")
+    )
+    evidence_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("evidence.id", ondelete="RESTRICT")
+    )
+    compiled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    page: Mapped[WikiPageRow] = relationship(back_populates="statements")
+
+
+class WikiLinkRow(Base):
+    __tablename__ = "wiki_links"
+    __table_args__ = (
+        UniqueConstraint("from_page_id", "to_page_id", "link_type", name="uq_wiki_links_edge"),
+        Index("ix_wiki_links_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    from_page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_pages.id", ondelete="CASCADE")
+    )
+    to_page_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_pages.id", ondelete="CASCADE")
+    )
+    link_type: Mapped[WikiLinkType] = mapped_column(pg_enum(WikiLinkType, "wiki_link_type"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KnowledgeRelationRow(Base):
+    __tablename__ = "knowledge_relations"
+    __table_args__ = (Index("ix_knowledge_relations_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    from_statement_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_statements.id", ondelete="CASCADE")
+    )
+    to_statement_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("wiki_statements.id", ondelete="CASCADE")
+    )
+    relation_type: Mapped[KnowledgeRelationType] = mapped_column(
+        pg_enum(KnowledgeRelationType, "knowledge_relation_type"), nullable=False
+    )
+    provenance_kind: Mapped[KnowledgeProvenanceKind] = mapped_column(
+        pg_enum(KnowledgeProvenanceKind, "knowledge_provenance_kind"), nullable=False
+    )
+    claim_a_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("claims.id", ondelete="SET NULL")
+    )
+    claim_b_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("claims.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

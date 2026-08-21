@@ -54,6 +54,7 @@ class ResearchPhase(StrEnum):
     EXTRACT = "extract"
     VERIFY = "verify"
     CONTRADICTION = "contradiction"
+    COMPILE_KNOWLEDGE = "compile_knowledge"
     CRITIC = "critic"
     SYNTHESIS = "synthesis"
     REPORT = "report"
@@ -143,6 +144,59 @@ class IndexingStatus(StrEnum):
     PARTIALLY_INDEXED = "partially_indexed"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class WikiPageType(StrEnum):
+    TOPIC = "topic"
+    ENTITY = "entity"
+    CONCEPT = "concept"
+    FINDING = "finding"
+    CONTRADICTION = "contradiction"
+    QUESTION = "question"
+
+
+class WikiPageStatus(StrEnum):
+    ACTIVE = "active"
+    STALE = "stale"
+    SUPERSEDED = "superseded"
+
+
+class WikiChangeOp(StrEnum):
+    CREATE = "create"
+    CONFIRM = "confirm"
+    REFINE = "refine"
+    CONTRADICT = "contradict"
+    SUPERSEDE = "supersede"
+    MARK_STALE = "mark_stale"
+    NO_CHANGE = "no_change"
+
+
+class WikiStatementStatus(StrEnum):
+    ACTIVE = "active"
+    STALE = "stale"
+    SUPERSEDED = "superseded"
+    CONTRADICTED = "contradicted"
+
+
+class WikiLinkType(StrEnum):
+    RELATED_TO = "related_to"
+    CONTRADICTS = "contradicts"
+    DERIVED_FROM = "derived_from"
+    MENTIONS = "mentions"
+
+
+class KnowledgeRelationType(StrEnum):
+    SUPPORTS = "supports"
+    REFUTES = "refutes"
+    CONTRADICTS = "contradicts"
+    CONFIRMS = "confirms"
+    SUPERSEDES = "supersedes"
+    RELATED_TO = "related_to"
+
+
+class KnowledgeProvenanceKind(StrEnum):
+    DETERMINISTIC = "deterministic"
+    LLM_INFERRED = "llm_inferred"
 
 
 class SourceType(StrEnum):

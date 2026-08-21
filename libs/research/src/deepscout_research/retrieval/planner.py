@@ -33,6 +33,7 @@ class QueryPlan(BaseModel):
     source_ids: list[UUID] = Field(default_factory=list, max_length=50)
     fresher_than: datetime | None = None
     mode: Literal["dense", "lexical", "hybrid"] = "hybrid"
+    corpus: Literal["raw", "compiled", "both"] = "raw"
     routes: list[RetrievalRoute] = Field(default_factory=list, max_length=6)
     top_k: int = Field(default=8, ge=1, le=32)
     candidate_k: int = Field(default=20, ge=1, le=64)
@@ -52,6 +53,26 @@ _ENTITY_PATTERNS = (
     re.compile(r"\b[A-Z]{2,}(?:-[A-Z0-9]+)+\b"),
 )
 
+_COMPILED_HINTS = (
+    "have we learned",
+    "what do we know",
+    "summarize our",
+    "accumulated understanding",
+    "wiki",
+)
+_RAW_HINTS = (
+    "what does source",
+    "find evidence",
+    "quote",
+    "exact passage",
+    "snapshot",
+)
+_BOTH_HINTS = (
+    "contradict",
+    "contradiction",
+    "conflict",
+)
+
 
 def _extract_entities(query: str) -> list[str]:
     found: list[str] = []
@@ -61,6 +82,17 @@ def _extract_entities(query: str) -> list[str]:
             if token and token not in found:
                 found.append(token[:120])
     return found[:20]
+
+
+def _infer_corpus(query: str) -> Literal["raw", "compiled", "both"]:
+    lowered = query.lower()
+    if any(hint in lowered for hint in _BOTH_HINTS):
+        return "both"
+    if any(hint in lowered for hint in _COMPILED_HINTS):
+        return "compiled"
+    if any(hint in lowered for hint in _RAW_HINTS):
+        return "raw"
+    return "raw"
 
 
 def plan_retrieval_query(
@@ -76,6 +108,7 @@ def plan_retrieval_query(
 ) -> QueryPlan:
     cleaned = " ".join(query.split())
     entities = _extract_entities(cleaned)
+    corpus = _infer_corpus(cleaned)
     mode = settings.retrieval_mode if settings.retrieval_mode in {"dense", "lexical", "hybrid"} else "hybrid"
     top_k = _role_top_k(role, settings.retrieval_top_k)
     candidate_k = max(settings.retrieval_candidate_k, top_k)
@@ -90,6 +123,7 @@ def plan_retrieval_query(
             entities=entities,
             source_ids=list(source_ids or []),
             mode=mode,
+            corpus=corpus,
             routes=[RetrievalRoute.RELATIONAL],
             top_k=top_k,
             candidate_k=candidate_k,
@@ -111,6 +145,7 @@ def plan_retrieval_query(
         entities=entities,
         source_ids=list(source_ids or []),
         mode=mode,
+        corpus=corpus,
         routes=routes,
         top_k=top_k,
         candidate_k=candidate_k,

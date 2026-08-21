@@ -9,6 +9,7 @@ ResearchRun
   └── Source ──► SourceSnapshot (immutable)
          └── Claim ──► Evidence (quote + span → snapshot)
                 └── Contradiction (claim ↔ claim)
+  └── WikiPage / WikiStatement (compiled, derived; never evidence)
   └── Decision (derived from verified claims only)
   └── Report (citations from evidence graph)
 ```
@@ -20,6 +21,7 @@ ResearchRun
 3. **SourceSnapshot** is immutable; re-fetch creates new snapshot
 4. **Contradiction** requires evidence on both sides or `insufficient_evidence` flag
 5. LLM-generated text is **never** authoritative without evidence link
+6. **WikiStatement** must resolve to Claim → Evidence → SourceSnapshot when treated as factual; wiki text alone is not evidence
 
 ## Verification states
 

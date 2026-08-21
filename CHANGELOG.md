@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Retrieval evaluators (Recall@K, MRR, Hit@K, NDCG@K, cross-run isolation) and optional RAGAS offline wrapper
 - Phase 5 closure gate (`scripts/phase5_closure_gate.py`): symmetric 768-vs-1536, isolated pre-RAG vs RAG, category ablation, LangSmith live experiments
 - Default Google embedding dimensions set to **768** after measured parity with 1536 on retrieval-benchmark-v1.1
+- Optional run-scoped compiled knowledge layer (ADR-009): WikiPage/WikiStatement with claim→evidence provenance, deterministic compiler, Obsidian Markdown export, Graphify rejected for DeepScout runtime
 
 ### Security
 
