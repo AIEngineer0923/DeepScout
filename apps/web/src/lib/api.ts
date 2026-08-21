@@ -1,6 +1,11 @@
 import type { Overview, Workspace } from "./types";
 
-export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const apiUrl =
+  process.env.NEXT_PUBLIC_API_URL !== undefined
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
+    : process.env.NODE_ENV === "production"
+      ? ""
+      : "http://localhost:8000";
 
 function apiFetch(url: string, init: RequestInit = {}) {
   return fetch(url, { credentials: "include", cache: "no-store", ...init });

@@ -209,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               LangSmith · {langsmith?.connected ? t("langsmith.connected") : t("langsmith.notConfigured")}
             </div>
             <div className="muted" style={{ marginTop: 6 }}>
-              {langsmith?.project ?? "deepscout-dev"} ({langsmith?.region ?? "EU"})
+              {langsmith?.project ?? "off"} ({langsmith?.region ?? "off"})
             </div>
           </div>
           <div className="identity-card">

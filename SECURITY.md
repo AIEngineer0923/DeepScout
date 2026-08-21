@@ -18,15 +18,19 @@ Include: description, reproduction steps, impact, and suggested fix if available
 
 ## Threat assumptions
 
-DeepScout is a **MODE A — local / trusted-network** research workstation.
+Deep Scout has two supported modes:
 
-- There is no multi-user authentication, session, JWT, or tenant isolation.
-- Any process that can reach the API can create/execute/cancel/export every run.
-- Binding the API to a public interface without an authenticating reverse proxy
-  is **not a supported production posture**.
-- Retrieved web content, model output, and export payloads are untrusted data.
-- **MODE B (public Internet with first-party auth) is not implemented** and is
-  not a current product goal. Do not treat UUID secrecy as authorization.
+- **MODE A (`DEEPSCOUT_DEPLOYMENT_MODE=local`)** — local / trusted-network workstation.
+  No login. Provider keys come from the operator environment. Any process that can
+  reach the API can create/execute/cancel/export every run. Binding MODE A to a
+  public interface is **not** a supported production posture.
+- **MODE B (`hosted`)** — authenticated GitHub/Google login, per-principal ownership,
+  BYOK vault only, public demo read-only. UUID secrecy is **not** authorization.
+
+Public Internet production is MODE B plus a persistent FastAPI worker and Postgres.
+Do not treat a Vercel frontend alone as a complete hosted product.
+
+Retrieved web content, model output, and export payloads are untrusted data.
 
 ## Security principles
 
@@ -70,12 +74,20 @@ Internet-facing deployment requires, at minimum:
 
 ## Known accepted limitations
 
-- **No authentication.** UUID knowledge of a run ID is sufficient to read or
-  mutate that run on a reachable API. This is accepted for local single-user
-  use and is a blocker for public Internet exposure.
-- **LangSmith privacy.** When tracing is enabled, goals, retrieved snippets,
-  and model I/O may be sent to LangSmith. Secrets and settings blobs are
-  redacted; research content is not treated as secret.
+- **MODE A has no authentication.** UUID knowledge of a run ID is sufficient to read or
+  mutate that run on a reachable MODE A API. This is accepted for local single-user
+  use and is a blocker for exposing MODE A to the public Internet.
+- **MODE B authorization is principal ownership**, not UUID secrecy. Public demo rows
+  are an explicit published projection (`is_public_demo`), not “null owner means public”.
+- **Credentials are encrypted at rest (AES-GCM), not zero-knowledge.** The API process
+  decrypts user vault keys to call the providers the user configured.
+- **Research domain data in Postgres is not end-to-end encrypted.** Infrastructure
+  administrators with database access can read run content.
+- **LangSmith privacy.** Hosted users default tracing OFF. If a user opts into their
+  own LangSmith key, goals, retrieved snippets, and model I/O may be sent to **their**
+  LangSmith workspace. Maintainer tracing is not used for hosted user research.
+- **No SOC 2 / ISO 27001 / HIPAA / GDPR-compliance claim.** This is security engineering
+  for a portfolio OSS deployment, not a certified control program.
 - **Fetched documents.** HTML is converted to text; PDFs are discarded rather
   than parsed. There is no general-purpose file-upload API.
 - **DNS rebinding residual.** Fetch pins TCP connect to the DNS result used

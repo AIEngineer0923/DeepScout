@@ -22,14 +22,16 @@ COPY libs/research/src libs/research/src
 COPY libs/persistence/src libs/persistence/src
 COPY libs/evaluation/src libs/evaluation/src
 COPY apps/api/src apps/api/src
+COPY infra/docker/entrypoint.sh /entrypoint.sh
 
 RUN uv sync --all-packages --no-dev \
+    && chmod +x /entrypoint.sh \
     && chown -R deepscout:deepscout /app
 
 USER deepscout
 EXPOSE 8000
 ENV APP_ENV=production APP_DEBUG=false API_HOST=0.0.0.0 RATE_LIMIT_ENABLED=true
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+  CMD python -c "import os,urllib.request; raise SystemExit(0) if os.environ.get('DEEPSCOUT_PROCESS_ROLE')=='worker' else urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT','8000'), timeout=4)"
 
-CMD ["uv", "run", "deepscout-api"]
+ENTRYPOINT ["/entrypoint.sh"]

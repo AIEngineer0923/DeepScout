@@ -9,14 +9,13 @@ const scriptSrc = isDev
 const apiOrigin = process.env.NEXT_PUBLIC_API_URL
   ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
   : "";
+const rewriteOrigin = (process.env.API_REWRITE_ORIGIN || "").replace(/\/$/, "");
 const connectSrc = [
   "connect-src 'self'",
-  "http://127.0.0.1:8000",
-  "http://localhost:8000",
+  ...(isDev ? ["http://127.0.0.1:8000", "http://localhost:8000", "ws:", "wss:"] : []),
   ...(apiOrigin && apiOrigin !== "http://localhost:8000" && apiOrigin !== "http://127.0.0.1:8000"
     ? [apiOrigin]
     : []),
-  ...(isDev ? ["ws:", "wss:"] : []),
 ].join(" ");
 
 const securityHeaders = [
@@ -61,6 +60,15 @@ const nextConfig: NextConfig = {
         ],
       },
       { source: "/:path*", headers: securityHeaders },
+    ];
+  },
+  async rewrites() {
+    if (!rewriteOrigin) return [];
+    return [
+      { source: "/api/:path*", destination: `${rewriteOrigin}/api/:path*` },
+      { source: "/live", destination: `${rewriteOrigin}/live` },
+      { source: "/ready", destination: `${rewriteOrigin}/ready` },
+      { source: "/health", destination: `${rewriteOrigin}/health` },
     ];
   },
 };

@@ -1,0 +1,9 @@
+# Shared build defaults. Per-service start command, healthcheck, region, and
+# sleepApplication are set on the Railway services (api vs worker).
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "infra/docker/Dockerfile.api"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

@@ -23,6 +23,13 @@ MUTATING_PREFIXES = (
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
+def _request_is_https(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    proto = request.headers.get("x-forwarded-proto", "")
+    return proto.split(",")[0].strip().lower() == "https"
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
@@ -38,7 +45,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'none'; frame-ancestors 'none'",
         )
         response.headers.setdefault("Cache-Control", "no-store")
-        if request.url.scheme == "https":
+        if _request_is_https(request):
             response.headers.setdefault(
                 "Strict-Transport-Security",
                 "max-age=63072000; includeSubDomains",

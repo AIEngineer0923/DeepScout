@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Local provider CLI / platform link state (keep .railway/railway.ts commitable)
+.railway/*
+!.railway/railway.ts
+supabase/
+
 # Python
 __pycache__/
 *.py[cod]

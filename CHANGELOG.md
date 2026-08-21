@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Production hosting split: Vercel frontend + persistent FastAPI/worker + managed Postgres/pgvector
+- Same-origin `/api` rewrite from Vercel to the persistent API (`API_REWRITE_ORIGIN`)
+- Operator CLI `scripts/publish_demo.py` and `scripts/operator_publish_demos.py`
+- Hosted `/ready` fails closed when OAuth/session/encryption config is missing
+- Dedicated `DATABASE_LISTEN_URL` for LISTEN/NOTIFY when the query URL is pooled
+
+### Changed
+
+- Production CSP `connect-src` no longer includes localhost
+- Browser API base URL is same-origin in production unless `NEXT_PUBLIC_API_URL` is set
+- Docker entrypoint selects api vs worker via `DEEPSCOUT_PROCESS_ROLE`
+
+### Security
+
+- HSTS honors `X-Forwarded-Proto` behind HTTPS ingress
+- SECURITY.md documents MODE B BYOK, tenant isolation, and no fake compliance claims
+
 - Bounded semantic dependency validator (Planner v2 → validator → `repair_plan`) with `dependency_reason` (ADR-017)
 - Follow-up research lineage (`lineage_kind=followup`) with bounded inherited context and no HITL copy
 - Source PIN/EXCLUDE preferences applied through search, fetch, and hybrid retrieval

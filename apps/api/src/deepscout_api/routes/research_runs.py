@@ -289,7 +289,7 @@ def stream_run_events(
             "cancelled",
             "budget_exhausted",
         }
-        waiter = NotifyWaiter(settings.database_url)
+        waiter = NotifyWaiter(settings.listen_database_url())
         try:
             while True:
                 if await request.is_disconnected():

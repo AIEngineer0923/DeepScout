@@ -75,6 +75,11 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
             return
 
 
-if __name__ == "__main__":
+def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    logger.info("Deep Scout worker started")
     run_worker()
+
+
+if __name__ == "__main__":
+    main()

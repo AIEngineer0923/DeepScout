@@ -86,10 +86,13 @@ def health() -> HealthResponse:
 def ready(response: Response, settings: Settings = Depends(get_settings)) -> ReadinessResponse:
     """Readiness: authoritative Postgres must be available. Redis is optional MODE A probe."""
     postgres = probe_postgres(settings.database_url)
-    status = "ok" if postgres == "ok" else "unavailable"
-    if status != "ok":
+    if postgres != "ok":
         response.status_code = 503
-    return ReadinessResponse(status=status, postgres=postgres)
+        return ReadinessResponse(status="unavailable", postgres=postgres)
+    if settings.is_hosted() and not settings.hosted_auth_ready():
+        response.status_code = 503
+        return ReadinessResponse(status="unavailable", postgres=postgres)
+    return ReadinessResponse(status="ok", postgres=postgres)
 
 
 @app.get("/api/v1/health/deps", response_model=DependencyHealthResponse)

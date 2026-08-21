@@ -18,6 +18,9 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.scripts]
+deepscout-worker = "deepscout_research.jobs.worker:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/deepscout_research"]
 

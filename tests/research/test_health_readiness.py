@@ -60,3 +60,20 @@ def test_ready_requires_postgres_not_redis_or_langsmith() -> None:
         assert body["redis_required"] is False
     finally:
         app.dependency_overrides.clear()
+
+
+def test_ready_hosted_fails_closed_without_auth() -> None:
+    from deepscout_core.deployment import DeploymentMode
+
+    settings = Settings(_env_file=None, DEEPSCOUT_DEPLOYMENT_MODE=DeploymentMode.HOSTED)
+    app.dependency_overrides[get_settings] = lambda: settings
+    try:
+        with patch("deepscout_api.app.probe_postgres", return_value="ok"):
+            client = TestClient(app)
+            ready = client.get("/ready")
+            assert ready.status_code == 503
+            assert ready.json() == {"status": "unavailable", "postgres": "ok"}
+            live = client.get("/live")
+            assert live.status_code == 200
+    finally:
+        app.dependency_overrides.clear()

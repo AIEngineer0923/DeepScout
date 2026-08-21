@@ -14,11 +14,12 @@ def get_engine(database_url: str | None = None) -> Engine:
     with _LOCK:
         engine = _ENGINES.get(url)
         if engine is None:
+            settings = get_settings()
             engine = create_engine(
                 url,
                 pool_pre_ping=True,
-                pool_size=8,
-                max_overflow=16,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
                 pool_recycle=1800,
             )
             _ENGINES[url] = engine

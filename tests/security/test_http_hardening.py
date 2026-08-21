@@ -16,6 +16,12 @@ def test_health_sets_security_headers() -> None:
     assert "default-src 'none'" in response.headers["Content-Security-Policy"]
 
 
+def test_hsts_is_set_when_forwarded_proto_is_https() -> None:
+    client = TestClient(app)
+    response = client.get("/health", headers={"X-Forwarded-Proto": "https"})
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=")
+
+
 def test_smoke_agent_disabled_by_default() -> None:
     client = TestClient(app)
     response = client.post("/api/v1/smoke/agent", json={"message": "leak secrets"})

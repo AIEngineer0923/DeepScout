@@ -58,6 +58,9 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://deepscout:deepscout@localhost:5432/deepscout",
         alias="DATABASE_URL",
     )
+    database_listen_url: str | None = Field(default=None, alias="DATABASE_LISTEN_URL")
+    db_pool_size: int = Field(default=8, alias="DB_POOL_SIZE")
+    db_max_overflow: int = Field(default=16, alias="DB_MAX_OVERFLOW")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     research_max_iterations: int = Field(default=5, alias="RESEARCH_MAX_ITERATIONS")
@@ -124,6 +127,10 @@ class Settings(BaseSettings):
 
     def is_hosted(self) -> bool:
         return self.deployment_mode == DeploymentMode.HOSTED
+
+    def listen_database_url(self) -> str:
+        """Direct/session Postgres URL for LISTEN/NOTIFY. Never a transaction pooler."""
+        return self.database_listen_url or self.database_url
 
     def hosted_auth_ready(self) -> bool:
         if not self.is_hosted():

@@ -6,12 +6,14 @@
 
 | Path | What you get |
 |---|---|
-| **Explore Demo** | `/demo` — read-only published runs, no signup, zero provider spend |
+| **Production app** | [https://deep-scout-plum.vercel.app](https://deep-scout-plum.vercel.app) |
+| **Explore Demo** | [https://deep-scout-plum.vercel.app/demo](https://deep-scout-plum.vercel.app/demo) — read-only published runs, no signup, zero provider spend |
+| **Sign in** | [https://deep-scout-plum.vercel.app/login](https://deep-scout-plum.vercel.app/login) — GitHub (Google pending owner OIDC client) |
 | **Run locally (MODE A)** | Clone, `.env` provider keys, no account |
 | **Hosted (MODE B)** | GitHub/Google login, BYOK vault, tenant isolation |
-| **Deploy your own** | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — generic OAuth/DB/keys, no personal-account hardcoding |
+| **Deploy your own** | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Vercel frontend + persistent FastAPI/worker + Postgres. Not one-click. |
 
-One-click Vercel is not offered: the agent runtime needs a persistent FastAPI worker.
+The public frontend is on Vercel. Long-running research, SSE, LISTEN/NOTIFY, and the worker run on a persistent host. One-click Vercel is not offered.
 
 See [docs/adr/011-mode-b-hosted.md](docs/adr/011-mode-b-hosted.md).
 
@@ -46,8 +48,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full picture.
 - **API:** FastAPI, Server-Sent Events
 - **Agents:** LangChain Python
 - **Database:** PostgreSQL + pgvector
-- **Cache:** Redis
-- **Observability:** LangSmith
+- **Cache:** Redis is optional (MODE A probe only). Hosted production does not require Redis.
+- **Observability:** LangSmith is opt-in. Hosted users default tracing OFF.
 - **LLM providers:** Google Gemini, OpenAI, Anthropic
 - **Web search v1:** Tavily (pluggable adapter)
 
