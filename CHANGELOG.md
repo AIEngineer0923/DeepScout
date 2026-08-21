@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reapplied pre-RAG visual fidelity (layout tokens, topology, drawers, Playwright baselines) onto current main without reverting security, CSP, or API contracts
 - Budget semantics: `is_exhausted` when at limit; `would_exceed` blocks overrun without rejecting final allowed unit
 - `add_source` returns `(row, created)` tuple for idempotent dedupe signaling
 - Contradiction writes require `evidence_status`; duplicate A↔B pairs are idempotent

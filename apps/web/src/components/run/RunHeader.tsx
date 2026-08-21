@@ -34,15 +34,13 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
   }
 
   return (
-    <div>
-      <div className="row" style={{ justifyContent: "space-between" }}>
+    <div style={{ marginBottom: 8 }}>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
         <div className="grow">
           <h1 className="page-title wrap-text">{workspace.goal}</h1>
-          <div className="row" style={{ marginTop: 8 }}>
+          <div className="run-meta">
             <StatusBadge status={workspace.status} />
-            <span className="muted">
-              {elapsed(workspace.started_at ?? workspace.created_at)}
-            </span>
+            <span className="muted">{elapsed(workspace.started_at ?? workspace.created_at)}</span>
             <span className="mono muted">{workspace.run_id}</span>
             {workspace.research_mode ? <span className="chip selected">{workspace.research_mode}</span> : null}
             {workspace.output_language ? <span className="chip">{workspace.output_language}</span> : null}
@@ -55,7 +53,8 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
         ) : null}
       </div>
       <PhaseStepper completed={workspace.completed_phases} status={workspace.status} />
-      <div className="muted" style={{ marginBottom: 8 }}>
+      <div className="info-banner">{t("live.banner")}</div>
+      <div className="muted" style={{ marginBottom: 8, fontSize: 13 }}>
         {workspace.llm_provider} · {workspace.llm_model} · {t("provider.tokens")}{" "}
         {formatTokens(workspace.usage.total_tokens, t("cost.unknown"))} · {t("provider.appCost")}{" "}
         {formatCost(workspace.usage.cost_usd, workspace.usage.cost_status, t("cost.unknown"))}

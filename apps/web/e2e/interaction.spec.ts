@@ -42,12 +42,12 @@ test.describe("interaction", () => {
     await page.goto("/research/new");
     await page.getByTestId("mode-quick").click();
     await expect(page.getByTestId("mode-quick")).toHaveClass(/selected/);
-    await expect(page.getByTestId("summary-mode")).toHaveText("quick");
+    await expect(page.getByTestId("summary-mode")).toHaveAttribute("data-value", "quick");
     await page.getByTestId("mode-deep").click();
     await expect(page.getByTestId("mode-deep")).toHaveClass(/selected/);
-    await expect(page.getByTestId("summary-mode")).toHaveText("deep");
+    await expect(page.getByTestId("summary-mode")).toHaveAttribute("data-value", "deep");
     await page.getByTestId("mode-standard").click();
-    await expect(page.getByTestId("summary-mode")).toHaveText("standard");
+    await expect(page.getByTestId("summary-mode")).toHaveAttribute("data-value", "standard");
   });
 
   test("settings tabs switch content", async ({ page }) => {

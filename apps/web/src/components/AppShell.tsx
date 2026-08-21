@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { parseRunId, readLastRunId, rememberRunId } from "@/lib/current-run";
+import { initials } from "@/lib/visual";
 import { useI18n } from "@/i18n/context";
 import {
   IconClaims,
@@ -55,6 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathRunId = parseRunId(pathname);
   const [storedRunId, setStoredRunId] = useState<string | null>(null);
   const [langsmith, setLangsmith] = useState<{ connected: boolean; project: string; region: string } | null>(null);
+  const [identityLabel, setIdentityLabel] = useState("Local workspace");
+  const [identityRole, setIdentityRole] = useState("Operator");
 
   useEffect(() => {
     if (pathRunId) rememberRunId(pathRunId);
@@ -72,6 +75,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     api
       .overview()
       .then((data) => {
+        setIdentityLabel(data.identity.label);
+        setIdentityRole(data.identity.role);
         if (!readLastRunId() && data.active?.id) rememberRunId(data.active.id);
         setStoredRunId(parseRunId(window.location.pathname) ?? readLastRunId() ?? data.active?.id ?? null);
       })
@@ -168,14 +173,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="identity-card">
-            <strong>{t("identity.label")}</strong>
-            <div className="muted">{t("identity.role")}</div>
+            <span className="identity-avatar" aria-hidden="true">
+              {initials(identityLabel)}
+            </span>
+            <div className="identity-meta">
+              <strong>{identityLabel}</strong>
+              <div className="muted">{identityRole}</div>
+            </div>
           </div>
+          <div className="version-tag">v0.1.0</div>
         </div>
       </aside>
       <div className="main-wrap">
         <header className="topbar">
-          <Link href={runId ? `/research/${runId}` : "/"} className="muted">
+          <Link href={runId ? `/research/${runId}` : "/"} className="back-link">
             ← {t("nav.back")}
           </Link>
           <div className="row" aria-label={t("uiLanguage.label")}>

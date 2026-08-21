@@ -8,7 +8,6 @@ import { rememberRunId } from "@/lib/current-run";
 import { elapsed, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import type { Overview } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
-import { PhaseStepper } from "@/components/run/PhaseStepper";
 import { useI18n } from "@/i18n/context";
 
 const EMPTY: Overview = {
@@ -27,6 +26,8 @@ const EMPTY: Overview = {
   langsmith: { connected: false, project: "deepscout-dev", region: "EU", tracing: false },
   providers: {},
 };
+
+const PHASES = ["plan", "research", "verify", "synthesis", "report"] as const;
 
 export function DashboardScreen() {
   const router = useRouter();
@@ -60,37 +61,50 @@ export function DashboardScreen() {
   }
 
   const metrics = useMemo(
-    () => [
-      { k: t("dashboard.metric.runs"), v: String(overview.totals.runs) },
-      { k: t("dashboard.metric.sources"), v: String(overview.totals.sources) },
-      { k: t("dashboard.metric.evidence"), v: String(overview.totals.evidence) },
-      { k: t("dashboard.metric.claims"), v: String(overview.totals.claims) },
-      {
-        k: t("dashboard.metric.avg"),
-        v: overview.totals.avg_completion_seconds ? `${Math.round(overview.totals.avg_completion_seconds / 60)}m` : "—",
-      },
-      { k: t("dashboard.metric.cost"), v: formatCost(overview.totals.known_cost_usd, overview.totals.cost_status, t("cost.unknown")) },
-    ],
+    () =>
+      [
+        { k: t("dashboard.metric.runs"), v: String(overview.totals.runs), sub: t("dashboard.metric.allTime"), tone: "blue" },
+        { k: t("dashboard.metric.sources"), v: String(overview.totals.sources), sub: t("dashboard.metric.across"), tone: "green" },
+        { k: t("dashboard.metric.evidence"), v: String(overview.totals.evidence), sub: t("dashboard.metric.across"), tone: "purple" },
+        { k: t("dashboard.metric.claims"), v: String(overview.totals.claims), sub: t("dashboard.metric.across"), tone: "teal" },
+        {
+          k: t("dashboard.metric.avg"),
+          v: overview.totals.avg_completion_seconds ? `${Math.round(overview.totals.avg_completion_seconds / 60)}m` : "—",
+          sub: t("dashboard.metric.completedRuns"),
+          tone: "orange",
+        },
+        {
+          k: t("dashboard.metric.cost"),
+          v: formatCost(overview.totals.known_cost_usd, overview.totals.cost_status, t("cost.unknown")),
+          sub: t("dashboard.metric.knownSpend"),
+          tone: "blue",
+        },
+      ] as const,
     [overview, t],
   );
 
+  const activePhaseIndex = active?.status === "completed" ? 4 : active?.status === "running" ? 1 : 0;
+
   return (
-    <div className="grid" style={{ gap: 20 }}>
-      <div>
-        <h1 className="page-title">{t("dashboard.title")}</h1>
+    <div className="grid" style={{ gap: 22 }}>
+      <div className="page-head">
+        <h1 className="page-title">
+          {t("dashboard.title")}, {overview.identity.label}
+        </h1>
         <p className="page-sub">{t("dashboard.subtitle")}</p>
       </div>
       <div className="grid cols-2">
         <section className="card">
-          <label htmlFor="quick-goal">{t("dashboard.goalLabel")}</label>
+          <h2>{t("dashboard.goalLabel")}</h2>
           <textarea
             id="quick-goal"
             className="textarea"
+            style={{ minHeight: 132 }}
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             placeholder={t("dashboard.goalPlaceholder")}
           />
-          <div className="chip-row" style={{ marginTop: 12 }}>
+          <div className="chip-row" style={{ marginTop: 14 }}>
             {(["quick", "standard", "deep"] as const).map((item) => (
               <button
                 key={item}
@@ -114,29 +128,55 @@ export function DashboardScreen() {
               <option value="it">{t("lang.it")}</option>
             </select>
           </div>
-          <div className="row" style={{ marginTop: 12, justifyContent: "flex-end" }}>
+          <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
             <button className="btn primary" disabled={busy || !goal.trim()} onClick={() => void start()}>
               {t("action.start")} →
             </button>
           </div>
         </section>
         <section className="card">
-          <h2>{t("dashboard.active")}</h2>
+          <p className="card-eyebrow">{t("dashboard.active")}</p>
           {active ? (
             <>
-              <p className="wrap-text">
+              <p className="wrap-text" style={{ margin: "0 0 10px" }}>
                 <strong>{active.goal}</strong>
               </p>
-              <StatusBadge status={active.status} />
-              <p className="muted">
-                {t("phase.running")} {elapsed(active.started_at ?? active.created_at)}
+              <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+                <StatusBadge status={active.status} />
+                <span className="muted">{elapsed(active.started_at ?? active.created_at)}</span>
+              </div>
+              <div className="progress-label">
+                <span>{t("phase.running")}</span>
+                <span>{Math.min(100, Math.round(((active.completed_task_count ?? 0) / Math.max(active.task_count ?? 1, 1)) * 100))}%</span>
+              </div>
+              <div className="progress lg" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${Math.min(100, Math.round(((active.completed_task_count ?? 0) / Math.max(active.task_count ?? 1, 1)) * 100))}%`,
+                  }}
+                />
+              </div>
+              <ol className="phase-list">
+                {PHASES.map((phase, index) => {
+                  const done = index < activePhaseIndex;
+                  const runningPhase = index === activePhaseIndex && active.status !== "completed";
+                  return (
+                    <li key={phase}>
+                      <span className={`dot-step ${done ? "done" : ""} ${runningPhase ? "active" : ""}`}>{done ? "✓" : ""}</span>
+                      <span>
+                        <strong>{t(`phase.${phase}`)}</strong>
+                        <div className="muted">{done ? t("phase.completed") : runningPhase ? t("phase.running") : t("phase.pending")}</div>
+                      </span>
+                      <span className="muted mono">{runningPhase || done ? elapsed(active.started_at ?? active.created_at) : "—"}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="muted" style={{ margin: "12px 0" }}>
+                {active.task_count} {t("nav.workers").toLowerCase()} · {active.source_count} {t("nav.sources").toLowerCase()} · {active.evidence_count}{" "}
+                {t("table.evidence").toLowerCase()}
               </p>
-              <PhaseStepper completed={[]} status={active.status} />
-              <p className="muted">
-                {active.task_count} {t("nav.workers").toLowerCase()} · {active.source_count} {t("nav.sources").toLowerCase()} ·{" "}
-                {active.evidence_count} {t("nav.claims").toLowerCase()}
-              </p>
-              <Link className="btn" href={`/research/${active.id}`}>
+              <Link className="btn" style={{ width: "100%" }} href={`/research/${active.id}`}>
                 {t("action.openResearch")} →
               </Link>
             </>
@@ -148,15 +188,21 @@ export function DashboardScreen() {
       <div className="grid cols-metrics">
         {metrics.map((metric) => (
           <article key={metric.k} className="card metric">
+            <span className={`metric-icon ${metric.tone}`} aria-hidden="true">
+              ●
+            </span>
             <div className="k">{metric.k}</div>
             <div className="v">{metric.v}</div>
+            <div className="sub">{metric.sub}</div>
           </article>
         ))}
       </div>
       <section className="card">
-        <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="card-head">
           <h2>{t("dashboard.recent")}</h2>
-          <Link href="/history">{t("action.viewHistory")}</Link>
+          <Link className="link-btn" href="/history">
+            {t("action.viewHistory")} →
+          </Link>
         </div>
         <div className="table-wrap">
           <table className="data">
@@ -182,7 +228,7 @@ export function DashboardScreen() {
                   <tr key={run.id} onClick={() => router.push(`/research/${run.id}`)} style={{ cursor: "pointer" }}>
                     <td>
                       <Link href={`/research/${run.id}`} className="wrap-text">
-                        {run.goal}
+                        <strong>{run.goal}</strong>
                       </Link>
                     </td>
                     <td>

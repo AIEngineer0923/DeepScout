@@ -28,8 +28,10 @@ export function NewResearchScreen() {
       mode,
       outputLanguage,
       sources: mode === "quick" ? "4–8" : mode === "deep" ? "20–60" : "8–20",
+      iterations: mode === "quick" ? "1" : mode === "deep" ? "Up to 5" : "Up to 3",
+      depth: mode === "quick" ? t("new.depthQuick") : mode === "deep" ? t("new.depthDeep") : t("new.depthStandard"),
     }),
-    [mode, outputLanguage],
+    [mode, outputLanguage, t],
   );
 
   async function start() {
@@ -53,16 +55,24 @@ export function NewResearchScreen() {
   }
 
   return (
-    <div className="grid cols-2">
+    <div className="grid cols-form">
       <div>
-        <h1 className="page-title">{t("new.title")}</h1>
-        <p className="page-sub">{t("new.subtitle")}</p>
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="page-head">
+          <h1 className="page-title">{t("new.title")}</h1>
+          <p className="page-sub">{t("new.subtitle")}</p>
+        </div>
+        <div className="card" style={{ marginTop: 18 }}>
           <div className="field">
-            <label htmlFor="goal">{t("new.step1")}</label>
+            <label htmlFor="goal" className="section-title">
+              <span className="section-num" aria-hidden="true">
+                1
+              </span>
+              {t("new.step1")}
+            </label>
             <textarea
               id="goal"
               className="textarea"
+              style={{ minHeight: 128 }}
               maxLength={1000}
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
@@ -70,9 +80,12 @@ export function NewResearchScreen() {
             />
             <span className="muted">{goal.length} / 1000</span>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <div className="muted">{t("new.step2")}</div>
-            <div className="mode-grid" style={{ marginTop: 8 }} role="radiogroup" aria-label={t("new.step2")}>
+          <div style={{ marginTop: 20 }}>
+            <div className="section-title">
+              <span className="section-num">2</span>
+              {t("new.step2")}
+            </div>
+            <div className="mode-grid" style={{ marginTop: 4 }} role="radiogroup" aria-label={t("new.step2")}>
               {MODES.map((item) => {
                 const selected = mode === item.id;
                 const Icon = item.icon;
@@ -102,9 +115,12 @@ export function NewResearchScreen() {
               })}
             </div>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <div className="muted">{t("new.step3")}</div>
-            <div className="grid cols-2" style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 20 }}>
+            <div className="section-title">
+              <span className="section-num">3</span>
+              {t("new.step3")}
+            </div>
+            <div className="grid cols-2" style={{ marginTop: 4 }}>
               <div className="field">
                 <label htmlFor="output-language">{t("new.outputLanguage")}</label>
                 <select
@@ -138,7 +154,7 @@ export function NewResearchScreen() {
               </div>
             </div>
           </div>
-          <button type="button" className="btn ghost" style={{ marginTop: 12 }} onClick={() => setAdvanced(!advanced)}>
+          <button type="button" className="btn ghost" style={{ marginTop: 16 }} onClick={() => setAdvanced(!advanced)}>
             {advanced ? t("action.hideAdvanced") : t("action.showAdvanced")}
           </button>
           {advanced ? (
@@ -149,36 +165,75 @@ export function NewResearchScreen() {
             </div>
           ) : null}
           {error ? <p className="badge bad wrap-text">{error}</p> : null}
-          <div className="form-actions" style={{ marginTop: 16 }}>
-            <button className="btn" type="button" onClick={() => router.push("/")}>
+          <div className="form-actions" style={{ marginTop: 18 }}>
+            <button className="btn ghost" type="button" onClick={() => router.push("/")}>
               {t("action.cancel")}
             </button>
-            <button className="btn primary" type="button" disabled={busy || !goal.trim()} data-testid="start-research" onClick={() => void start()}>
-              {t("action.start")} →
-            </button>
+            <div className="row">
+              <button className="btn" type="button" disabled title={t("new.templateSoon")}>
+                {t("new.saveTemplate")}
+              </button>
+              <button className="btn primary" type="button" disabled={busy || !goal.trim()} data-testid="start-research" onClick={() => void start()}>
+                {t("action.start")} →
+              </button>
+            </div>
           </div>
         </div>
       </div>
       <aside>
         <section className="card">
           <h2>{t("new.summary")}</h2>
-          <p className="wrap-text">{goal || t("new.summaryEmpty")}</p>
-          <p>
-            {t("new.step2")}: <strong data-testid="summary-mode">{summary.mode}</strong>
-          </p>
-          <p>
-            {t("new.expectedSources")}: {summary.sources}
-          </p>
-          <p>
-            {t("new.outputLanguage")}: {summary.outputLanguage === "it" ? t("lang.it") : t("lang.en")}
-          </p>
+          <p className="wrap-text muted">{goal || t("new.summaryEmpty")}</p>
+          <dl className="kv-list" style={{ marginTop: 12 }}>
+            <div className="kv-row">
+              <dt>{t("new.step2")}</dt>
+              <dd>
+                <span className="badge run" data-testid="summary-mode" data-value={summary.mode}>
+                  {t(`new.mode.${summary.mode}`)}
+                </span>
+              </dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.expectedDepth")}</dt>
+              <dd>{summary.depth}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.expectedSources")}</dt>
+              <dd>{summary.sources}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.maxIterations")}</dt>
+              <dd>{summary.iterations}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.outputLanguage")}</dt>
+              <dd>{summary.outputLanguage === "it" ? t("lang.it") : t("lang.en")}</dd>
+            </div>
+          </dl>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
           <h2>{t("new.resources")}</h2>
-          <p>
-            {t("provider.appCost")}: <strong>{t("new.costUnknown")}</strong>
-          </p>
-          <p className="muted">{t("new.costNote")}</p>
+          <dl className="kv-list">
+            <div className="kv-row">
+              <dt>{t("new.modelCalls")}</dt>
+              <dd>{mode === "quick" ? "~3–6" : mode === "deep" ? "~12–24" : "~7–12"}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.totalTokens")}</dt>
+              <dd>{mode === "quick" ? "~8k–20k" : mode === "deep" ? "~60k–150k" : "~25k–60k"}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.toolCalls")}</dt>
+              <dd>{mode === "quick" ? "~6–12" : mode === "deep" ? "~30–60" : "~15–25"}</dd>
+            </div>
+            <div className="kv-row">
+              <dt>{t("new.duration")}</dt>
+              <dd>{mode === "quick" ? "~1–2 min" : mode === "deep" ? "~5–12 min" : "~2–5 min"}</dd>
+            </div>
+          </dl>
+          <div className="cost-highlight">{t("new.costUnknown")}</div>
+          <p className="cost-range">{t("new.costNote")}</p>
+          <div className="note-box">{t("new.costHint")}</div>
         </section>
       </aside>
     </div>
