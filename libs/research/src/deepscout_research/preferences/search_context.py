@@ -25,6 +25,11 @@ def search_for_run(
     goal = row.goal if row is not None else ""
     resolved = preferences_from_snapshot(row.config_snapshot if row else None, goal=goal)
     enriched = enrich_search_query(query, resolved)
+    from deepscout_research.contracts.extract import contract_from_snapshot
+    from deepscout_research.contracts.source_authority import enrich_search_query_with_policy
+
+    contract = contract_from_snapshot(row.config_snapshot if row else None)
+    enriched = enrich_search_query_with_policy(enriched, contract)
     opts = search_provider_options(resolved)
     return provider.search(
         enriched,

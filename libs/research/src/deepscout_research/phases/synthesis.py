@@ -97,7 +97,13 @@ def synthesize_decision(
     if not isinstance(synthesis, SynthesisOutput):
         synthesis = SynthesisOutput.model_validate(synthesis)
 
-    if synthesis.uncertainty_state == "insufficient_evidence" or not synthesis.supporting_claim_ids:
+    if (
+        synthesis.uncertainty_state == "insufficient_evidence"
+        and not synthesis.supporting_claim_ids
+    ):
+        return None
+
+    if not synthesis.supporting_claim_ids:
         return None
 
     confidence = 0.8 if synthesis.uncertainty_state == "verified" else 0.6

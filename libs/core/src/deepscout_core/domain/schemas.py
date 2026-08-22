@@ -206,6 +206,9 @@ class EvidenceWrite(BaseModel):
     locator: str = Field(default="", max_length=512)
     support_strength: float = Field(default=0.5, ge=0.0, le=1.0)
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    extraction_metadata: dict[str, str | int | float | bool | list[str]] = Field(
+        default_factory=dict
+    )
 
 
 class ContradictionWrite(BaseModel):
@@ -242,6 +245,13 @@ class SynthesisOutput(BaseModel):
     rationale: str = Field(min_length=1, max_length=16000)
     uncertainty_state: str = Field(min_length=1, max_length=64)
     supporting_claim_ids: list[UUID] = Field(default_factory=list, max_length=50)
+
+
+class ReportSynthesisOutput(BaseModel):
+    title: str = Field(min_length=1, max_length=512)
+    body_markdown: str = Field(min_length=1, max_length=200_000)
+    cited_claim_ids: list[UUID] = Field(default_factory=list, max_length=50)
+    limitations: str = Field(default="", max_length=8000)
 
 
 class ReportWrite(BaseModel):

@@ -27,6 +27,7 @@ from deepscout_research.phases.contradiction import detect_contradictions_for_ru
 from deepscout_research.phases.critic import run_critic_for_run
 from deepscout_research.phases.extract import extract_claims_for_run
 from deepscout_research.phases.fetch import fetch_sources_for_run
+from deepscout_research.phases.final_critic import run_final_answer_critic
 from deepscout_research.phases.report import generate_report
 from deepscout_research.phases.synthesis import synthesize_decision
 from deepscout_research.phases.verify import verify_claims_for_run
@@ -35,7 +36,6 @@ from deepscout_research.retrieval.enabled import retrieval_enabled
 from deepscout_research.retrieval.indexer import index_snapshots_for_run
 from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.search.protocol import WebSearchProvider
-from deepscout_research.tasks.graph import TaskGraph
 from deepscout_research.termination import TerminationDecision, evaluate_termination
 from deepscout_research.workers.pool import ResearchWorkerPool
 
@@ -70,6 +70,38 @@ class ResearchOrchestrator:
         self._events: list[ResearchEvent] = []
         self._sink = event_sink
         self._max_correction_rounds = 1
+
+    def _seed_institutional_profiles(self, run_id: uuid.UUID) -> None:
+        from urllib.parse import urlparse
+
+        from deepscout_core.domain.schemas import SourceWrite
+
+        from deepscout_research.contracts.extract import contract_from_snapshot
+        from deepscout_research.contracts.legal_reference import institutional_profile_url_hints
+        from deepscout_research.contracts.office_holder import office_title_from_goal
+        from deepscout_research.fetch.secure import public_http_url_or_none
+
+        row = self._store.get_run_row(run_id)
+        contract = contract_from_snapshot(row.config_snapshot if row else None)
+        if contract is None:
+            return
+        req_ids = {item.requirement_id for item in contract.requirements}
+        if "R_president" not in req_ids:
+            return
+        for url in institutional_profile_url_hints(
+            office_title_from_goal(contract.primary_question)
+        ):
+            safe_url = public_http_url_or_none(url)
+            if safe_url is None:
+                continue
+            self._store.add_source(
+                run_id,
+                SourceWrite(
+                    canonical_url=safe_url,
+                    title="institutional profile",
+                    domain=urlparse(safe_url).netloc,
+                ),
+            )
 
     def _seed_pinned_sources(self, run_id: uuid.UUID) -> None:
         from urllib.parse import urlparse
@@ -212,6 +244,8 @@ class ResearchOrchestrator:
         iterations = 0
         try:
             self.build_plan(run_id, goal=run.goal)
+            self._seed_institutional_profiles(run_id)
+            self._store.commit()
             while True:
                 self._ensure_active(run_id)
                 iterations += 1
@@ -222,9 +256,20 @@ class ResearchOrchestrator:
                         if paused is not None:
                             return paused
                     break
+                tasks = self._store.list_tasks(run_id)
+                from deepscout_research.contracts.dependency_gate import (
+                    ready_tasks_with_verified_deps,
+                )
+
+                if tasks and not ready_tasks_with_verified_deps(self._store, run_id, tasks):
+                    break
 
             self._ensure_active(run_id)
-            self._run_post_research_phases(run_id)
+            self._run_evidence_pipeline(run_id)
+            iterations_box = [iterations]
+            self._run_corrective_research_loops(run_id, iterations_ref=iterations_box)
+            iterations = iterations_box[0]
+            self._run_finalize_phases(run_id)
 
             final = evaluate_termination(
                 budget=run.budget,
@@ -275,7 +320,11 @@ class ResearchOrchestrator:
             if self._settings.research_finalize_on_budget_exhausted:
                 try:
                     self._ensure_active(run_id)
-                    self._run_post_research_phases(run_id)
+                    self._run_evidence_pipeline(run_id)
+                    iterations_box = [iterations]
+                    self._run_corrective_research_loops(run_id, iterations_ref=iterations_box)
+                    iterations = iterations_box[0]
+                    self._run_finalize_phases(run_id)
                 except RunCancelledError:
                     self._store.set_termination_reason(run_id, "cancelled")
                     self._store.update_run_status(run_id, ResearchRunStatus.CANCELLED)
@@ -359,7 +408,33 @@ class ResearchOrchestrator:
             output_language=run.output_language,
             store=self._store,
         )
-        self._store.save_plan(run_id, planner_output_to_write(plan_output))
+        from deepscout_research.contracts.extract import (
+            build_research_contract,
+            derive_report_contract,
+        )
+
+        research_contract = build_research_contract(
+            goal=goal,
+            planner=plan_output,
+            output_language=run.output_language,
+        )
+        report_contract = derive_report_contract(research_contract)
+        self._store.merge_config_snapshot(
+            run_id,
+            {
+                "research_contract": research_contract.model_dump(mode="json"),
+                "report_contract": report_contract.model_dump(mode="json"),
+            },
+        )
+        plan_write = planner_output_to_write(plan_output)
+        if research_contract.user_facing_questions:
+            plan_write.questions = research_contract.user_facing_questions
+        self._store.save_plan(run_id, plan_write)
+        from deepscout_research.contracts.query_planning import contract_research_tasks
+
+        supplemental = contract_research_tasks(research_contract)
+        if supplemental:
+            self._store.append_tasks(run_id, supplemental)
         self._store.commit()
         self._emit(
             ResearchEvent(
@@ -386,9 +461,9 @@ class ResearchOrchestrator:
         if not tasks or self._settings.research_use_legacy_path:
             return self._legacy_single_question_iteration(run_id, iteration=iteration)
 
-        graph = TaskGraph(tuple(tasks))
-        graph.validate_dependencies()
-        ready = graph.ready_tasks()
+        from deepscout_research.contracts.dependency_gate import ready_tasks_with_verified_deps
+
+        ready = ready_tasks_with_verified_deps(self._store, run_id, tasks)
         for task in ready:
             if task.status == ResearchTaskStatus.PENDING:
                 self._store.update_task_status(task.id, ResearchTaskStatus.READY)
@@ -585,13 +660,27 @@ class ResearchOrchestrator:
                 question_id=question.id,
             ),
         )
+        from deepscout_research.contracts.extract import contract_from_snapshot
+        from deepscout_research.contracts.source_authority import is_source_admissible
+
+        row = self._store.get_run_row(run_id)
+        contract = contract_from_snapshot(row.config_snapshot if row else None)
+        prefs = self._store.list_source_preferences(run_id)
         for result in results:
             safe_url = public_http_url_or_none(result.url)
             if safe_url is None:
                 continue
             from deepscout_research.source_policy import is_excluded
 
-            if is_excluded(safe_url, self._store.list_source_preferences(run_id)):
+            if is_excluded(safe_url, prefs):
+                continue
+            admissible, _ = is_source_admissible(
+                safe_url,
+                contract=contract,
+                preferences=prefs,
+                title=result.title,
+            )
+            if not admissible:
                 continue
             domain = urlparse(safe_url).netloc
             _, created = self._store.add_source(
@@ -637,7 +726,7 @@ class ResearchOrchestrator:
             )
         )
 
-    def _run_post_research_phases(self, run_id: uuid.UUID) -> None:
+    def _run_evidence_pipeline(self, run_id: uuid.UUID, *, incremental: bool = False) -> None:
         run = self._store.get_run(run_id)
         if run is None:
             return
@@ -652,17 +741,42 @@ class ResearchOrchestrator:
         )
         try:
             fetched = fetch_sources_for_run(
-                self._store, run_id, max_sources=min(5, run.budget.max_sources)
+                self._store,
+                run_id,
+                max_sources=min(8, run.budget.max_sources),
             )
         except Exception:
             logger.exception("Fetch phase failed", extra={"run_id": str(run_id)})
             fetched = 0
+        primary_legal_stats: dict[str, int] = {}
+        try:
+            from deepscout_research.phases.primary_legal import (
+                follow_primary_legal_and_profile_urls,
+            )
+
+            primary_legal_stats = follow_primary_legal_and_profile_urls(
+                self._store,
+                run_id,
+                max_additions=4,
+            )
+            if primary_legal_stats.get("sources_added"):
+                fetched += fetch_sources_for_run(
+                    self._store,
+                    run_id,
+                    max_sources=min(8, run.budget.max_sources),
+                )
+        except Exception:
+            logger.exception("Primary legal follow-up failed", extra={"run_id": str(run_id)})
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
                 run_id=run_id,
                 phase=ResearchPhase.FETCH,
-                payload={"snapshots_created": fetched},
+                payload={
+                    "snapshots_created": fetched,
+                    "incremental": incremental,
+                    "primary_legal": primary_legal_stats,
+                },
             )
         )
         self._store.commit()
@@ -707,13 +821,25 @@ class ResearchOrchestrator:
         except Exception:
             logger.exception("Extract phase failed", extra={"run_id": str(run_id)})
             extract_stats = {"claims_created": 0, "evidence_created": 0}
+        structured_stats: dict[str, int] = {}
+        try:
+            from deepscout_research.phases.structured_extract import enrich_structured_evidence
+
+            structured_stats = enrich_structured_evidence(self._store, run_id)
+            extract_stats = {
+                **extract_stats,
+                "structured_temporal_claims": structured_stats.get("temporal_claims", 0),
+                "structured_verified_entities": structured_stats.get("verified_entities", 0),
+            }
+        except Exception:
+            logger.exception("Structured extract failed", extra={"run_id": str(run_id)})
         self._store.commit()
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
                 run_id=run_id,
                 phase=ResearchPhase.EXTRACT,
-                payload=extract_stats,
+                payload={**extract_stats, "structured": structured_stats},
             )
         )
 
@@ -738,6 +864,88 @@ class ResearchOrchestrator:
                 payload=verify_stats,
             )
         )
+
+    def _run_corrective_research_loops(
+        self,
+        run_id: uuid.UUID,
+        *,
+        iterations_ref: list[int],
+    ) -> None:
+        from deepscout_research.runtime.corrective_research import (
+            evaluate_corrective_research,
+            record_coverage_attempt,
+        )
+
+        while True:
+            self._ensure_active(run_id)
+            run = self._store.get_run(run_id)
+            if run is None:
+                return
+            decision = evaluate_corrective_research(
+                self._store,
+                run_id,
+                settings=self._settings,
+                budget=run.budget,
+                consumption=self._store.get_consumption(run_id),
+            )
+            if not decision.apply:
+                if decision.coverage is not None:
+                    self._store.merge_config_snapshot(
+                        run_id,
+                        {"coverage_map": decision.coverage.model_dump(mode="json")},
+                    )
+                break
+
+            added = self._store.append_tasks(run_id, list(decision.new_tasks))
+            row = self._store.get_run_row(run_id)
+            round_number = int((row.config_snapshot or {}).get("coverage_research_rounds") or 0) + 1
+            record_coverage_attempt(
+                self._store,
+                run_id,
+                coverage=decision.coverage,  # type: ignore[arg-type]
+                queries=[task.objective for task in decision.new_tasks],
+                round_number=round_number,
+            )
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.REPLAN_APPLIED,
+                    run_id=run_id,
+                    payload={
+                        "added": added,
+                        "reason": decision.reason,
+                        "coverage_round": round_number,
+                    },
+                )
+            )
+            self._store.commit()
+
+            while True:
+                iterations_ref[0] += 1
+                batch_decision = self.execute_research_batch(run_id, iteration=iterations_ref[0])
+                tasks = self._store.list_tasks(run_id)
+                from deepscout_research.contracts.dependency_gate import (
+                    ready_tasks_with_verified_deps,
+                )
+
+                ready = ready_tasks_with_verified_deps(self._store, run_id, tasks)
+                pending = [
+                    task for task in tasks if task.status.value in {"pending", "ready", "running"}
+                ]
+                if not pending:
+                    break
+                if not ready:
+                    break
+                if batch_decision.should_stop:
+                    break
+            self._run_evidence_pipeline(run_id, incremental=True)
+
+    def _run_finalize_phases(self, run_id: uuid.UUID) -> None:
+        self._run_post_research_phases(run_id)
+
+    def _run_post_research_phases(self, run_id: uuid.UUID) -> None:
+        run = self._store.get_run(run_id)
+        if run is None:
+            return
 
         self._emit(
             ResearchEvent(
@@ -830,13 +1038,46 @@ class ResearchOrchestrator:
                 phase=ResearchPhase.REPORT,
             )
         )
-        report_id = generate_report(self._store, run_id)
+        revision_notes = ""
+        report_id = generate_report(
+            self._store,
+            self._settings,
+            run_id,
+            revision_notes=revision_notes,
+        )
+        final_critic = run_final_answer_critic(self._store, run_id)
+        for _rewrite_round in range(1, self._settings.research_max_report_rewrites):
+            self._store.merge_config_snapshot(
+                run_id,
+                {"final_critic": final_critic.model_dump(mode="json")},
+            )
+            if final_critic.verdict.value == "pass":
+                break
+            if final_critic.verdict.value == "revision_required":
+                revision_notes = final_critic.revision_notes or "; ".join(final_critic.issues[:3])
+                report_id = generate_report(
+                    self._store,
+                    self._settings,
+                    run_id,
+                    revision_notes=revision_notes,
+                )
+                final_critic = run_final_answer_critic(self._store, run_id)
+                continue
+            break
+        self._store.merge_config_snapshot(
+            run_id,
+            {"final_critic": final_critic.model_dump(mode="json")},
+        )
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
                 run_id=run_id,
                 phase=ResearchPhase.REPORT,
-                payload={"report_id": str(report_id)},
+                payload={
+                    "report_id": str(report_id),
+                    "final_critic_verdict": final_critic.verdict.value,
+                    "final_critic_issues": final_critic.issues[:5],
+                },
             )
         )
         # Derived Wiki must not block report delivery. Compile after REPORT so

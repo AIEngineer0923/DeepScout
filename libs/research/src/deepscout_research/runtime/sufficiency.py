@@ -36,7 +36,7 @@ def evaluate_sufficiency(
             new_sources,
             completed,
         )
-    if new_sources == 0 and completed > 0 and remaining_iterations <= 1:
+    if new_sources == 0 and completed > 0 and pending == 0 and remaining_iterations <= 1:
         return SufficiencyDecision(
             SufficiencyAction.FINALIZE,
             "low_marginal_yield",

@@ -1,0 +1,107 @@
+{
+  "dataset_id": "deepscout-final-report-quality-v1",
+  "version": "1",
+  "notes": "Regression and multi-domain cases for goal-conditioned reporting. Labels are structural expectations, not hardcoded answers.",
+  "cases": [
+    {
+      "id": "simple-factual-lookup",
+      "category": "simple_factual",
+      "goal": "What is the ISO 3166-1 alpha-2 code for Italy?"
+    },
+    {
+      "id": "multi-hop-dependency",
+      "category": "multi_hop",
+      "goal": "Identify the current President of the European Commission, then use that context to summarize current GPAI provider obligations under the EU AI Act."
+    },
+    {
+      "id": "hard-source-constraint-eu-official-only",
+      "category": "hard_source_constraint",
+      "goal": "Identify concrete GPAI guidance from the European Commission. Use only official EU institutional sources."
+    },
+    {
+      "id": "preferred-source-classes",
+      "category": "preferred_sources",
+      "goal": "Compare credible European lifecycle GHG estimates for BEV vs comparable ICEV. Prefer ICCT, IEA, and peer-reviewed sources."
+    },
+    {
+      "id": "scientific-quantitative-comparison",
+      "category": "scientific_comparison",
+      "goal": "Compare BEV and ICE lifecycle GHG emissions in Europe. Quantify where possible and explain why break-even estimates differ across authoritative studies."
+    },
+    {
+      "id": "methodological-disagreement",
+      "category": "methodological_disagreement",
+      "goal": "Explain why authoritative lifecycle studies report different BEV break-even distances in Europe."
+    },
+    {
+      "id": "technical-tradeoff-lfp-nmc",
+      "category": "technical_tradeoff",
+      "goal": "Compare LFP and high-nickel NMC on cycle life, energy density, thermal safety, cost drivers, and pack-level engineering trade-offs. Prefer peer-reviewed, DOE, national-lab, and credible manufacturer engineering sources."
+    },
+    {
+      "id": "regulatory-timeline-gpai",
+      "category": "regulatory_timeline",
+      "goal": "Explain concrete GPAI obligations under the EU AI Act, distinguish obligations already applicable from later transitional requirements, and prioritize EUR-Lex, European Commission, and EU AI Office sources."
+    },
+    {
+      "id": "temporal-current-info",
+      "category": "temporal",
+      "goal": "What enforcement milestones for GPAI providers apply in 2026 under the EU AI Act?"
+    },
+    {
+      "id": "conflicting-evidence",
+      "category": "conflicting_evidence",
+      "goal": "Do lifecycle assessments consistently show lower European BEV emissions than ICE, and where do studies materially disagree?"
+    },
+    {
+      "id": "partially-answerable",
+      "category": "partial_answer",
+      "goal": "Compare European BEV and ICE lifecycle GHG and report exact break-even mileage if published."
+    },
+    {
+      "id": "no-answer-honest",
+      "category": "no_answer",
+      "goal": "Using only official EU institutional sources, what is the private training dataset size disclosed for a specific unnamed third-party GPAI model released in 2011?"
+    },
+    {
+      "id": "irrelevant-search-noise",
+      "category": "source_noise",
+      "goal": "Summarize GPAI provider obligations under the EU AI Act using official EU sources only."
+    },
+    {
+      "id": "source-poisoning",
+      "category": "source_poisoning",
+      "goal": "Use only official EU institutional sources to summarize GPAI obligations."
+    },
+    {
+      "id": "authoritative-title-trap",
+      "category": "authority_trap",
+      "goal": "Summarize EU GPAI obligations from official sources only."
+    },
+    {
+      "id": "exact-identifier",
+      "category": "identifier",
+      "goal": "What is the CELEX number for Regulation (EU) 2024/1689?"
+    },
+    {
+      "id": "market-analysis",
+      "category": "market_analysis",
+      "goal": "Compare leading European public fast-charging network operators by geographic coverage and business model."
+    },
+    {
+      "id": "business-comparison",
+      "category": "business_comparison",
+      "goal": "Compare two listed European battery manufacturers on production capacity announcements and capital expenditure plans."
+    },
+    {
+      "id": "current-information",
+      "category": "current_events",
+      "goal": "What are the latest publicly announced EU AI Office actions related to GPAI code of practice compliance?"
+    },
+    {
+      "id": "broad-synthesis",
+      "category": "broad_synthesis",
+      "goal": "Provide a decision-oriented synthesis of when LFP versus high-nickel NMC is preferable for a European passenger EV platform, including pack engineering effects."
+    }
+  ]
+}

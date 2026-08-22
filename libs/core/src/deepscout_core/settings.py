@@ -97,7 +97,11 @@ class Settings(BaseSettings):
     agent_max_total_workers: int = Field(default=12, alias="AGENT_MAX_TOTAL_WORKERS")
     agent_skills_auto: bool = Field(default=True, alias="AGENT_SKILLS_AUTO")
     context_compaction_char_limit: int = Field(default=12000, alias="CONTEXT_COMPACTION_CHAR_LIMIT")
-    research_straggler_timeout_s: int = Field(default=120, alias="RESEARCH_STRAGGLER_TIMEOUT_S")
+    research_max_coverage_rounds: int = Field(default=2, alias="RESEARCH_MAX_COVERAGE_ROUNDS")
+    research_max_gap_queries_per_round: int = Field(
+        default=3, alias="RESEARCH_MAX_GAP_QUERIES_PER_ROUND"
+    )
+    research_max_report_rewrites: int = Field(default=2, alias="RESEARCH_MAX_REPORT_REWRITES")
 
     deployment_mode: DeploymentMode = Field(
         default=DeploymentMode.LOCAL,

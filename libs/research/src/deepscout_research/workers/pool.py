@@ -191,11 +191,23 @@ class ResearchWorkerPool:
             query = task.objective[:500]
             try:
                 budget.reserve_tool_call(run_id, note=f"search:{task.task_key}")
+                from deepscout_research.contracts.extract import contract_from_snapshot
+                from deepscout_research.contracts.query_planning import office_holder_queries
+                from deepscout_research.contracts.source_authority import (
+                    enrich_search_query_with_policy,
+                )
+
+                row = store.get_run_row(run_id)
+                contract = contract_from_snapshot(row.config_snapshot if row else None)
+                if task.task_key == "entity-office-holder" and contract is not None:
+                    variants = office_holder_queries(contract)
+                    query = variants[0] if variants else query
+                query = enrich_search_query_with_policy(query, contract)
                 graph_state = run_worker_graph(
                     run_id=run_id,
                     task_id=task.id,
                     worker_id=worker_id,
-                    objective=task.objective,
+                    objective=query,
                     search_provider=RunScopedSearchProvider(self._search, store, run_id),
                     resume=True,
                     database_url=self._settings.database_url,
@@ -274,13 +286,52 @@ class ResearchWorkerPool:
 
             sources_added = 0
             prefs = store.list_source_preferences(run_id)
+            from deepscout_research.contracts.extract import contract_from_snapshot
+            from deepscout_research.contracts.source_authority import is_source_admissible
             from deepscout_research.source_policy import is_excluded
+
+            row = store.get_run_row(run_id)
+            contract = contract_from_snapshot(row.config_snapshot if row else None)
+
+            def _office_holder_rank(item) -> int:
+                lowered = f"{item.url} {item.title}".casefold()
+                score = 0
+                if "president" in lowered or "presidente" in lowered:
+                    score += 3
+                if any(
+                    host in lowered
+                    for host in ("commission.europa.eu", "ec.europa.eu", "europa.eu")
+                ):
+                    score += 2
+                if any(
+                    token in lowered for token in ("biography", "about", "leadership", "college")
+                ):
+                    score += 1
+                if "eur-lex" in lowered and "president" not in lowered:
+                    score -= 3
+                if any(token in lowered for token in ("index", "directory", "eli/register")):
+                    score -= 2
+                return score
+
+            office_holder_task = task.task_key == "entity-office-holder" or any(
+                token in query.casefold() for token in ("president", "presidente", "office-holder")
+            )
+            if office_holder_task:
+                results = sorted(results, key=_office_holder_rank, reverse=True)
 
             for result in results:
                 safe_url = public_http_url_or_none(result.url)
                 if safe_url is None:
                     continue
                 if is_excluded(safe_url, prefs):
+                    continue
+                admissible, _reason = is_source_admissible(
+                    safe_url,
+                    contract=contract,
+                    preferences=prefs,
+                    title=result.title,
+                )
+                if not admissible:
                     continue
                 domain = urlparse(safe_url).netloc
                 _, created = store.add_source(
