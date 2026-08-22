@@ -30,13 +30,17 @@ from deepscout_research.phases.report import generate_report
 def _planner(goal: str) -> PlannerOutput:
     return PlannerOutput(
         approach="Structured research plan",
-        success_criteria="Answer all material parts of the user request with authoritative evidence.",
+        success_criteria=(
+            "Answer all material parts of the user request with authoritative evidence."
+        ),
         questions=[PlannerQuestion(text=goal, priority=1)],
     )
 
 
 def test_temporal_evidence_distinguishes_applicability() -> None:
-    now_quote = "Chapter V obligations entered into application on 2 August 2025 for GPAI providers."
+    now_quote = (
+        "Chapter V obligations entered into application on 2 August 2025 for GPAI providers."
+    )
     later_quote = "Transitional provisions apply until 2 August 2027 for systemic-risk models."
     assert evidence_supports_applicable_now(statement="", quote=now_quote)
     assert evidence_supports_future_or_transitional(statement="", quote=later_quote)
@@ -137,7 +141,9 @@ def test_offline_eu_gpai_regulatory_temporal_coverage(store, settings) -> None:
         "già applicabili da quelli successivi."
     )
     run = store.create_run(
-        ResearchRunCreate(goal=goal, budget=settings.default_research_budget(), output_language="it"),
+        ResearchRunCreate(
+            goal=goal, budget=settings.default_research_budget(), output_language="it"
+        ),
         settings,
     )
     contract = build_research_contract(goal=goal, planner=_planner(goal), output_language="it")
@@ -178,7 +184,9 @@ def test_offline_eu_gpai_regulatory_temporal_coverage(store, settings) -> None:
         ),
     )
     now_text = "GPAI transparency obligations entered into application on 2 August 2025."
-    later_text = "Systemic-risk GPAI models must comply with additional obligations by 2 August 2027."
+    later_text = (
+        "Systemic-risk GPAI models must comply with additional obligations by 2 August 2027."
+    )
     snapshot = store.add_snapshot(
         source.id,
         SourceSnapshotWrite(content=f"{now_text} {later_text}", mime_type="text/plain"),

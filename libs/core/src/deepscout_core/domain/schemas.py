@@ -206,7 +206,9 @@ class EvidenceWrite(BaseModel):
     locator: str = Field(default="", max_length=512)
     support_strength: float = Field(default=0.5, ge=0.0, le=1.0)
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-    extraction_metadata: dict[str, str | int | float | bool | list[str]] = Field(default_factory=dict)
+    extraction_metadata: dict[str, str | int | float | bool | list[str]] = Field(
+        default_factory=dict
+    )
 
 
 class ContradictionWrite(BaseModel):

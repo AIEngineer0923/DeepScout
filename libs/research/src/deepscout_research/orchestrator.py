@@ -36,7 +36,6 @@ from deepscout_research.retrieval.enabled import retrieval_enabled
 from deepscout_research.retrieval.indexer import index_snapshots_for_run
 from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.search.protocol import WebSearchProvider
-from deepscout_research.tasks.graph import TaskGraph
 from deepscout_research.termination import TerminationDecision, evaluate_termination
 from deepscout_research.workers.pool import ResearchWorkerPool
 
@@ -89,7 +88,9 @@ class ResearchOrchestrator:
         req_ids = {item.requirement_id for item in contract.requirements}
         if "R_president" not in req_ids:
             return
-        for url in institutional_profile_url_hints(office_title_from_goal(contract.primary_question)):
+        for url in institutional_profile_url_hints(
+            office_title_from_goal(contract.primary_question)
+        ):
             safe_url = public_http_url_or_none(url)
             if safe_url is None:
                 continue
@@ -256,7 +257,9 @@ class ResearchOrchestrator:
                             return paused
                     break
                 tasks = self._store.list_tasks(run_id)
-                from deepscout_research.contracts.dependency_gate import ready_tasks_with_verified_deps
+                from deepscout_research.contracts.dependency_gate import (
+                    ready_tasks_with_verified_deps,
+                )
 
                 if tasks and not ready_tasks_with_verified_deps(self._store, run_id, tasks):
                     break
@@ -405,7 +408,10 @@ class ResearchOrchestrator:
             output_language=run.output_language,
             store=self._store,
         )
-        from deepscout_research.contracts.extract import build_research_contract, derive_report_contract
+        from deepscout_research.contracts.extract import (
+            build_research_contract,
+            derive_report_contract,
+        )
 
         research_contract = build_research_contract(
             goal=goal,
@@ -744,7 +750,9 @@ class ResearchOrchestrator:
             fetched = 0
         primary_legal_stats: dict[str, int] = {}
         try:
-            from deepscout_research.phases.primary_legal import follow_primary_legal_and_profile_urls
+            from deepscout_research.phases.primary_legal import (
+                follow_primary_legal_and_profile_urls,
+            )
 
             primary_legal_stats = follow_primary_legal_and_profile_urls(
                 self._store,
@@ -913,17 +921,15 @@ class ResearchOrchestrator:
 
             while True:
                 iterations_ref[0] += 1
-                batch_decision = self.execute_research_batch(
-                    run_id, iteration=iterations_ref[0]
-                )
+                batch_decision = self.execute_research_batch(run_id, iteration=iterations_ref[0])
                 tasks = self._store.list_tasks(run_id)
-                from deepscout_research.contracts.dependency_gate import ready_tasks_with_verified_deps
+                from deepscout_research.contracts.dependency_gate import (
+                    ready_tasks_with_verified_deps,
+                )
 
                 ready = ready_tasks_with_verified_deps(self._store, run_id, tasks)
                 pending = [
-                    task
-                    for task in tasks
-                    if task.status.value in {"pending", "ready", "running"}
+                    task for task in tasks if task.status.value in {"pending", "ready", "running"}
                 ]
                 if not pending:
                     break

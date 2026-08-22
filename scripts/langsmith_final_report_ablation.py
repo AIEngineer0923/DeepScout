@@ -23,10 +23,7 @@ EXPERIMENTS = (
 
 
 def _load_cases() -> list[dict]:
-    path = (
-        Path(__file__).resolve().parents[1]
-        / "libs/evaluation/data/final_report_quality_v1.json"
-    )
+    path = Path(__file__).resolve().parents[1] / "libs/evaluation/data/final_report_quality_v1.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     return payload.get("cases", payload)
 
@@ -118,7 +115,11 @@ def main() -> int:
             )
         dataset = client.create_dataset(DATASET_NAME, description="Frozen final report quality v1")
         client.create_examples(dataset_id=dataset.id, examples=examples)
-        print(json.dumps({"status": "DATASET_CREATED", "dataset": DATASET_NAME, "examples": len(examples)}))
+        print(
+            json.dumps(
+                {"status": "DATASET_CREATED", "dataset": DATASET_NAME, "examples": len(examples)}
+            )
+        )
     else:
         dataset = datasets[0]
 
@@ -126,8 +127,8 @@ def main() -> int:
     for arm in EXPERIMENTS:
         prefix = f"{arm}-{datetime.now(UTC).strftime('%Y%m%d')}"
 
-        def _target(inputs: dict) -> dict:
-            return _offline_target({**inputs, "ablation_arm": arm})
+        def _target(inputs: dict, *, ablation_arm: str = arm) -> dict:
+            return _offline_target({**inputs, "ablation_arm": ablation_arm})
 
         results = evaluate(
             _target,

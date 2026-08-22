@@ -57,7 +57,10 @@ def _select_snapshot_sentence(
 
 def _select_specialized_sentence(snapshot_text: str, *, query: str) -> str | None:
     lowered_query = query.casefold()
-    if any(token in lowered_query for token in ("president", "presidente", "office-holder", "leadership")):
+    if any(
+        token in lowered_query
+        for token in ("president", "presidente", "office-holder", "leadership")
+    ):
         for sentence in split_sentences(snapshot_text):
             lowered = sentence.casefold()
             if ("president" not in lowered and "presidente" not in lowered) or (
@@ -68,7 +71,15 @@ def _select_specialized_sentence(snapshot_text: str, *, query: str) -> str | Non
                 return sentence
     if any(
         token in lowered_query
-        for token in ("applicable", "transitional", "timeline", "enforcement", "gpai", "article", "vigore")
+        for token in (
+            "applicable",
+            "transitional",
+            "timeline",
+            "enforcement",
+            "gpai",
+            "article",
+            "vigore",
+        )
     ):
         for sentence in split_sentences(snapshot_text):
             if not re.search(r"\b20\d{2}\b", sentence):
@@ -107,8 +118,8 @@ def extract_claims_for_run(
     evidence_created = 0
     retrieved_used = 0
     row = store.get_run_row(run_id)
-    from deepscout_research.contracts.extract import contract_from_snapshot
     from deepscout_research.contracts.evidence_relevance import is_evidence_relevant
+    from deepscout_research.contracts.extract import contract_from_snapshot
     from deepscout_research.contracts.source_authority import is_source_admissible
 
     contract = contract_from_snapshot(row.config_snapshot if row else None)

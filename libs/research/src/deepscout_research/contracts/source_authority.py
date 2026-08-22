@@ -16,10 +16,9 @@ from deepscout_core.domain.contracts import (
 )
 from deepscout_core.domain.schemas import SourcePreferenceRead
 
+from deepscout_research.contracts.query_planning import official_source_namespaces
 from deepscout_research.fetch.url_normalize import normalize_source_url
 from deepscout_research.source_policy import is_excluded
-
-from deepscout_research.contracts.query_planning import official_source_namespaces
 
 _OFFICIAL_DOMAIN_SUFFIXES = (
     ".gov",
@@ -80,7 +79,6 @@ def classify_source_authority(
 ) -> SourceAuthorityMetadata:
     domain = _domain(url)
     lowered_title = title.casefold()
-    lowered_url = url.casefold()
     source_class = SourceClass.UNKNOWN
     authority = AuthorityClass.UNKNOWN
     institutional = False
@@ -122,7 +120,7 @@ def classify_source_authority(
         authority = AuthorityClass.SECONDARY
         primary_vs_secondary = "secondary"
 
-    if "sec.gov" in domain or "edgar" in lowered_url:
+    if domain == "sec.gov" or domain.endswith(".sec.gov"):
         source_class = SourceClass.FINANCIAL_FILING
         authority = AuthorityClass.PRIMARY
         official = True

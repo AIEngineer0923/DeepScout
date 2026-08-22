@@ -193,7 +193,9 @@ class ResearchWorkerPool:
                 budget.reserve_tool_call(run_id, note=f"search:{task.task_key}")
                 from deepscout_research.contracts.extract import contract_from_snapshot
                 from deepscout_research.contracts.query_planning import office_holder_queries
-                from deepscout_research.contracts.source_authority import enrich_search_query_with_policy
+                from deepscout_research.contracts.source_authority import (
+                    enrich_search_query_with_policy,
+                )
 
                 row = store.get_run_row(run_id)
                 contract = contract_from_snapshot(row.config_snapshot if row else None)
@@ -296,9 +298,14 @@ class ResearchWorkerPool:
                 score = 0
                 if "president" in lowered or "presidente" in lowered:
                     score += 3
-                if any(host in lowered for host in ("commission.europa.eu", "ec.europa.eu", "europa.eu")):
+                if any(
+                    host in lowered
+                    for host in ("commission.europa.eu", "ec.europa.eu", "europa.eu")
+                ):
                     score += 2
-                if any(token in lowered for token in ("biography", "about", "leadership", "college")):
+                if any(
+                    token in lowered for token in ("biography", "about", "leadership", "college")
+                ):
                     score += 1
                 if "eur-lex" in lowered and "president" not in lowered:
                     score -= 3

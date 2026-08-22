@@ -1,0 +1,50 @@
+{
+  "started_at": "2026-08-22T06:47:21.170305+00:00",
+  "cases": {
+    "eu_gpai": {
+      "case": "eu_gpai",
+      "run_id": "96dd3652-e055-4a4f-b5a7-42d39f6ec7b4",
+      "latency_ms": 53599,
+      "goal": "Spiega gli obblighi che il Regolamento UE sull'IA impone nel 2026 ai fornitori di modelli di IA per finalità generali, distinguendo gli obblighi già applicabili da quelli successivi, e individua le fonti autorevoli della Commissione o dell'UE a supporto di ogni conclusione. Dai priorità a EUR-Lex, Commissione europea e pubblicazioni dell'EU AI Office.",
+      "sources": 12,
+      "claims": 13,
+      "evidence": 25,
+      "coverage_rounds": null,
+      "coverage_gaps": [],
+      "final_critic": {
+        "verdict": "pass",
+        "issues": [],
+        "reason_codes": [],
+        "revision_notes": "",
+        "unresolved_requirements": []
+      },
+      "report_excerpt": "## Executive Summary\n\nIl Regolamento (UE) 2024/1689 del Parlamento europeo e del Consiglio (noto come *Artificial Intelligence Act* o AI Act) è entrato in vigore il 1° agosto 2024 [1]. Il quadro normativo introduce una disciplina armonizzata all'interno dell'Unione europea per i sistemi di intelligenza artificiale e stabilisce obblighi specifici per i fornitori di modelli di intelligenza artificiale per finalità generali (*General-Purpose AI*, GPAI) [1].\n\nL'applicazione delle disposizioni del Regolamento segue un'attuazione scaglionata nel tempo: mentre l'entrata in vigore è avvenuta nel 2024, la totalità delle norme diverrà applicabile entro il 2 agosto 2027 [1]. Durante la fase di transizione che interessa il 2026, si applicano disposizioni transitorie e periodi di grazia specifici (quali quelli indicati all'articolo 111, paragrafo 2) [1], unitamente ai poteri di supervisione e coordinamento tra la Commissione europea, l'Ufficio per l'IA (*AI Office*) e i quadri normativi correlati (come il Regolamento UE 2022/2065 / DSA) [1].\n\n## Analysis\n\n### 1. Inquadramento dei Modelli GPAI e Supervisione Istituzionale\nL'AI Act stabilisce requisiti rigorosi e poteri di vigilanza ed esecuzione (*enforcement*) attribuiti alla Commissione europea e all'AI Office per garantire l'effettiva applicazione delle norme [1]. Nei casi in cui i modelli di IA per finalità generali siano integrati in piattaforme online di dimensioni molto grandi (*Very Large Online Platforms*) o motori di ricerca, la vigilanza è coordinata con gli obblighi di valutazione dei rischi, misure di mitigazione e audit previsti dagli articoli 34, 35 e 37 del Regolamento (UE) 2022/2065, fatto salvo il potere dell'AI Office di condurre indagini ed eseguire controlli ex-post per non conformità con il Regolamento (UE) 2024/1689 [1].\n\n### 2. Periodo di Transizione e Articolo 111, Paragrafo 2\nPer consentire ai fornitori di adeguarsi ai requisiti operativi, il quadro normativo dell'Unione europea prevede specifici periodi di grazia (*grace periods*) definiti dall'articolo 111, paragrafo 2, del Regolamento (UE) 2024/1689 [1]. La portata di tali regimi transitori disciplina l'adeguamento progressivo dei fornitori di modelli di IA rispetto ai requisiti di documentazione, valutazione dei rischi e conformità tecnica prima della piena ed esaustiva efficacia delle sanzioni e degli obblighi ordinari [1].\n\n### 3. Requisiti di Prova nel Mondo Reale e Semplificazioni\nI test in condizioni reali (*real-world testing*) devono",
+      "report_title": "Analisi Regolatoria: Obblighi per i Fornitori di Modelli di IA per Finalità Generali e Calendario di Applicazione dell'AI Act (Regolamento UE 2024/1689)",
+      "attempt": 3,
+      "pass_rate": "3/3",
+      "attempt_summaries": [
+        {
+          "attempt": 1,
+          "run_id": "610268b0-aa64-46e9-a7ca-9cc437385e36",
+          "verdict": "pass",
+          "coverage_gaps": [],
+          "latency_ms": 71590
+        },
+        {
+          "attempt": 2,
+          "run_id": "86c1b78d-0972-4e53-8bf7-3f812cc54be0",
+          "verdict": "pass",
+          "coverage_gaps": [],
+          "latency_ms": 54652
+        },
+        {
+          "attempt": 3,
+          "run_id": "96dd3652-e055-4a4f-b5a7-42d39f6ec7b4",
+          "verdict": "pass",
+          "coverage_gaps": [],
+          "latency_ms": 53599
+        }
+      ]
+    }
+  }
+}

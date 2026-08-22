@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "libs" / "provid
 
 from deepscout_core.domain.budget import ResearchBudget
 from deepscout_core.domain.schemas import ResearchRunCreate
-from deepscout_core.settings import Settings
 from deepscout_persistence.session import dispose_all_engines, get_session_factory
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.contracts.coverage import evaluate_coverage
@@ -84,7 +83,9 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description="Run frozen final-report quality regressions")
     parser.add_argument("--case", choices=list(REGRESSIONS), help="Run a single regression case")
-    parser.add_argument("--attempts", type=int, default=1, help="Bounded repeat attempts for robustness")
+    parser.add_argument(
+        "--attempts", type=int, default=1, help="Bounded repeat attempts for robustness"
+    )
     parser.add_argument(
         "--no-early-exit",
         action="store_true",
@@ -158,7 +159,9 @@ def main() -> int:
                         )
                     finally:
                         session.close()
-                pass_count = sum(1 for item in attempts if item["final_critic"]["verdict"] == "pass")
+                pass_count = sum(
+                    1 for item in attempts if item["final_critic"]["verdict"] == "pass"
+                )
                 best = dict(attempts[-1])
                 best["pass_rate"] = f"{pass_count}/{len(attempts)}"
                 best["attempt_summaries"] = [

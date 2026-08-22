@@ -54,9 +54,7 @@ def follow_primary_legal_and_profile_urls(
         if snapshot is None or not snapshot.content_text.strip():
             continue
         text = snapshot.content_text
-        legal_refs.extend(
-            extract_legal_references(text, source_url=source.canonical_url)
-        )
+        legal_refs.extend(extract_legal_references(text, source_url=source.canonical_url))
         candidates.extend(discover_official_links(text, source.canonical_url))
 
     for ref in legal_refs[:5]:
@@ -106,7 +104,9 @@ def follow_primary_legal_and_profile_urls(
             )
             fetched += 1
         except (SecureFetchError, OSError, TimeoutError) as exc:
-            logger.info("Primary legal fetch failed", extra={"url": normalized, "reason": str(exc)[:120]})
+            logger.info(
+                "Primary legal fetch failed", extra={"url": normalized, "reason": str(exc)[:120]}
+            )
         if added >= max_additions:
             break
 

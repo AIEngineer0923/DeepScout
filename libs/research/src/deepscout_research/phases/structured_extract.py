@@ -52,7 +52,10 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
             if not claim.verified:
                 continue
             temporal_claims.append(claim.model_dump(mode="json"))
-            quote = locate_quote_in_content(claim.evidence_quote, text, min_len=24) or claim.evidence_quote
+            quote = (
+                locate_quote_in_content(claim.evidence_quote, text, min_len=24)
+                or claim.evidence_quote
+            )
             req_ids = requirement_ids_for_temporal_claim(claim)
             statement = f"{claim.subject}: {claim.temporal_relation.value} {claim.date_text}"
             claim_row = store.find_claim(run_id, source_id=source.id, statement=statement[:8000])
@@ -87,7 +90,10 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
             office_title=office_title_from_goal(goal),
         )
         if office and verify_office_holder(office):
-            quote = locate_quote_in_content(office.evidence_span, text, min_len=24) or office.evidence_span
+            quote = (
+                locate_quote_in_content(office.evidence_span, text, min_len=24)
+                or office.evidence_span
+            )
             statement = f"{office.person_name} — {office.office_title}"
             claim_row = store.find_claim(run_id, source_id=source.id, statement=statement[:8000])
             if claim_row is None:

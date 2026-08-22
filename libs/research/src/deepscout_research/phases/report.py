@@ -23,8 +23,8 @@ from deepscout_research.contracts.extract import (
     derive_report_contract,
     report_contract_from_snapshot,
 )
-from deepscout_research.prompts import REPORT_V1
 from deepscout_research.phases.report_synthesis import synthesize_goal_conditioned_report
+from deepscout_research.prompts import REPORT_V1
 
 
 def _section_heading(spec_heading: str, language: str) -> str:
