@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useI18n, useT } from "@/i18n/context";
 import { presentKnowledgeStatus } from "@/presentation/knowledge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { RichContent } from "@/components/RichContent";
 
 export function KnowledgePageScreen() {
   const t = useT();
@@ -24,7 +25,7 @@ export function KnowledgePageScreen() {
       <p className="muted">
         {t("knowledge.notEvidence")} · v{String(page.version)} · {presentKnowledgeStatus(String(page.status), locale)}
       </p>
-      <pre className="wrap-text">{String(page.body_markdown ?? "")}</pre>
+      <RichContent markdown={String(page.body_markdown ?? "")} className="rich-content" />
       <section className="card">
         <h2>{t("knowledge.statements")}</h2>
         <ul>

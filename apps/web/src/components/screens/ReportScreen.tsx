@@ -8,6 +8,8 @@ import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayReport } from "@/presentation/demo";
+import { RichContent } from "@/components/RichContent";
+import { truncateMarkdownBody } from "@/lib/markdown";
 
 const SUGGESTIONS = [
   "Dig deeper into the strongest claim.",
@@ -31,13 +33,11 @@ export function ReportScreen() {
   const reportView = displayReport(current);
   const parentId = workspace.runtime?.parent_run_id;
   const bodyPreviewLimit = 6000;
-  const showReadMore = Boolean(
-    reportView.body && reportView.body.length > bodyPreviewLimit && !expanded,
-  );
-  const visibleBody =
-    showReadMore && reportView.body
-      ? `${reportView.body.slice(0, bodyPreviewLimit)}\n\n…`
-      : reportView.body;
+  const { body: previewBody, truncated: hasMoreBody } = reportView.body
+    ? truncateMarkdownBody(reportView.body, bodyPreviewLimit)
+    : { body: "", truncated: false };
+  const showReadMore = Boolean(hasMoreBody && !expanded);
+  const renderedBody = showReadMore ? previewBody : reportView.body;
 
   async function copyMarkdown() {
     if (!reportView.body) return;
@@ -96,9 +96,14 @@ export function ReportScreen() {
               </div>
             ) : null}
           </div>
-          {visibleBody ? (
+          {renderedBody ? (
             <>
-              <pre className="wrap-text report-body-selectable">{visibleBody}</pre>
+              <RichContent
+                markdown={renderedBody}
+                className="rich-content report-body-selectable"
+                runId={workspace.run_id}
+                sources={workspace.sources}
+              />
               {showReadMore ? (
                 <button
                   className="btn"
@@ -107,6 +112,15 @@ export function ReportScreen() {
                   aria-expanded={expanded}
                 >
                   {t("report.readMore")}
+                </button>
+              ) : hasMoreBody && expanded ? (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  aria-expanded={expanded}
+                >
+                  {t("report.readLess")}
                 </button>
               ) : null}
             </>
