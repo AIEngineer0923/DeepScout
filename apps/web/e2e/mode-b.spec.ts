@@ -158,7 +158,7 @@ test.describe("mode B public entry routing", () => {
     await expect(page.getByTestId("public-shell")).toHaveCount(0);
   });
 
-  test("anonymous hosted demo run uses demo shell not app shell", async ({ page }) => {
+  test("anonymous hosted demo run uses product shell in read-only mode", async ({ page }) => {
     await mockHostedAnonymous(page);
     await page.route(`**/api/v1/research-runs/${FIXTURE_RUN_ID}/workspace`, async (route) =>
       route.fulfill({ json: workspaceFixture }),
@@ -168,8 +168,8 @@ test.describe("mode B public entry routing", () => {
     );
     await page.goto(`/research/${FIXTURE_RUN_ID}`);
     await expect(page.getByTestId("demo-shell")).toBeVisible();
-    await expect(page.getByTestId("app-shell")).toHaveCount(0);
-    await expect(page.getByLabel("Primary navigation")).toHaveCount(0);
+    await expect(page.getByLabel("Primary navigation")).toBeVisible();
+    await expect(page.locator("nav.tabs")).toHaveCount(0);
   });
 
   test("logout returns to public landing", async ({ page }) => {
