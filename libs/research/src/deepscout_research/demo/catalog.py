@@ -90,8 +90,8 @@ DEMO_CATALOG: tuple[DemoCatalogEntry, ...] = (
             "Explain the obligations that the EU AI Act imposes in 2026 on providers of "
             "general-purpose AI models, distinguishing obligations already applicable from "
             "later obligations, and identify authoritative Commission or EU sources "
-            "supporting each conclusion. Prioritize EUR-Lex, European Commission, and EU AI "
-            "Office publications."
+            "supporting each conclusion. Use only official EU institutional sources, "
+            "including EUR-Lex, European Commission, and EU AI Office publications."
         ),
         "category": "regulatory",
         "title": "EU AI Act GPAI provider obligations (2026)",

@@ -8,6 +8,8 @@ from uuid import UUID
 
 from deepscout_persistence.store import ResearchStore
 
+from deepscout_research.contracts.extract import contract_from_snapshot
+from deepscout_research.contracts.source_authority import violates_only_constraint
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
 from deepscout_research.demo.presentation_validation import (
     resolve_publication_presentations,
@@ -58,7 +60,7 @@ def review_demo_candidate(
     unique_domains = _independent_domains(sources)
     unresolved_quotes = sum(1 for item in evidence if not (item.quote or "").strip())
     report_body = (report.body_markdown or "").strip() if report else ""
-    report_citations = report_body.count("](")
+    report_citations = report_body.count("](") + len(re.findall(r"\[\d+\]", report_body))
 
     checks: dict[str, bool] = {
         "TERMINAL_COMPLETED": row.status.value == "completed",
@@ -103,6 +105,24 @@ def review_demo_candidate(
 
     if report_citations < 1 and len(claims) > 0:
         warnings.append("REPORT_WARN: no markdown citations detected")
+
+    contract = contract_from_snapshot(row.config_snapshot)
+    if contract is not None:
+        violating_sources = [
+            source
+            for source in sources
+            if violates_only_constraint(source.canonical_url, contract=contract)
+        ]
+        if violating_sources:
+            checks["SOURCE_CONSTRAINT"] = False
+            reasons.append(
+                "SOURCE_QUALITY_FAILURE: "
+                f"{len(violating_sources)} sources violate official-only constraint"
+            )
+        else:
+            checks["SOURCE_CONSTRAINT"] = True
+    else:
+        checks["SOURCE_CONSTRAINT"] = True
 
     presentation_codes: list[str] = []
     slug_value = slug or row.public_slug or ""
