@@ -110,7 +110,7 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         *(item.quote for item in evidence),
         *(item.output_summary for item in tool_executions),
     ]
-    source_urls = [item.url for item in sources if item.url]
+    source_urls = [item.canonical_url for item in sources if item.canonical_url]
     unique_hashes = {snapshot.content_hash for snapshot in snapshots if snapshot.content_hash}
     duplicate_rate = duplicate_candidate_rate(
         total=len(candidates),

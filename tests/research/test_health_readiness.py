@@ -69,10 +69,11 @@ def test_ready_hosted_fails_closed_without_auth() -> None:
     app.dependency_overrides[get_settings] = lambda: settings
     try:
         with patch("deepscout_api.app.probe_postgres", return_value="ok"):
-            client = TestClient(app)
-            ready = client.get("/ready")
-            assert ready.status_code == 503
-            assert ready.json() == {"status": "unavailable", "postgres": "ok"}
+            with patch("deepscout_api.app.probe_postgres_schema", return_value="ok"):
+                client = TestClient(app)
+                ready = client.get("/ready")
+                assert ready.status_code == 503
+                assert ready.json() == {"status": "unavailable", "postgres": "ok"}
             live = client.get("/live")
             assert live.status_code == 200
     finally:

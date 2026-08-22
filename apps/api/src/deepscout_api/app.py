@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from deepscout_api.main import configure_observability
-from deepscout_api.probes import probe_postgres, probe_redis
+from deepscout_api.probes import probe_postgres, probe_postgres_schema, probe_redis
 from deepscout_api.routes.account import router as account_router
 from deepscout_api.routes.auth import router as auth_router
 from deepscout_api.routes.demos import router as demos_router
@@ -98,6 +98,11 @@ def ready(response: Response, settings: Settings = Depends(get_settings)) -> Rea
     if postgres != "ok":
         response.status_code = 503
         return ReadinessResponse(status="unavailable", postgres=postgres)
+    if settings.is_hosted():
+        schema = probe_postgres_schema(settings.database_url)
+        if schema != "ok":
+            response.status_code = 503
+            return ReadinessResponse(status="unavailable", postgres=schema)
     if settings.is_hosted() and not settings.hosted_auth_ready():
         response.status_code = 503
         return ReadinessResponse(status="unavailable", postgres=postgres)
