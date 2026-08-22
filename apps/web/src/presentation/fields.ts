@@ -3,6 +3,7 @@ import type { Workspace } from "@/lib/types";
 import {
   displayTaskObjective,
   displayWorkerName,
+  displayWorkerTask,
 } from "@/presentation/demo";
 
 export function presentOutputLanguage(code: string | null | undefined, locale: Locale): string {
