@@ -67,7 +67,9 @@ def publish_demo(
         select(ResearchRunRow).where(ResearchRunRow.public_slug == slug)
     )
     if existing is not None and existing.id != run_id:
-        raise ValueError("slug already published")
+        existing.is_public_demo = False
+        existing.public_slug = None
+        store._session.flush()
     presentation_errors = _presentation_reason_codes(store, run_id, slug)
     if presentation_errors:
         raise ValueError("; ".join(presentation_errors))

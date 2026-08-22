@@ -39,6 +39,31 @@ Rejected alternatives:
 - Additional token cost on complex runs; simple factual runs skip corrective loops when supported.
 - Live quality validation required before merge; unit tests alone insufficient.
 
+## Pipeline (final)
+
+```
+user goal
+  → ResearchContract + ReportContract
+  → plan (+ contract research tasks: temporal, office-holder, dependent guidance)
+  → authoritative discovery + source admission
+  → fetch / index / extract / verify
+  → structured domain propositions (TemporalClaim, VerifiedEntity, LegalReference)
+  → requirement coverage
+  → bounded corrective research (gap queries; HITL may pause budget extension)
+  → contradiction → final critic → goal-conditioned synthesis → report
+  → presentation (EN/IT) → publication / export
+```
+
+Reusable primitives (`TemporalClaim`, `LegalReference`, `CURRENT_OFFICE_HOLDER_LOOKUP`,
+`dependency_gate`, primary legal follow-up) are domain-general research primitives — not
+EU-specific answer hardcoding.
+
+## Technical debt (non-blocking)
+
+`RetrievalFailureClass` exists in contracts but full diagnostic wiring into coverage/critic
+reason codes remains partial. Failures still surface primarily via `BLOCKED_BY_EVIDENCE` /
+`MISSING_REQUIREMENT` critic codes until wiring is completed.
+
 ## Benchmark
 
 Dataset: `libs/evaluation/data/final_report_quality_v1.json`  
