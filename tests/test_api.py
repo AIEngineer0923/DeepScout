@@ -9,12 +9,16 @@ def test_health_endpoint() -> None:
     client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert "git_sha" in body
 
 
 def test_live_and_ready_endpoints() -> None:
     client = TestClient(app)
-    assert client.get("/live").json() == {"status": "ok"}
+    live = client.get("/live").json()
+    assert live["status"] == "ok"
+    assert "git_sha" in live
     ready = client.get("/ready")
     assert ready.status_code in {200, 503}
     body = ready.json()

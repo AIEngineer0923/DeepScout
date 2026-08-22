@@ -62,3 +62,4 @@ coverage/
 storage/
 uploads/
 .tmp/
+.vercel

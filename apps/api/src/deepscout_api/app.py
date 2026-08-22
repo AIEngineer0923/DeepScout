@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from deepscout_core.settings import Settings, get_settings
@@ -53,6 +54,7 @@ app.include_router(rum_router)
 
 class HealthResponse(BaseModel):
     status: str
+    git_sha: str | None = None
 
 
 class DependencyHealthResponse(BaseModel):
@@ -81,7 +83,12 @@ class SmokeAgentResponseBody(BaseModel):
 @app.get("/live", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Liveness: process is up. Does not probe optional deps (LangSmith/Redis)."""
-    return HealthResponse(status="ok")
+    git_sha = (
+        os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+        or os.environ.get("VERCEL_GIT_COMMIT_SHA")
+        or os.environ.get("GIT_SHA")
+    )
+    return HealthResponse(status="ok", git_sha=git_sha)
 
 
 @app.get("/ready", response_model=ReadinessResponse)

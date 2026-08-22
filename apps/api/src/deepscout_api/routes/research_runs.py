@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from deepscout_api.access import authorize_run, load_access, owner_for_create
 from deepscout_api.deps import get_research_store
+from deepscout_api.deps_auth import ReadRunDep, WriteRunDep
 from deepscout_api.workspace import assemble_workspace, snapshot_detail
 
 router = APIRouter(prefix="/api/v1/research-runs", tags=["research-runs"])
@@ -428,14 +429,11 @@ def get_research_run_workspace(
 @router.post("/{run_id}/execute", response_model=ExecuteResponse, status_code=202)
 def execute_research_run(
     run_id: UUID,
-    request: Request,
+    _run: WriteRunDep,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> ExecuteResponse:
-    row = _require_run(request, store, settings, run_id, write=True)
-    if row.is_public_demo:
-        raise HTTPException(status_code=403, detail="Public demo is read-only")
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(run_id)
     if settings.app_env == "development":
@@ -448,11 +446,9 @@ def execute_research_run(
 @router.post("/{run_id}/cancel", response_model=ResearchRunRead)
 def cancel_research_run(
     run_id: UUID,
-    request: Request,
+    _run: WriteRunDep,
     store=Depends(get_research_store),
-    settings: Settings = Depends(get_settings),
 ) -> ResearchRunRead:
-    _require_run(request, store, settings, run_id, write=True)
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -465,12 +461,11 @@ def cancel_research_run(
 @router.post("/{run_id}/resume", response_model=ExecuteResponse, status_code=202)
 def resume_research_run(
     run_id: UUID,
-    request: Request,
+    _run: WriteRunDep,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> ExecuteResponse:
-    _require_run(request, store, settings, run_id, write=True)
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -490,12 +485,12 @@ def resume_research_run(
 @router.post("/{run_id}/restart", response_model=ExecuteResponse, status_code=202)
 def restart_research_run(
     run_id: UUID,
+    _run: WriteRunDep,
     request: Request,
     background_tasks: BackgroundTasks,
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> ExecuteResponse:
-    _require_run(request, store, settings, run_id, write=True)
     access = load_access(request, store._session, settings)
     owner_id = owner_for_create(access)
     run = store.get_run(run_id)
@@ -525,6 +520,7 @@ class ForkBody(BaseModel):
 @router.post("/{run_id}/fork", response_model=ExecuteResponse, status_code=202)
 def fork_research_run(
     run_id: UUID,
+    parent_row: ReadRunDep,
     body: ForkBody,
     request: Request,
     background_tasks: BackgroundTasks,
@@ -533,7 +529,6 @@ def fork_research_run(
 ) -> ExecuteResponse:
     access = load_access(request, store._session, settings)
     owner_id = owner_for_create(access)
-    row = authorize_run(store, run_id, access, write=False)
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -552,7 +547,7 @@ def fork_research_run(
         lineage_kind="fork",
         owner_principal_id=owner_id,
     )
-    if row.is_public_demo:
+    if parent_row.is_public_demo:
         return ExecuteResponse(run_id=created.id, status="created", job_id=None)
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(created.id)
@@ -570,6 +565,7 @@ class FollowUpBody(BaseModel):
 @router.post("/{run_id}/follow-up", response_model=ExecuteResponse, status_code=202)
 def follow_up_research_run(
     run_id: UUID,
+    parent_row: WriteRunDep,
     body: FollowUpBody,
     request: Request,
     background_tasks: BackgroundTasks,
@@ -580,9 +576,6 @@ def follow_up_research_run(
     from deepscout_core.domain.schemas import FollowUpCreate, ResearchRunCreate
     from deepscout_research.followup import select_followup_context
 
-    parent_row = _require_run(request, store, settings, run_id, write=True)
-    if parent_row.is_public_demo:
-        raise HTTPException(status_code=403, detail="Public demo is read-only")
     parent = store.get_run(run_id)
     if parent is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -635,17 +628,13 @@ def list_source_preferences(
 @router.post("/{run_id}/source-preferences", status_code=201)
 def create_source_preference(
     run_id: UUID,
+    _run: WriteRunDep,
     body: dict,
-    request: Request,
     store=Depends(get_research_store),
-    settings: Settings = Depends(get_settings),
 ) -> dict:
     from deepscout_core.domain.schemas import SourcePreferenceWrite
     from deepscout_research.fetch.url_normalize import normalize_source_url
 
-    row = _require_run(request, store, settings, run_id, write=True)
-    if row.is_public_demo:
-        raise HTTPException(status_code=403, detail="Public demo is read-only")
     try:
         payload = SourcePreferenceWrite.model_validate(body)
     except Exception as exc:
@@ -663,11 +652,9 @@ def create_source_preference(
 def delete_source_preference(
     run_id: UUID,
     preference_id: UUID,
-    request: Request,
+    _run: WriteRunDep,
     store=Depends(get_research_store),
-    settings: Settings = Depends(get_settings),
 ) -> None:
-    _require_run(request, store, settings, run_id, write=True)
     if not store.delete_source_preference(run_id, preference_id):
         raise HTTPException(status_code=404, detail="preference not found")
     store.commit()

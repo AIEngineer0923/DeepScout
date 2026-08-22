@@ -72,10 +72,29 @@ Disable idle sleep / keep a minimum replica. Transaction poolers must not be use
 
 ## Vercel
 
-The Next.js app can be deployed to Vercel. Set production-only:
+The Next.js app lives in `apps/web` and deploys to Vercel. Set production-only:
 
 - `API_REWRITE_ORIGIN` — persistent API origin (server rewrite for `/api`, `/live`, `/ready`, `/health`)
 - leave `NEXT_PUBLIC_API_URL` unset in production so the browser uses same-origin `/api`
+
+**Project settings (required for Git auto-deploy):**
+
+- Root Directory: `apps/web`
+- Production Branch: `main`
+- Git repository linked to this monorepo
+
+Verify a production deployment matches GitHub `main`:
+
+```bash
+curl -sS https://deep-scout-plum.vercel.app/api/build-info
+# → { "git_sha": "<main-sha>", "deployment_id": "...", "environment": "production" }
+
+curl -sS https://api-production-f724.up.railway.app/health
+# → { "status": "ok", "git_sha": "<main-sha>" }
+```
+
+If `git_sha` is missing locally, set `GIT_SHA` at build time. Vercel injects
+`VERCEL_GIT_COMMIT_SHA` automatically on Git-connected deployments.
 
 Do not put production OAuth secrets, `SESSION_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`, or `DATABASE_URL` on Vercel. Those belong on the persistent API/worker.
 
