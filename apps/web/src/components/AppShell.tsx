@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import { RESEARCH_NAV, isResearchNavCurrent, researchHref } from "@/components/research/researchNav";
 import { api } from "@/lib/api";
 import { parseRunId, readLastRunId, rememberRunId, clearLastRunId } from "@/lib/current-run";
 import { initials } from "@/lib/visual";
@@ -24,35 +26,25 @@ import {
   IconWorkers,
 } from "./Icons";
 
-const RESEARCH = [
-  { id: "live", icon: IconLive },
-  { id: "plan", icon: IconPlan },
-  { id: "workers", icon: IconWorkers },
-  { id: "sources", icon: IconSources },
-  { id: "snapshot", icon: IconSnapshot },
-  { id: "claims", icon: IconClaims },
-  { id: "quality", icon: IconQuality },
-  { id: "report", icon: IconReport },
-  { id: "evaluations", icon: IconEvals },
-] as const;
+const RESEARCH = RESEARCH_NAV.map((item, index) => ({
+  ...item,
+  icon: [IconLive, IconPlan, IconWorkers, IconSources, IconSnapshot, IconClaims, IconQuality, IconReport, IconEvals][index],
+}));
 
 function hrefFor(item: (typeof RESEARCH)[number]["id"], runId: string) {
-  if (item === "live") return `/research/${runId}`;
-  if (item === "snapshot") return `/research/${runId}/snapshots`;
-  return `/research/${runId}/${item}`;
+  return researchHref(item, runId);
 }
 
 function isCurrent(item: (typeof RESEARCH)[number]["id"], pathname: string, runId: string | null) {
   if (!runId) return false;
-  if (item === "live") return pathname === `/research/${runId}`;
-  if (item === "snapshot") return pathname.includes("/snapshots");
-  return pathname.startsWith(`/research/${runId}/${item}`);
+  return isResearchNavCurrent(item, pathname, runId);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t, locale, setLocale } = useI18n();
+  const demoReadOnly = useDemoReadOnly();
   const pathRunId = parseRunId(pathname);
   const [storedRunId, setStoredRunId] = useState<string | null>(null);
   const [langsmith, setLangsmith] = useState<{ connected: boolean; project: string; region: string } | null>(null);
@@ -62,11 +54,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isHosted, setIsHosted] = useState(false);
 
   useEffect(() => {
-    if (pathRunId) rememberRunId(pathRunId);
-    setStoredRunId(pathRunId ?? readLastRunId());
-  }, [pathRunId]);
+    if (!demoReadOnly) return;
+    setIsHosted(true);
+    setIsAuthenticated(false);
+    setIdentityLabel(t("demo.visitor"));
+    setIdentityRole("Visitor");
+    setLangsmith(null);
+  }, [demoReadOnly, t]);
 
   useEffect(() => {
+    if (demoReadOnly) return;
     api
       .me()
       .then((me) => {
@@ -81,6 +78,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         else window.sessionStorage.removeItem("deepscout.principal_id");
       })
       .catch(() => undefined);
+  }, [demoReadOnly]);
+
+  useEffect(() => {
+    if (demoReadOnly) return;
     api
       .settings()
       .then((data) => {
@@ -88,6 +89,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setLangsmith(value);
       })
       .catch(() => setLangsmith(null));
+  }, [demoReadOnly]);
+
+  useEffect(() => {
+    if (demoReadOnly) return;
     api
       .overview()
       .then((data) => {
@@ -99,9 +104,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setStoredRunId(parseRunId(window.location.pathname) ?? readLastRunId() ?? data.active?.id ?? null);
       })
       .catch(() => undefined);
-  }, []);
+  }, [demoReadOnly]);
 
   const runId = pathRunId ?? storedRunId;
+  const overviewHref = demoReadOnly ? "/demo" : "/dashboard";
+  const newResearchHref = demoReadOnly ? "/login?next=/research/new" : "/research/new";
+  const displayIdentityLabel = demoReadOnly ? t("demo.visitor") : identityLabel;
+  const displayIdentityRole = demoReadOnly ? t("demo.publicBadge") : identityRole === "Anonymous"
+    ? t("identity.anonymous")
+    : identityRole === "Authenticated"
+      ? t("identity.authenticated")
+      : t("identity.operator");
 
   const researchItems = useMemo(
     () =>
@@ -116,26 +129,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="shell" data-testid="app-shell">
+    <div className="shell" data-testid={demoReadOnly ? "demo-shell" : "app-shell"}>
       <a className="skip-link" href="#content">
         {t("nav.skip")}
       </a>
       <aside className="sidebar" aria-label={t("nav.primary")}>
-        <Link href="/dashboard" className="brand">
+        <Link href={overviewHref} className="brand">
           <span className="brand-mark">S</span>
           {t("brand.name")}
         </Link>
+        {demoReadOnly ? <span className="demo-badge sidebar-demo-badge">{t("demo.badge")}</span> : null}
         <nav className="nav">
           <Link
-            href="/dashboard"
-            className={`nav-link ${pathname === "/dashboard" ? "active" : ""}`}
-            aria-current={pathname === "/dashboard" ? "page" : undefined}
+            href={overviewHref}
+            className={`nav-link ${pathname === overviewHref ? "active" : ""}`}
+            aria-current={pathname === overviewHref ? "page" : undefined}
           >
             <IconHome />
-            {t("nav.overview")}
+            {demoReadOnly ? t("demo.backToCatalog") : t("nav.overview")}
           </Link>
           <Link
-            href="/research/new"
+            href={newResearchHref}
             className={`nav-link ${pathname === "/research/new" ? "active" : ""}`}
             aria-current={pathname === "/research/new" ? "page" : undefined}
           >
@@ -164,81 +178,83 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             ),
           )}
-          <Link href="/history" className={`nav-link ${pathname === "/history" ? "active" : ""}`}>
-            <IconHistory />
-            {t("nav.history")}
-          </Link>
-          <Link href="/knowledge" className={`nav-link ${pathname.startsWith("/knowledge") ? "active" : ""}`}>
-            <IconClaims />
-            {t("nav.knowledge")}
-          </Link>
-          <Link href="/monitors" className={`nav-link ${pathname.startsWith("/monitors") ? "active" : ""}`}>
-            <IconLive />
-            {t("nav.monitors")}
-          </Link>
-          <Link href="/compare" className={`nav-link ${pathname.startsWith("/compare") ? "active" : ""}`}>
-            <IconEvals />
-            {t("nav.compare")}
-          </Link>
-          {runId ? (
-            <Link href={`/resume/${runId}`} className={`nav-link ${pathname.startsWith("/resume") ? "active" : ""}`}>
-              <IconResume />
-              {t("nav.resume")}
-            </Link>
-          ) : (
-            <button type="button" className="nav-link is-disabled" title={t("nav.needsRun")} aria-disabled="true" onClick={() => router.push("/research/select")}>
-              <IconResume />
-              {t("nav.resume")}
-            </button>
-          )}
-          <Link href="/reviews" className={`nav-link ${pathname === "/reviews" ? "active" : ""}`}>
-            <IconEvals />
-            {t("nav.reviews")}
-          </Link>
-          <Link href="/demo" className={`nav-link ${pathname === "/demo" ? "active" : ""}`}>
-            <IconEvals />
-            {t("nav.demo")}
-          </Link>
+          {!demoReadOnly ? (
+            <>
+              <Link href="/history" className={`nav-link ${pathname === "/history" ? "active" : ""}`}>
+                <IconHistory />
+                {t("nav.history")}
+              </Link>
+              <Link href="/knowledge" className={`nav-link ${pathname.startsWith("/knowledge") ? "active" : ""}`}>
+                <IconClaims />
+                {t("nav.knowledge")}
+              </Link>
+              <Link href="/monitors" className={`nav-link ${pathname.startsWith("/monitors") ? "active" : ""}`}>
+                <IconLive />
+                {t("nav.monitors")}
+              </Link>
+              <Link href="/compare" className={`nav-link ${pathname.startsWith("/compare") ? "active" : ""}`}>
+                <IconEvals />
+                {t("nav.compare")}
+              </Link>
+              {runId ? (
+                <Link href={`/resume/${runId}`} className={`nav-link ${pathname.startsWith("/resume") ? "active" : ""}`}>
+                  <IconResume />
+                  {t("nav.resume")}
+                </Link>
+              ) : (
+                <button type="button" className="nav-link is-disabled" title={t("nav.needsRun")} aria-disabled="true" onClick={() => router.push("/research/select")}>
+                  <IconResume />
+                  {t("nav.resume")}
+                </button>
+              )}
+              <Link href="/reviews" className={`nav-link ${pathname === "/reviews" ? "active" : ""}`}>
+                <IconEvals />
+                {t("nav.reviews")}
+              </Link>
+              <Link href="/demo" className={`nav-link ${pathname === "/demo" ? "active" : ""}`}>
+                <IconEvals />
+                {t("nav.demo")}
+              </Link>
+            </>
+          ) : null}
           {!isAuthenticated && isHosted ? (
             <Link href="/login" className={`nav-link ${pathname === "/login" ? "active" : ""}`}>
               <IconSettings />
               {t("nav.signIn")}
             </Link>
           ) : null}
-          {isAuthenticated || !isHosted ? (
+          {!demoReadOnly && (isAuthenticated || !isHosted) ? (
             <Link href="/account" className={`nav-link ${pathname === "/account" ? "active" : ""}`}>
               <IconSettings />
               {t("nav.account")}
             </Link>
           ) : null}
-          <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
-            <IconSettings />
-            {t("nav.settings")}
-          </Link>
+          {!demoReadOnly ? (
+            <Link href="/settings" className={`nav-link ${pathname === "/settings" ? "active" : ""}`}>
+              <IconSettings />
+              {t("nav.settings")}
+            </Link>
+          ) : null}
         </nav>
         <div className="sidebar-foot">
-          <div className="status-card">
-            <div className="row">
-              <span className={`dot ${langsmith?.connected ? "ok" : "muted"}`} />
-              LangSmith · {langsmith?.connected ? t("langsmith.connected") : t("langsmith.notConfigured")}
+          {!demoReadOnly ? (
+            <div className="status-card">
+              <div className="row">
+                <span className={`dot ${langsmith?.connected ? "ok" : "muted"}`} />
+                LangSmith · {langsmith?.connected ? t("langsmith.connected") : t("langsmith.notConfigured")}
+              </div>
+              <div className="muted" style={{ marginTop: 6 }}>
+                {langsmith?.project ?? "off"} ({langsmith?.region ?? "off"})
+              </div>
             </div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              {langsmith?.project ?? "off"} ({langsmith?.region ?? "off"})
-            </div>
-          </div>
+          ) : null}
           <div className="identity-card">
             <span className="identity-avatar" aria-hidden="true">
-              {initials(identityLabel)}
+              {initials(displayIdentityLabel)}
             </span>
             <div className="identity-meta">
-              <strong>{identityLabel}</strong>
-              <div className="muted">
-                {identityRole === "Anonymous"
-                  ? t("identity.anonymous")
-                  : identityRole === "Authenticated"
-                    ? t("identity.authenticated")
-                    : t("identity.operator")}
-              </div>
+              <strong>{displayIdentityLabel}</strong>
+              <div className="muted">{displayIdentityRole}</div>
             </div>
           </div>
           <div className="version-tag">v0.1.0</div>
@@ -246,10 +262,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="main-wrap">
         <header className="topbar">
-          <Link href={runId ? `/research/${runId}` : "/dashboard"} className="back-link">
-            ← {t("nav.back")}
+          <Link href={runId ? `/research/${runId}` : overviewHref} className="back-link">
+            ← {demoReadOnly ? t("demo.backToCatalog") : t("nav.back")}
           </Link>
           <div className="row" aria-label={t("uiLanguage.label")}>
+            {demoReadOnly ? <span className="demo-readonly-pill">{t("demo.readOnlyPill")}</span> : null}
             <div className="lang-switch">
               <button type="button" className={locale === "en" ? "active" : ""} data-testid="ui-lang-en" aria-label="English" onClick={() => setLocale("en")}>
                 EN

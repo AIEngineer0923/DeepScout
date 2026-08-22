@@ -133,11 +133,11 @@ test.describe("interaction", () => {
   test("workspace tabs navigate provenance routes", async ({ page }) => {
     await mockApi(page);
     await page.goto(`/research/${FIXTURE_RUN_ID}`);
-    await page.getByRole("navigation", { name: "Research" }).getByRole("link", { name: "Workers" }).click();
+    await page.getByLabel("Primary navigation").getByRole("link", { name: /Research agents|Workers/i }).click();
     await expect(page).toHaveURL(/\/workers/);
-    await page.getByRole("navigation", { name: "Research" }).getByRole("link", { name: "Snapshot" }).click();
+    await page.getByLabel("Primary navigation").getByRole("link", { name: /Captured content|Snapshot/i }).click();
     await expect(page).toHaveURL(/\/snapshots/);
-    await page.getByRole("navigation", { name: "Research" }).getByRole("link", { name: "Report" }).click();
+    await page.getByLabel("Primary navigation").getByRole("link", { name: /Final Report|Report/i }).click();
     await expect(page).toHaveURL(/\/report/);
   });
 

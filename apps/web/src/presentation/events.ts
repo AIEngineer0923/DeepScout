@@ -1,4 +1,6 @@
 import type { Locale } from "@/i18n/messages";
+import type { Workspace } from "@/lib/types";
+import { presentTaskKey, presentWorkerLabel } from "@/presentation/fields";
 
 export type EventCategory = "run" | "phase" | "worker" | "source" | "evidence" | "quality" | "report" | "system";
 
@@ -170,6 +172,7 @@ export function presentEvent(
   type: string,
   locale: Locale,
   payload: Record<string, unknown> = {},
+  workspace?: Workspace | null,
 ): { label: string; detail?: string; category: EventCategory; icon: string } {
   const entry = REGISTRY[type];
   const phase = typeof payload.phase === "string" ? payload.phase.toLowerCase() : "";
@@ -184,10 +187,10 @@ export function presentEvent(
       label = locale === "it" ? `${phaseLabel} completata` : `${phaseLabel} completed`;
     }
     const detail =
-      typeof payload.task_key === "string"
-        ? String(payload.task_key).replace(/_/g, " ")
-        : typeof payload.worker_id === "string"
-          ? payload.worker_id
+      typeof payload.task_key === "string" && workspace
+        ? presentTaskKey(workspace, payload.task_key)
+        : typeof payload.worker_id === "string" && workspace
+          ? presentWorkerLabel(workspace, payload.worker_id, locale)
           : undefined;
     return {
       label,

@@ -3,10 +3,12 @@
 import { useState } from "react";
 import type { Workspace } from "@/lib/types";
 import { formatCost, formatTokens } from "@/lib/format";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { presentOutputLanguage } from "@/presentation/fields";
 
 export function TechnicalDetails({ workspace }: { workspace: Workspace }) {
   const t = useT();
+  const { locale } = useI18n();
   const [open, setOpen] = useState(false);
 
   return (
@@ -55,7 +57,7 @@ export function TechnicalDetails({ workspace }: { workspace: Workspace }) {
           {workspace.output_language ? (
             <div>
               <dt>{t("new.outputLanguage")}</dt>
-              <dd>{workspace.output_language}</dd>
+              <dd>{presentOutputLanguage(workspace.output_language, locale)}</dd>
             </div>
           ) : null}
         </dl>

@@ -5,13 +5,15 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { ExpandableText } from "@/components/ExpandableText";
+import { presentSnapshotSummary } from "@/presentation/fields";
 
 export function SnapshotsScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const { locale } = useI18n();
   const demoReadOnly = useDemoReadOnly();
   if (!workspace) return <p className="empty">{t("live.loading")}</p>;
   return (
@@ -22,18 +24,18 @@ export function SnapshotsScreen() {
         <h2>{t("snapshot.listTitle")}</h2>
         {workspace.snapshots.length === 0 ? <p className="empty">{t("snapshot.empty")}</p> : null}
         {workspace.snapshots.map((item) => (
-          <article key={item.id} className="card" style={{ marginBottom: 12 }}>
+          <article key={item.id} className="card snapshot-card compact">
             <ExpandableText text={item.source_title} />
-            <p className="muted wrap-text">{item.url}</p>
-            <p className="muted">
-              {item.mime_type} · {item.word_count} · {item.evidence_count}
-            </p>
-            <Link className="btn" href={`/research/${workspace.run_id}/snapshots/${item.id}`}>
-              {t("action.view")}
-            </Link>
-            <a className="btn" href={api.exportUrl(workspace.run_id, "snapshot-text", item.id)}>
-              {t("snapshot.download")}
-            </a>
+            <p className="muted wrap-text snapshot-url">{item.url}</p>
+            <p className="muted">{presentSnapshotSummary(item, locale)}</p>
+            <div className="row snapshot-actions">
+              <Link className="btn" href={`/research/${workspace.run_id}/snapshots/${item.id}`}>
+                {t("snapshot.viewContent")}
+              </Link>
+              <a className="btn" href={api.exportUrl(workspace.run_id, "snapshot-text", item.id)}>
+                {t("snapshot.download")}
+              </a>
+            </div>
           </article>
         ))}
       </section>

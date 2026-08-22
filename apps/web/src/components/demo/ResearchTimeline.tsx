@@ -58,7 +58,7 @@ export function ResearchTimeline({
       </div>
       <ol className="timeline-list">
         {events.map((event) => {
-          const presented = presentEvent(event.type, locale, event.payload ?? {});
+          const presented = presentEvent(event.type, locale, event.payload ?? {}, workspace);
           return (
             <li key={event.sequence} className="timeline-item">
               <span className={`timeline-icon cat-${presented.category}`} aria-hidden="true">
