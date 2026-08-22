@@ -72,7 +72,7 @@ test.describe("runtime surfaces", () => {
     await page.goto(`/research/${FIXTURE_RUN_ID}/workers`);
     await expect(page.locator("#content")).toBeVisible();
     await expect(page.getByText("citation-audit")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Compare energy density" })).toBeVisible();
+    await expect(page.locator(".worker-detail").getByRole("heading", { name: "Compare energy density" })).toBeVisible();
   });
 
   test("history lists runs", async ({ page }) => {
