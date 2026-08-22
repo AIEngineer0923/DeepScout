@@ -6,7 +6,9 @@ import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { elapsed, formatTokens } from "@/lib/format";
 import { workerProgress, workerTone } from "@/lib/visual";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { displayWorkerName, displayWorkerTask } from "@/presentation/demo";
+import { presentWorkerHeadline, presentWorkerIndex } from "@/presentation/fields";
 
 const DOWNSTREAM = ["extraction", "verification", "quality", "synthesis", "report"] as const;
 
@@ -18,6 +20,7 @@ function kindLabel(kind: string, t: (key: string) => string): string {
 export function WorkersScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const { locale } = useI18n();
   const [selected, setSelected] = useState<string | null>(null);
   if (!workspace) return <p className="empty">{t("workers.loading")}</p>;
   const worker = workspace.workers.find((item) => item.worker_id === selected) ?? workspace.workers[0];
@@ -58,8 +61,10 @@ export function WorkersScreen() {
               </div>
               {workspace.workers.map((item) => (
                 <div key={item.worker_id} className={`topo-node ${item.state === "completed" ? "completed" : item.state === "running" ? "running" : ""}`}>
-                  <strong>{item.display_name}</strong>
-                  <div className="muted wrap-text">{item.assigned_task}</div>
+                  <strong>{presentWorkerHeadline(workspace, item.worker_id, locale)}</strong>
+                  <div className="muted wrap-text">
+                    {displayWorkerTask(workspace, item.worker_id, item.assigned_task)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -116,13 +121,17 @@ export function WorkersScreen() {
                 onClick={() => setSelected(item.worker_id)}
               >
                 <div className="row" style={{ alignItems: "flex-start" }}>
-                  <span className={`worker-badge ${tone}`}>W{String(item.index).padStart(2, "0")}</span>
+                  <span className={`worker-badge ${tone}`}>
+                    {presentWorkerIndex(workspace, item.index, locale)}
+                  </span>
                   <div className="grow">
                     <div className="row" style={{ justifyContent: "space-between" }}>
-                      <strong>{item.display_name}</strong>
+                      <strong>{presentWorkerHeadline(workspace, item.worker_id, locale)}</strong>
                       <StatusBadge status={item.state} />
                     </div>
-                    <p className="wrap-text muted">{item.assigned_task}</p>
+                    <p className="wrap-text muted">
+                      {displayWorkerTask(workspace, item.worker_id, item.assigned_task)}
+                    </p>
                     <div className="progress-label">
                       <span>{t("phase.running")}</span>
                       <span>{pct}%</span>
@@ -145,29 +154,25 @@ export function WorkersScreen() {
           {worker ? (
             <>
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <h2>{worker.display_name}</h2>
+                <h2>{presentWorkerHeadline(workspace, worker.worker_id, locale)}</h2>
                 <StatusBadge status={worker.state} />
               </div>
               <dl className="kv-list">
                 <div className="kv-row">
-                  <dt>{t("workers.role")}</dt>
-                  <dd>{worker.role.replaceAll("_", " ")}</dd>
-                </div>
-                <div className="kv-row">
                   <dt>{t("workers.assigned")}</dt>
-                  <dd className="wrap-text">{worker.assigned_task}</dd>
+                  <dd className="wrap-text">
+                    {displayWorkerTask(workspace, worker.worker_id, worker.assigned_task)}
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t("workers.parent")}</dt>
                   <dd>{worker.parent}</dd>
                 </div>
                 <div className="kv-row">
-                  <dt>{t("workers.id")}</dt>
-                  <dd className="mono">{worker.worker_id.slice(0, 8)}…</dd>
-                </div>
-                <div className="kv-row">
                   <dt>{t("table.status")}</dt>
-                  <dd>{worker.state}</dd>
+                  <dd>
+                    <StatusBadge status={worker.state} />
+                  </dd>
                 </div>
                 <div className="kv-row">
                   <dt>{t("plan.retries")}</dt>
