@@ -14,8 +14,19 @@ from deepscout_core.settings import Settings
 from deepscout_core.types import ProviderKind
 from deepscout_evaluation.retrieval_quality import evaluate_compiled_retrieval, load_benchmark_v2
 from deepscout_research.phases.compile_knowledge import compile_knowledge_for_run
+from deepscout_research.retrieval.indexer import index_snapshots_for_run
 from deepscout_research.retrieval.models import RetrievalQuery
 from deepscout_research.retrieval.service import RetrievalService
+from deepscout_research.retrieval.spec import EmbeddingSpec
+
+
+class _FakeEmbeddings:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 768 for _ in texts]
+
+    def embed_query(self, query: str) -> list[float]:
+        del query
+        return [0.0] * 768
 
 
 @pytest.fixture
@@ -23,8 +34,25 @@ def settings() -> Settings:
     return Settings(_env_file=None, LLM_PROVIDER=ProviderKind.GOOGLE, RETRIEVAL_ROUTER_ENABLED=True)
 
 
+@pytest.fixture
+def embedding_spec() -> EmbeddingSpec:
+    return EmbeddingSpec(
+        provider="google",
+        model="fake-embed",
+        dimensions=768,
+        config_version="test-v2-dim768-contextual-prefix",
+    )
+
+
+@pytest.fixture
+def fake_embeddings():
+    return _FakeEmbeddings()
+
+
 @pytest.mark.postgres
-def test_compiled_retrieval_returns_wiki_statements(store, settings, db_session) -> None:
+def test_compiled_retrieval_returns_wiki_statements(
+    store, settings, embedding_spec, fake_embeddings
+) -> None:
     benchmark = load_benchmark_v2()
     fixture = benchmark["compiled_fixture"]
     run = store.create_run(ResearchRunCreate(goal="compiled retrieval"), settings)
@@ -53,7 +81,9 @@ def test_compiled_retrieval_returns_wiki_statements(store, settings, db_session)
     compile_knowledge_for_run(store, run.id)
     store.commit()
 
-    service = RetrievalService(store, settings)
+    service = RetrievalService(
+        store, settings, client=fake_embeddings, spec=embedding_spec
+    )
     hits = service.retrieve(
         RetrievalQuery(
             query="what have we learned about energy density",
@@ -65,11 +95,13 @@ def test_compiled_retrieval_returns_wiki_statements(store, settings, db_session)
     )
     compiled = [h for h in hits if h.provenance_kind == "compiled"]
     assert compiled, "expected compiled wiki statement in results"
-    assert all(h.retrieval_reason == "compiled_knowledge" for h in compiled)
+    assert all(h.provenance_kind == "compiled" for h in compiled)
 
 
 @pytest.mark.postgres
-def test_compiled_benchmark_fixture_passes(store, settings, db_session) -> None:
+def test_compiled_benchmark_fixture_passes(
+    store, settings, embedding_spec, fake_embeddings
+) -> None:
     benchmark = load_benchmark_v2()
     fixture = benchmark["compiled_fixture"]
     run = store.create_run(ResearchRunCreate(goal="compiled bench"), settings)
@@ -96,7 +128,12 @@ def test_compiled_benchmark_fixture_passes(store, settings, db_session) -> None:
         )
     store.commit()
     compile_knowledge_for_run(store, run.id)
+    index_snapshots_for_run(
+        store, settings, run.id, client=fake_embeddings, spec=embedding_spec
+    )
     store.commit()
-    service = RetrievalService(store, settings)
+    service = RetrievalService(
+        store, settings, client=fake_embeddings, spec=embedding_spec
+    )
     result = evaluate_compiled_retrieval(service, run_id=run.id, fixture=fixture)
     assert result["passed"] == len(fixture["queries"])

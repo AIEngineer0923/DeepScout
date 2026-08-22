@@ -564,7 +564,7 @@ def evaluate_compiled_retrieval(
                 "passed": (
                     len(compiled_hits) > 0
                     if case.get("expect_compiled_hit")
-                    else phrase_hit > 0
+                    else len(compiled_hits) == 0 and phrase_hit > 0
                 ),
             }
         )
