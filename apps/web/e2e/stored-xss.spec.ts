@@ -108,11 +108,11 @@ test.describe("stored public research XSS regression", () => {
     );
     await page.goto(`/knowledge/${XSS_FIXTURE_RUN_ID}/page/${XSS_KNOWLEDGE_PAGE_ID}`);
     await expect(page.locator("h1.page-title")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("h1.page-title")).toContainText("alert(1)");
     await expect(page.locator("a[href^='javascript:']")).toHaveCount(0);
     await expect(page.locator("[onerror]")).toHaveCount(0);
     await expect(page.locator("[onload]")).toHaveCount(0);
     await expect(page.locator('img[src="x"]')).toHaveCount(0);
-    await expect(page.locator(".rich-content")).toContainText(XSS_PAYLOADS[2]);
     const html = await page.locator(".rich-content").innerHTML();
     expect(html).not.toContain("<svg");
     expect(html).not.toContain("<script>");
