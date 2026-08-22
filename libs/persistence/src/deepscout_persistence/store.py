@@ -65,7 +65,7 @@ from deepscout_core.domain.schemas import (
 from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
-from sqlalchemy import case, func, select, text
+from sqlalchemy import case, delete, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -646,6 +646,7 @@ class ResearchStore:
             locator=evidence.locator,
             support_strength=evidence.support_strength,
             confidence=evidence.confidence,
+            extraction_metadata=evidence.extraction_metadata or None,
         )
         self._session.add(row)
         self._session.flush()
@@ -1007,6 +1008,22 @@ class ResearchStore:
                 actual_run_id=claim.research_run_id,
                 entity="Report cited evidence",
             )
+        existing = self._session.scalar(
+            select(ReportRow).where(ReportRow.research_run_id == run_id)
+        )
+        if existing is not None:
+            existing.title = payload.title
+            existing.body_markdown = payload.body_markdown
+            self._session.flush()
+            self._session.execute(
+                delete(ReportEvidenceRow).where(ReportEvidenceRow.report_id == existing.id)
+            )
+            for evidence in evidence_rows:
+                self._session.add(
+                    ReportEvidenceRow(report_id=existing.id, evidence_id=evidence.id)
+                )
+            self._session.flush()
+            return existing
         report = ReportRow(
             research_run_id=run_id,
             title=payload.title,

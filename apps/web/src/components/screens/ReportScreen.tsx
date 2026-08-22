@@ -24,14 +24,32 @@ export function ReportScreen() {
   const [followup, setFollowup] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   if (!workspace) return <p className="empty">{t("report.loading")}</p>;
   const current = workspace;
   const reportView = displayReport(current);
   const parentId = workspace.runtime?.parent_run_id;
+  const bodyPreviewLimit = 6000;
+  const showReadMore = Boolean(
+    reportView.body && reportView.body.length > bodyPreviewLimit && !expanded,
+  );
+  const visibleBody =
+    showReadMore && reportView.body
+      ? `${reportView.body.slice(0, bodyPreviewLimit)}\n\n…`
+      : reportView.body;
+
   async function copyMarkdown() {
     if (!reportView.body) return;
-    await navigator.clipboard.writeText(reportView.body);
+    try {
+      await navigator.clipboard.writeText(reportView.body);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError(t("report.copyFailed"));
+    }
   }
+
   async function startFollowUp() {
     const goal = followup.trim();
     if (!goal) return;
@@ -46,6 +64,7 @@ export function ReportScreen() {
       setBusy(false);
     }
   }
+
   return (
     <div>
       <RunHeader workspace={workspace} />
@@ -53,17 +72,44 @@ export function ReportScreen() {
         <article className="card report-document">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <h2 className="wrap-text">{reportView.title || t("report.title")}</h2>
-            {reportView.body && !demoReadOnly ? (
+            {reportView.body ? (
               <div className="row">
-                <button className="btn" onClick={() => void copyMarkdown()}>{t("action.copy")}</button>
-                <a className="btn" href={api.exportUrl(workspace.run_id, "markdown")}>{t("action.exportMarkdown")}</a>
-                <a className="btn" href={api.exportUrl(workspace.run_id, "pdf")}>{t("action.exportPdf")}</a>
-                <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>{t("action.exportJson")}</a>
+                <button
+                  className="btn"
+                  type="button"
+                  aria-live="polite"
+                  onClick={() => void copyMarkdown()}
+                >
+                  {copied ? t("report.copied") : t("action.copyReport")}
+                </button>
+                <a className="btn" href={api.exportUrl(workspace.run_id, "markdown")}>
+                  {t("action.exportMarkdown")}
+                </a>
+                <a className="btn" href={api.exportUrl(workspace.run_id, "pdf")}>
+                  {t("action.exportPdf")}
+                </a>
+                {!demoReadOnly ? (
+                  <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>
+                    {t("action.exportJson")}
+                  </a>
+                ) : null}
               </div>
             ) : null}
           </div>
-          {reportView.body ? (
-            <pre className="wrap-text">{reportView.body}</pre>
+          {visibleBody ? (
+            <>
+              <pre className="wrap-text report-body-selectable">{visibleBody}</pre>
+              {showReadMore ? (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  aria-expanded={expanded}
+                >
+                  {t("report.readMore")}
+                </button>
+              ) : null}
+            </>
           ) : (
             <p className="empty">{t("report.empty")}</p>
           )}
@@ -88,27 +134,36 @@ export function ReportScreen() {
             <p className="muted">{t("lineage." + workspace.runtime.lineage_kind)}</p>
           ) : null}
           <p className="muted">{t("report.citations")}</p>
-          <h2 style={{ marginTop: 24 }}>{t("followup.title")}</h2>
-          <p className="muted">{t("followup.help")}</p>
-          <textarea
-            className="input"
-            data-testid="followup-input"
-            rows={4}
-            value={followup}
-            onChange={(e) => setFollowup(e.target.value)}
-            placeholder={t("followup.placeholder")}
-          />
-          <div className="row" style={{ flexWrap: "wrap", gap: 8, margin: "8px 0" }}>
-            {SUGGESTIONS.map((item) => (
-              <button key={item} type="button" className="btn" onClick={() => setFollowup(item)}>
-                {item}
+          {!demoReadOnly ? (
+            <>
+              <h2 style={{ marginTop: 24 }}>{t("followup.title")}</h2>
+              <p className="muted">{t("followup.help")}</p>
+              <textarea
+                className="input"
+                data-testid="followup-input"
+                rows={4}
+                value={followup}
+                onChange={(e) => setFollowup(e.target.value)}
+                placeholder={t("followup.placeholder")}
+              />
+              <div className="row" style={{ flexWrap: "wrap", gap: 8, margin: "8px 0" }}>
+                {SUGGESTIONS.map((item) => (
+                  <button key={item} type="button" className="btn" onClick={() => setFollowup(item)}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+              {error ? <p className="empty">{error}</p> : null}
+              <button
+                className="btn primary"
+                data-testid="followup-start"
+                disabled={busy || !followup.trim()}
+                onClick={() => void startFollowUp()}
+              >
+                {busy ? t("followup.starting") : t("followup.start")}
               </button>
-            ))}
-          </div>
-          {error ? <p className="empty">{error}</p> : null}
-          <button className="btn primary" data-testid="followup-start" disabled={busy || !followup.trim()} onClick={() => void startFollowUp()}>
-            {busy ? t("followup.starting") : t("followup.start")}
-          </button>
+            </>
+          ) : null}
         </aside>
       </div>
     </div>
