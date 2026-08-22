@@ -66,6 +66,26 @@ Examples:
 
 Do not expect all 48 rows to show PASS — many correctly show **Unavailable** with a reason string.
 
+## Retrieval quality benchmark (offline / live)
+
+Repeatable suite for router intents, ablation, contextual comparison, compiled knowledge, and local graph retrieval:
+
+```bash
+# Router only — no DB, no provider keys
+uv run python scripts/retrieval_quality_benchmark.py --router-only
+
+# Full live benchmark — local Postgres + embedding provider
+uv run python scripts/retrieval_quality_benchmark.py --live
+```
+
+Dataset: `libs/evaluation/data/retrieval_quality_benchmark_v2.json` (deterministic ground truth, not live-web dependent).
+
+Legacy scripts still useful for focused checks:
+
+- `scripts/retrieval_ablation_offline.py` — BM25 phrase-recall on v1.1 corpus
+- `scripts/phase5_closure_gate.py` — dimension + hybrid ablation + pre-RAG vs RAG
+- `scripts/compiled_knowledge_benchmark.py` — RAW vs COMPILED modes
+
 ## Persistence schema
 
 Unique constraint: `(research_run_id, evaluator_id)`. Version changes create new semantics via `evaluator_version` column.

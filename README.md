@@ -127,7 +127,7 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | MODE A/B, Vercel, Railway, migrations |
 | [docs/public-instance.md](docs/public-instance.md) | Hosted app, demo, BYOK |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems |
-| [docs/evaluations.md](docs/evaluations.md) | Evaluator registry, statuses, persistence |
+| [docs/evaluations.md](docs/evaluations.md) | Evaluator registry, statuses, retrieval quality benchmark |
 | [docs/architecture-overview.md](docs/architecture-overview.md) | System flow, AI/retrieval, deployment roles |
 | [docs/agent-runtime.md](docs/agent-runtime.md) | Orchestrator, planner, workers, LangChain/LangGraph roles |
 | [docs/repository-map.md](docs/repository-map.md) | Where code lives (for humans and coding agents) |

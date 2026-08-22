@@ -20,6 +20,7 @@ Two deployment modes:
 | Orchestrator / phases | `libs/research/src/deepscout_research/orchestrator.py`, `phases/` |
 | Planner / DAG | `libs/research/src/deepscout_research/planner.py`, `tasks/graph.py` |
 | Retrieval / RAG | `libs/research/src/deepscout_research/retrieval/`, `libs/persistence/src/deepscout_persistence/retrieval.py` |
+| Retrieval quality benchmark | `scripts/retrieval_quality_benchmark.py`, `libs/evaluation/data/retrieval_quality_benchmark_v2.json` |
 | Fetch / SSRF | `libs/research/src/deepscout_research/fetch/` |
 | Evaluations | `libs/evaluation/src/deepscout_evaluation/`, persist in `persist.py` |
 | DB models / store | `libs/persistence/src/deepscout_persistence/models.py`, `store.py` |
