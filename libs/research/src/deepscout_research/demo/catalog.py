@@ -29,12 +29,12 @@ def curated_demo_budget(mode: str) -> ResearchBudget:
             max_tool_calls=28,
         )
     return ResearchBudget(
-        max_iterations=3,
-        max_wall_time_seconds=720,
-        max_total_tokens=120_000,
-        max_cost_usd=3.5,
-        max_sources=14,
-        max_tool_calls=28,
+        max_iterations=5,
+        max_wall_time_seconds=900,
+        max_total_tokens=160_000,
+        max_cost_usd=5.0,
+        max_sources=18,
+        max_tool_calls=36,
     )
 
 
