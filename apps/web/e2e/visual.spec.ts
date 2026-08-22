@@ -1,3 +1,9 @@
+/**
+ * Visual regression baselines are local-only (gitignored under *.spec.ts-snapshots/).
+ * Regenerate after intentional UI changes:
+ *   npx playwright test e2e/visual.spec.ts --update-snapshots
+ * Skipped in CI because OS font rasterization differs across runners.
+ */
 import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_RUN_ID, overviewFixture, settingsFixture, workspaceFixture } from "./fixtures";
 

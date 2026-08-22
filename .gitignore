@@ -57,6 +57,7 @@ logs/
 playwright-report/
 test-results/
 coverage/
+apps/web/e2e/**/*.spec.ts-snapshots/
 
 # Local storage (Phase 1+)
 storage/

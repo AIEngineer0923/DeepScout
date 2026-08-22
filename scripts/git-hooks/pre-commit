@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Install: cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+set -euo pipefail
+
+for dir in .agents .claude .codex .cursor; do
+  if git diff --cached --name-only | grep -q "^${dir}/"; then
+    echo "pre-commit BLOCK: ${dir}/ must not be committed"
+    exit 1
+  fi
+done
+
+# Private maintainer prompt files only — AGENTS.md is public coding-agent instructions.
+for p in CLAUDE.md GEMINI.md CANONICAL_RUNTIME.md CLONE_READINESS.md SHADOW_RUNTIME_ISOLATION.md; do
+  if git diff --cached --name-only | grep -qx "$p"; then
+    echo "pre-commit BLOCK: ${p} must not be committed"
+    exit 1
+  fi
+done
+
+bash scripts/scan-secrets.sh

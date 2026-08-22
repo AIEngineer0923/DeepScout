@@ -11,8 +11,9 @@ Authoritative identity document for the DeepScout open-source repository.
 | License | Apache License 2.0 |
 | Visibility | Public open source |
 | Maintainer | Francesco Iaforte |
-| Production URL | TBD (Phase 10+) |
-| Status | Phase 0.5 — governance and architecture baseline |
+| Production URL | https://deep-scout-plum.vercel.app |
+| Version | 0.1.0 |
+| Status | Active development on `main` — MODE B hosted + public demos shipped |
 
 ## Repository
 

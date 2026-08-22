@@ -1,89 +1,72 @@
 # DeepScout — Environment
 
-Development environment reference for contributors and maintainers.
+Contributor reference. For setup steps see [local-development.md](local-development.md).
 
 ## Repository
 
-- Name: DeepScout
-- Remote: `git@github.com:francescoveryra-dot/deepscout.git`
-- Branch: `main`
+- Remote: `https://github.com/francescoveryra-dot/deepscout.git`
+- Default branch: `main`
+- Version: **0.1.0** (see root `pyproject.toml`)
 
-## Git identity (maintainer)
+## Stack
 
-- Name: `Francesco Iaforte`
-- Email: `255975034+francescoveryra-dot@users.noreply.github.com`
-
-## Local setup
-
-```bash
-git clone git@github.com:francescoveryra-dot/deepscout.git
-cd deepscout
-cp .env.example .env
-# Fill .env locally — never commit it
-```
-
-## Stack (target)
-
-| Component | Version policy |
-|---|---|
+| Component | Version |
+|-----------|---------|
 | Python | 3.12+ |
-| Node.js | 20 LTS+ (Phase 1+) |
+| Node.js | 20 LTS |
 | PostgreSQL | 16+ with pgvector |
-| Redis | 7+ |
+| Redis | 7+ (optional in hosted prod) |
 | Docker | current stable |
 
-## Environment variables
-
-See [.env.example](../.env.example). Required for full functionality (Phase 1+):
-
-- LLM provider keys (`GOOGLE_API_KEY` minimum for initial dev)
-- `TAVILY_API_KEY` for web search adapter
-- `LANGSMITH_API_KEY` for tracing (optional in CI)
-- `DATABASE_URL`, `REDIS_URL`
-
-LangSmith project `deepscout-dev` is created automatically on first trace when
-`LANGSMITH_PROJECT=deepscout-dev` is set.
-
-## Monorepo paths (Phase 1+)
+## Monorepo layout
 
 | Path | Role |
-|---|---|
+|------|------|
 | `apps/api/` | FastAPI backend |
 | `apps/web/` | Next.js frontend |
-| `libs/` | Python packages |
+| `libs/core/` | Settings, domain schemas |
+| `libs/research/` | Orchestrator, phases, retrieval, worker |
+| `libs/persistence/` | SQLAlchemy, Alembic |
+| `libs/evaluation/` | Evaluator registry and persistence |
+| `libs/providers/` | LLM/embedding factory |
 | `infra/docker/` | Docker Compose |
-| `docs/` | Architecture and operations |
-| `scripts/` | Repository tooling |
+| `docs/` | Documentation |
+| `scripts/` | Tooling (secret scan, backfill, benchmarks) |
 
-## Development commands
+## Commands
 
 ```bash
 # Secret scan (required before push)
 bash scripts/scan-secrets.sh
 
-# Phase 1+ (not yet available)
-# docker compose -f infra/docker/docker-compose.yml up -d
-# pytest
-# npm test --prefix apps/web
+# Python tests (CI subset)
+uv run pytest -m "not integration"
+
+# Full Python + lint
+uv run ruff check .
+uv run pytest -m "not integration"
+
+# Frontend
+cd apps/web && npm test && npm run build
+
+# Docker stack
+docker compose -f infra/docker/docker-compose.yml up -d
+
+# Migrations
+cd libs/persistence && uv run alembic upgrade head
 ```
 
 ## CI
 
-Public CI runs on GitHub Actions (`.github/workflows/ci.yml`).
+GitHub Actions: `.github/workflows/ci.yml` (validate, Python, web) and `codeql.yml`.
 
-External contributors do **not** need any private tooling to clone, test, or contribute.
+External contributors do not need private maintainer tooling.
 
-## Production
+## Production modes
 
-Supported production-like use is **MODE A** (local or trusted network). See
-[DEPLOYMENT.md](DEPLOYMENT.md). Public Internet with first-party auth is not
-implemented (Phase 10+).
+| Mode | Env value | Notes |
+|------|-----------|-------|
+| Local (MODE A) | `DEEPSCOUT_DEPLOYMENT_MODE=local` | No login; keys in `.env` |
+| Hosted (MODE B) | `hosted` | OAuth + BYOK |
 
-`CONTROLLED_AUTO_DEPLOY=disabled_until_configured` until runtime map and rollback
-are defined.
-
-## Related docs
-
-- [PROJECT_SPEC.md](PROJECT_SPEC.md)
-- [ARCHITECTURE.md](../ARCHITECTURE.md)
-- [threat-model/THREAT_MODEL.md](threat-model/THREAT_MODEL.md)
+See [DEPLOYMENT.md](DEPLOYMENT.md).

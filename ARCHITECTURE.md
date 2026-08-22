@@ -12,15 +12,15 @@ DeepScout is a monorepo production-first system for autonomous, source-aware res
                                           │
                     ┌─────────────────────┼─────────────────────┐
                     ▼                     ▼                     ▼
-             libs/research          libs/providers         libs/security
-             (orchestrator)         (LLM factory)         (fetch guard)
-                    │                     │                     │
-                    └──────────┬──────────┴──────────┬──────────┘
-                               ▼                     ▼
-                        PostgreSQL              Redis
-                        + pgvector
+             libs/research          libs/providers         libs/evaluation
+             (orchestrator)         (LLM factory)          (eval persistence)
+                    │                     │
+                    └──────────┬──────────┘
+                               ▼
+                        libs/persistence
+                        PostgreSQL + pgvector
                                │
-                        LangSmith traces
+                        LangSmith (opt-in)
 ```
 
 ## Core principles
@@ -53,16 +53,19 @@ Details: [docs/architecture/RESEARCH_LIFECYCLE.md](docs/architecture/RESEARCH_LI
 | sources | 40 |
 | tool calls | 80 |
 
-## Module map (Phase 1+)
+## Module map
 
 | Module | Responsibility |
 |---|---|
-| `libs/core` | Domain schemas, budgets, policies |
-| `libs/research` | Orchestrator, phases, tools |
-| `libs/providers` | LLM + embedding + search adapters |
-| `libs/retrieval` | Loaders, splitters, pgvector |
-| `libs/security` | URL policy, sanitization |
-| `libs/observability` | LangSmith tagging |
+| `libs/core` | Domain schemas, budgets, settings |
+| `libs/research` | Orchestrator, phases, retrieval, fetch, worker, HITL |
+| `libs/providers` | LLM + embedding adapters |
+| `libs/persistence` | SQLAlchemy store, Alembic, retrieval SQL |
+| `libs/evaluation` | Evaluator registry, deterministic runners, persistence |
+| `apps/api` | HTTP + SSE + auth |
+| `apps/web` | Next.js product UI |
+
+Agent runtime detail: [docs/agent-runtime.md](docs/agent-runtime.md)
 
 ## Architecture decisions
 
