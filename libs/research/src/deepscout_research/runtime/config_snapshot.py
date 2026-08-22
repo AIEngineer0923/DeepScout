@@ -10,7 +10,7 @@ from deepscout_research.prompts.registry import PROMPT_REGISTRY
 def build_config_snapshot(settings: Settings) -> dict:
     prompts = {spec.prompt_id: spec.prompt_version for spec in PROMPT_REGISTRY.values()}
     return {
-        "state_schema_version": 9,
+        "state_schema_version": 10,
         "hitl_policy_version": "hitl-v1",
         "context_policy_version": "ctx-v1",
         "tool_registry_version": "1",
@@ -23,4 +23,5 @@ def build_config_snapshot(settings: Settings) -> dict:
         "retrieval_enabled": True,
         "retry_owner": "application",
         "provider_transport_max_retries": 0,
+        "learning_policies": None,
     }

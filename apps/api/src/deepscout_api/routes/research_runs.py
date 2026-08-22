@@ -34,12 +34,30 @@ def _require_run(request: Request, store, settings: Settings, run_id: UUID, *, w
     return authorize_run(store, run_id, access, write=write)
 
 
-def _snapshot(settings: Settings, body: ResearchRunCreate | None = None) -> dict:
+def _snapshot(
+    settings: Settings,
+    body: ResearchRunCreate | None = None,
+    *,
+    store=None,
+    owner_principal_id=None,
+) -> dict:
     from deepscout_core.domain.research_preferences import ResearchPreferences
     from deepscout_research.preferences.snapshot import snapshot_with_preferences
     from deepscout_research.runtime.config_snapshot import build_config_snapshot
 
     base = build_config_snapshot(settings)
+    if store is not None and hasattr(store, "learning_tables_available") and store.learning_tables_available():
+        try:
+            from deepscout_evaluation.learning.policy_resolver import (
+                resolve_effective_runtime_policy,
+            )
+
+            effective = resolve_effective_runtime_policy(
+                store, settings, owner_principal_id=owner_principal_id
+            )
+            base["learning_policies"] = effective.to_snapshot()
+        except Exception:
+            pass
     if body is None:
         return base
     prefs = body.preferences or ResearchPreferences()
@@ -198,7 +216,7 @@ def create_research_run(
         and store.count_active_runs(owner_id) >= settings.hosted_max_concurrent_runs_per_user
     ):
         raise HTTPException(status_code=429, detail="Concurrent run limit reached")
-    snapshot = _snapshot(settings, body)
+    snapshot = _snapshot(settings, body, store=store, owner_principal_id=owner_id)
     created = store.create_run(
         body,
         settings,
@@ -506,7 +524,7 @@ def restart_research_run(
             output_language=run.output_language,
         ),
         settings,
-        config_snapshot=_snapshot(settings),
+        config_snapshot=_snapshot(settings, store=store, owner_principal_id=owner_id),
         owner_principal_id=owner_id,
     )
     jobs = JobService(store)
@@ -542,7 +560,7 @@ def fork_research_run(
             output_language=run.output_language,
         ),
         settings,
-        config_snapshot=_snapshot(settings),
+        config_snapshot=_snapshot(settings, store=store, owner_principal_id=owner_id),
         parent_run_id=run_id,
         fork_reason=body.reason[:128],
         root_run_id=run_id,
@@ -591,7 +609,7 @@ def follow_up_research_run(
     )
     parent_row = store.get_run_row(run_id)
     root_id = (parent_row.root_run_id or run_id) if parent_row else run_id
-    snapshot = _snapshot(settings)
+    snapshot = _snapshot(settings, store=store, owner_principal_id=parent_row.owner_principal_id if parent_row else None)
     snapshot["followup_context"] = select_followup_context(store, run_id, payload.goal)
     snapshot["lineage"] = {"kind": "followup", "parent_run_id": str(run_id)}
     created = store.create_run(

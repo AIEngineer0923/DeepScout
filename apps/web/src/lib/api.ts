@@ -289,4 +289,96 @@ export const api = {
     ),
   knowledgeGraph: (runId: string) =>
     parse<Record<string, unknown>>(apiFetch(`${apiUrl}/api/v1/knowledge/graph?run_id=${runId}`, { cache: "no-store" })),
+  listLearningCases: () =>
+    parse<
+      Array<{
+        id: string;
+        case_key: string;
+        subsystem: string;
+        failure_class: string;
+        symptom: string;
+        review_state: string;
+        trust_level: string;
+        root_cause_class: string | null;
+        confidence: number | null;
+        created_at: string;
+      }>
+    >(apiFetch(`${apiUrl}/api/v1/learning/cases`, { cache: "no-store" })),
+  listLearningCandidates: (status?: string) => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return parse<
+      Array<{
+        id: string;
+        candidate_key: string;
+        title: string;
+        status: string;
+        candidate_type: string;
+        promotion_verdict: string | null;
+        policy_delta: Record<string, unknown> | null;
+        created_at: string;
+      }>
+    >(apiFetch(`${apiUrl}/api/v1/learning/candidates${query}`, { cache: "no-store" }));
+  },
+  getLearningMetrics: () =>
+    parse<{
+      cases_total: number;
+      cases_open: number;
+      cases_diagnosed: number;
+      candidates_proposed: number;
+      candidates_evaluated: number;
+      candidates_promoted: number;
+      candidates_rejected: number;
+      candidates_requires_review: number;
+      active_policy_versions: number;
+    }>(apiFetch(`${apiUrl}/api/v1/learning/metrics`, { cache: "no-store" })),
+  listLearningPolicies: () =>
+    parse<
+      Array<{
+        id: string;
+        policy_key: string;
+        policy_family: string | null;
+        version_label: string;
+        active: boolean;
+        promotion_reason: string | null;
+        created_at: string;
+      }>
+    >(apiFetch(`${apiUrl}/api/v1/learning/policies`, { cache: "no-store" })),
+  listLearningAudit: () =>
+    parse<
+      Array<{
+        id: string;
+        event_type: string;
+        policy_key: string | null;
+        policy_family: string | null;
+        previous_version_label: string | null;
+        new_version_label: string | null;
+        reason: string | null;
+        actor_label: string;
+        created_at: string;
+      }>
+    >(apiFetch(`${apiUrl}/api/v1/learning/audit`, { cache: "no-store" })),
+  approveLearningCandidate: (id: string, reason?: string) =>
+    parse(
+      apiFetch(`${apiUrl}/api/v1/learning/candidates/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }),
+    ),
+  rejectLearningCandidate: (id: string, reason?: string) =>
+    parse(
+      apiFetch(`${apiUrl}/api/v1/learning/candidates/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }),
+    ),
+  rollbackLearningPolicy: (policyKey: string, reason?: string) =>
+    parse(
+      apiFetch(`${apiUrl}/api/v1/learning/policies/rollback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ policy_key: policyKey, reason }),
+      }),
+    ),
 };

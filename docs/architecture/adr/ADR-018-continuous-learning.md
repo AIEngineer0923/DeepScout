@@ -39,9 +39,18 @@ Persist experience in PostgreSQL (migration `014`):
 
 Retrieval regression framework remains a **specialized input** — corpora and ingest paths unchanged.
 
-## Runtime hook (bounded)
+## Runtime hooks (bounded)
 
-Promoted global policy may add **at most +1** `gap_queries_per_round_bonus` for corrective research (`policy_runtime.py`). No retrieval weight mutation, no prompt rewriting, no autonomous deploy.
+Promoted policies may adjust bounded runtime knobs per family via `policy_resolver.py` and `policy_runtime.py`:
+
+| Family | Example knob | Hook |
+|--------|--------------|------|
+| `corrective_research` | `gap_queries_per_round_bonus` (+1 max) | `corrective_research.py` |
+| `retrieval` | `retrieval_candidate_k_multiplier`, `retrieval_top_k_delta` | `retrieval/planner.py`, `phases/extract.py` |
+| `synthesis` | `report_rewrite_bonus` (+1 max) | `orchestrator.py` |
+| `cost_latency` | `prefer_lower_cost_strategy` | model routing (fixture/gate) |
+
+Hard bounds in `policy_families.HARD_BOUNDS` — learning cannot exceed application envelopes.
 
 ## What we explicitly reject
 
@@ -66,6 +75,6 @@ External web content and raw user feedback never skip review.
 ## Consequences
 
 - Operators gain tenant-scoped learning case storage and policy versioning APIs
-- Hosted `/ready` expects Alembic head `014`
+- Hosted `/ready` expects Alembic head `015`
 - Human approval remains required for high-impact candidates
 - Statistical significance is not claimed on tiny samples — honest `INCONCLUSIVE` default

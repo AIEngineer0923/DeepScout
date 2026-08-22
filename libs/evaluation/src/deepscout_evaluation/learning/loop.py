@@ -174,6 +174,7 @@ def run_learning_loop_case(case: dict[str, Any]) -> LoopCaseResult:
             candidate,
             experiment,
             human_approved=case.get("human_approved", False),
+            sample_count=case.get("sample_count", 2),
         )
         expected_verdict = PromotionVerdict(case["expected_verdict"])
         passed = decision.verdict == expected_verdict
@@ -204,7 +205,7 @@ def run_learning_loop_case(case: dict[str, Any]) -> LoopCaseResult:
             active=True,
         )
         rolled = rollback_policy(active)
-        passed = rolled.payload == DEFAULT_BASELINE_POLICY
+        passed = gap_queries_per_round_bonus(rolled.payload) == 0
         return LoopCaseResult(case_id, stage, passed, "rollback to baseline")
 
     return LoopCaseResult(case_id, stage, False, f"unknown stage {stage}")

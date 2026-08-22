@@ -81,6 +81,7 @@ from deepscout_persistence.models import (
     EvidenceRow,
     HumanFeedbackRow,
     ImprovementCandidateRow,
+    LearningAuditEventRow,
     LearningCaseRow,
     LearningPolicyVersionRow,
     ReportEvidenceRow,
@@ -661,6 +662,7 @@ class ResearchStore:
                 "review_state": row.review_state,
                 "trust_level": row.trust_level,
                 "root_cause_class": row.root_cause_class,
+                "confidence": row.confidence,
                 "created_at": row.created_at,
             }
             for row in rows
@@ -711,6 +713,7 @@ class ResearchStore:
                 "status": row.status,
                 "candidate_type": row.candidate_type,
                 "promotion_verdict": row.promotion_verdict,
+                "policy_delta": dict(row.policy_delta or {}),
                 "created_at": row.created_at,
             }
             for row in rows
@@ -746,6 +749,11 @@ class ResearchStore:
         promoted_from_candidate_id: uuid.UUID | None,
         promotion_reason: str,
         evidence: dict | None,
+        policy_family: str | None = None,
+        scope_key: str | None = None,
+        parent_version_id: uuid.UUID | None = None,
+        actor_label: str = "system",
+        actor_principal_id: uuid.UUID | None = None,
     ) -> uuid.UUID:
         if not self._learning_tables_available():
             raise RuntimeError("learning_policy_versions table unavailable")
@@ -757,8 +765,12 @@ class ResearchStore:
             stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
         else:
             stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        previous_label = None
+        now = datetime.now(UTC)
         for active in self._session.scalars(stmt).all():
+            previous_label = active.version_label
             active.active = False
+            active.superseded_at = now
         row = LearningPolicyVersionRow(
             policy_key=policy_key,
             version_label=version_label,
@@ -768,9 +780,26 @@ class ResearchStore:
             promoted_from_candidate_id=promoted_from_candidate_id,
             promotion_reason=promotion_reason,
             evidence=evidence,
+            policy_family=policy_family,
+            scope_key=scope_key,
+            parent_version_id=parent_version_id,
+            activated_at=now,
         )
         self._session.add(row)
         self._session.flush()
+        self._record_learning_audit(
+            event_type="policy_promoted",
+            policy_key=policy_key,
+            policy_family=policy_family,
+            owner_principal_id=owner_principal_id,
+            policy_version_id=row.id,
+            actor_principal_id=actor_principal_id,
+            actor_label=actor_label,
+            previous_version_label=previous_label,
+            new_version_label=version_label,
+            reason=promotion_reason,
+            details=evidence,
+        )
         return row.id
 
     def get_active_learning_policy(
@@ -849,7 +878,172 @@ class ResearchStore:
             "rollback_actor": actor,
             "rolled_back_at": datetime.now(UTC).isoformat(),
         }
+        self._record_learning_audit(
+            event_type="policy_rolled_back",
+            policy_key=policy_key,
+            policy_family=current.policy_family,
+            owner_principal_id=owner_principal_id,
+            policy_version_id=previous.id,
+            actor_label=actor,
+            previous_version_label=current.version_label,
+            new_version_label=previous.version_label,
+            reason=rollback_reason,
+            details={"rolled_back_from": str(current.id)},
+        )
         return previous.id
+
+    def _learning_audit_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("learning_audit_events")
+        except Exception:
+            return False
+
+    def _record_learning_audit(
+        self,
+        *,
+        event_type: str,
+        policy_key: str | None = None,
+        policy_family: str | None = None,
+        owner_principal_id: uuid.UUID | None = None,
+        learning_case_id: uuid.UUID | None = None,
+        candidate_id: uuid.UUID | None = None,
+        policy_version_id: uuid.UUID | None = None,
+        actor_principal_id: uuid.UUID | None = None,
+        actor_label: str = "system",
+        previous_version_label: str | None = None,
+        new_version_label: str | None = None,
+        reason: str | None = None,
+        details: dict | None = None,
+    ) -> None:
+        if not self._learning_audit_available():
+            return
+        self._session.add(
+            LearningAuditEventRow(
+                event_type=event_type,
+                policy_key=policy_key,
+                policy_family=policy_family,
+                owner_principal_id=owner_principal_id,
+                learning_case_id=learning_case_id,
+                candidate_id=candidate_id,
+                policy_version_id=policy_version_id,
+                actor_principal_id=actor_principal_id,
+                actor_label=actor_label,
+                previous_version_label=previous_version_label,
+                new_version_label=new_version_label,
+                reason=reason,
+                details=details,
+            )
+        )
+
+    def list_learning_policy_versions(
+        self, *, policy_key: str | None = None, owner_principal_id: uuid.UUID | None = None, limit: int = 50
+    ) -> list[dict[str, object]]:
+        if not self._learning_tables_available():
+            return []
+        stmt = select(LearningPolicyVersionRow)
+        if policy_key:
+            stmt = stmt.where(LearningPolicyVersionRow.policy_key == policy_key)
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        stmt = stmt.order_by(LearningPolicyVersionRow.created_at.desc()).limit(limit)
+        return [
+            {
+                "id": row.id,
+                "policy_key": row.policy_key,
+                "policy_family": row.policy_family,
+                "scope_key": row.scope_key,
+                "version_label": row.version_label,
+                "active": row.active,
+                "promotion_reason": row.promotion_reason,
+                "created_at": row.created_at,
+                "activated_at": row.activated_at,
+            }
+            for row in self._session.scalars(stmt).all()
+        ]
+
+    def list_learning_audit_events(
+        self, *, owner_principal_id: uuid.UUID | None = None, limit: int = 100
+    ) -> list[dict[str, object]]:
+        if not self._learning_audit_available():
+            return []
+        stmt = select(LearningAuditEventRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningAuditEventRow.owner_principal_id == owner_principal_id)
+        stmt = stmt.order_by(LearningAuditEventRow.created_at.desc()).limit(limit)
+        return [
+            {
+                "id": row.id,
+                "event_type": row.event_type,
+                "policy_key": row.policy_key,
+                "policy_family": row.policy_family,
+                "previous_version_label": row.previous_version_label,
+                "new_version_label": row.new_version_label,
+                "reason": row.reason,
+                "actor_label": row.actor_label,
+                "created_at": row.created_at,
+            }
+            for row in self._session.scalars(stmt).all()
+        ]
+
+    def get_learning_metrics(self, *, owner_principal_id: uuid.UUID | None = None) -> dict[str, int]:
+        if not self._learning_tables_available():
+            return {}
+        case_stmt = select(LearningCaseRow)
+        cand_stmt = select(ImprovementCandidateRow)
+        if owner_principal_id is not None:
+            case_stmt = case_stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
+            cand_stmt = cand_stmt.where(ImprovementCandidateRow.owner_principal_id == owner_principal_id)
+        cases = list(self._session.scalars(case_stmt).all())
+        candidates = list(self._session.scalars(cand_stmt).all())
+        policy_stmt = select(LearningPolicyVersionRow).where(LearningPolicyVersionRow.active.is_(True))
+        if owner_principal_id is not None:
+            policy_stmt = policy_stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
+        else:
+            policy_stmt = policy_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        active_policies = list(self._session.scalars(policy_stmt).all())
+        return {
+            "cases_total": len(cases),
+            "cases_open": sum(1 for c in cases if c.review_state not in ("promoted", "rejected", "archived")),
+            "cases_diagnosed": sum(1 for c in cases if c.root_cause_class),
+            "candidates_proposed": len(candidates),
+            "candidates_evaluated": sum(1 for c in candidates if c.experiment_result),
+            "candidates_promoted": sum(1 for c in candidates if c.status == "promoted"),
+            "candidates_rejected": sum(1 for c in candidates if c.status == "rejected"),
+            "candidates_requires_review": sum(
+                1 for c in candidates if c.status == "requires_human_review"
+            ),
+            "active_policy_versions": len(active_policies),
+        }
+
+    def promotion_cooldown_active(
+        self, *, policy_key: str, owner_principal_id: uuid.UUID | None, cooldown_hours: int = 24
+    ) -> bool:
+        """Anti-oscillation: block rapid re-promotion on same policy key."""
+        if not self._learning_audit_available():
+            return False
+        cutoff = datetime.now(UTC) - timedelta(hours=cooldown_hours)
+        stmt = (
+            select(LearningAuditEventRow)
+            .where(
+                LearningAuditEventRow.policy_key == policy_key,
+                LearningAuditEventRow.event_type.in_(("policy_promoted", "policy_rolled_back")),
+                LearningAuditEventRow.created_at >= cutoff,
+            )
+            .order_by(LearningAuditEventRow.created_at.desc())
+            .limit(3)
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningAuditEventRow.owner_principal_id == owner_principal_id)
+        events = list(self._session.scalars(stmt).all())
+        if len(events) < 2:
+            return False
+        types = [e.event_type for e in events[:2]]
+        return types == ["policy_rolled_back", "policy_promoted"] or types == [
+            "policy_promoted",
+            "policy_rolled_back",
+        ]
 
     def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
         self._require_run(run_id)

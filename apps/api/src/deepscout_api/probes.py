@@ -6,7 +6,7 @@ from redis import Redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
 
-REQUIRED_ALEMBIC_REVISION = "014"
+REQUIRED_ALEMBIC_REVISION = "015"
 
 
 def probe_postgres(database_url: str) -> str:

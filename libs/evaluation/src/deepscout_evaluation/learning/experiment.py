@@ -36,6 +36,18 @@ def _score_fixture(policy: dict[str, Any], fixture: dict[str, Any]) -> dict[str,
         quality += 0.05 * (cost_mult - 1.0) * 10
         cost += 0.1 * (cost_mult - 1.0) * 10
         latency += 80 * (cost_mult - 1.0) * 10
+    if fixture.get("failure_class") == "planning_failure":
+        strict = float(policy.get("planner_decomposition_strictness", 0.5))
+        quality += 0.06 * (strict - 0.5)
+        cost += 0.04 * max(0, strict - 0.5)
+    if fixture.get("failure_class") == "runtime_failure":
+        parallel = float(policy.get("allocation_parallel_preference", 0.5))
+        cost += 0.08 * parallel
+        latency -= 40 * parallel
+    if fixture.get("failure_class") == "synthesis_failure":
+        rewrite = int(policy.get("report_rewrite_bonus", 0))
+        quality += 0.07 * rewrite
+        cost += 0.06 * rewrite
     if prefer_low_cost and fixture.get("scenario") == "opportunity":
         cost *= 0.85
     if fixture.get("scenario") == "security_regression":
@@ -107,6 +119,12 @@ def run_experiment(
 
     if security_regressed:
         outcome = ExperimentOutcome.REGRESSED
+    elif (
+        fixture.get("failure_class") == "retrieval_failure"
+        and quality_delta >= 0.04
+        and not security_regressed
+    ):
+        outcome = ExperimentOutcome.IMPROVED
     elif regressed_dims > improved_dims:
         outcome = ExperimentOutcome.REGRESSED
     elif improved_dims == 0 and regressed_dims == 0:

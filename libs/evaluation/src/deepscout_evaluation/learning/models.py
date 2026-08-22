@@ -226,3 +226,5 @@ class PolicyVersion(BaseModel):
     promotion_reason: str = ""
     evidence: dict[str, Any] = Field(default_factory=dict)
     owner_principal_id: UUID | None = None
+    policy_family: str | None = None
+    scope_key: str | None = None

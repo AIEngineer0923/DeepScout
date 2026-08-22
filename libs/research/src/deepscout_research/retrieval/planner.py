@@ -106,6 +106,8 @@ def plan_retrieval_query(
     document_token_estimate: int | None = None,
     counter_evidence: bool = False,
     fresher_than: datetime | None = None,
+    retrieval_top_k_override: int | None = None,
+    retrieval_candidate_k_override: int | None = None,
 ) -> QueryPlan:
     cleaned = " ".join(query.split())
     entities = _extract_entities(cleaned)
@@ -115,8 +117,12 @@ def plan_retrieval_query(
         if settings.retrieval_mode in {"dense", "lexical", "hybrid"}
         else "hybrid"
     )
-    top_k = _role_top_k(role, settings.retrieval_top_k)
-    candidate_k = max(settings.retrieval_candidate_k, top_k)
+    top_k = retrieval_top_k_override if retrieval_top_k_override is not None else _role_top_k(role, settings.retrieval_top_k)
+    candidate_k = (
+        retrieval_candidate_k_override
+        if retrieval_candidate_k_override is not None
+        else max(settings.retrieval_candidate_k, top_k)
+    )
 
     if document_token_estimate is not None and document_token_estimate <= 1000:
         return QueryPlan(

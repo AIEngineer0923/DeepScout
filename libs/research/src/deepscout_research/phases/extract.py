@@ -153,6 +153,18 @@ def extract_claims_for_run(
                 row.config_snapshot if row else None,
                 goal=row.goal if row else "",
             )
+            top_k_override, candidate_k_override = None, None
+            try:
+                from deepscout_evaluation.learning.policy_runtime import (
+                    retrieval_overrides_from_snapshot,
+                )
+
+                top_k_override, candidate_k_override = retrieval_overrides_from_snapshot(
+                    row.config_snapshot if row else None,
+                    retriever.settings,
+                )
+            except Exception:
+                pass
             plan = plan_retrieval_query(
                 query=candidate.query,
                 run_id=run_id,
@@ -161,6 +173,8 @@ def extract_claims_for_run(
                 role=AgentRole.EXTRACTOR,
                 document_token_estimate=estimate_tokens(snapshot.content_text),
                 fresher_than=resolved.fresher_than,
+                retrieval_top_k_override=top_k_override,
+                retrieval_candidate_k_override=candidate_k_override,
             )
             if not plan.skip_retrieval:
                 mode = (

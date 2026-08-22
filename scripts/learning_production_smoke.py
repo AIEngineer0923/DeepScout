@@ -65,7 +65,7 @@ def main() -> int:
     session = get_session_factory(settings.database_url)()
     store = ResearchStore(session)
     if not store.learning_tables_available():
-        _fail("learning tables unavailable — migration 014 required")
+        _fail("learning tables unavailable — migration 015 required")
 
     if corrective_gap_queries_bonus(store, owner_principal_id=None) != 0:
         _restore_baseline(store, session, reason="controlled smoke preamble reset")

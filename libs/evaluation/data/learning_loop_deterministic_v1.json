@@ -119,6 +119,44 @@
       }
     },
     {
+      "case_id": "loop-retrieval-improve",
+      "stage": "full_loop",
+      "subsystem": "retrieval",
+      "failure_class": "retrieval_failure",
+      "root_cause_class": "retrieval_failure",
+      "symptom": "missed authoritative source in candidate pool",
+      "expected_behavior": "wider candidate pool recovers source",
+      "observed_behavior": "relevant doc ranked below cutoff",
+      "fixture": {
+        "failure_class": "retrieval_failure",
+        "baseline_quality": 0.68,
+        "baseline_cost": 1.0
+      },
+      "baseline_policy": {"retrieval_candidate_k_multiplier": 1.0},
+      "expected_verdict": "safe_to_promote",
+      "human_approved": true,
+      "sample_count": 2
+    },
+    {
+      "case_id": "loop-planner-hitl",
+      "stage": "full_loop",
+      "subsystem": "planning",
+      "failure_class": "planning_failure",
+      "root_cause_class": "planning_failure",
+      "symptom": "under-decomposed complex goal",
+      "expected_behavior": "richer task DAG",
+      "observed_behavior": "single-task plan for multi-part question",
+      "fixture": {
+        "failure_class": "planning_failure",
+        "baseline_quality": 0.7,
+        "baseline_cost": 1.0
+      },
+      "baseline_policy": {"planner_decomposition_strictness": 0.5},
+      "expected_verdict": "requires_human_review",
+      "human_approved": false,
+      "sample_count": 2
+    },
+    {
       "case_id": "loop-rollback",
       "stage": "rollback"
     }

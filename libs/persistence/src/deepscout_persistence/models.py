@@ -1194,4 +1194,44 @@ class LearningPolicyVersionRow(Base):
     promotion_reason: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[dict | None] = mapped_column(JSONB)
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    policy_family: Mapped[str | None] = mapped_column(String(64))
+    scope_key: Mapped[str | None] = mapped_column(String(128))
+    parent_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("learning_policy_versions.id", ondelete="SET NULL")
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LearningAuditEventRow(Base):
+    __tablename__ = "learning_audit_events"
+    __table_args__ = (
+        Index("ix_learning_audit_events_type", "event_type"),
+        Index("ix_learning_audit_events_owner", "owner_principal_id"),
+        Index("ix_learning_audit_events_created", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_key: Mapped[str | None] = mapped_column(String(128))
+    policy_family: Mapped[str | None] = mapped_column(String(64))
+    owner_principal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE")
+    )
+    learning_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("learning_cases.id", ondelete="SET NULL")
+    )
+    candidate_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("improvement_candidates.id", ondelete="SET NULL")
+    )
+    policy_version_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    actor_principal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="SET NULL")
+    )
+    actor_label: Mapped[str] = mapped_column(String(128), nullable=False, default="system")
+    previous_version_label: Mapped[str | None] = mapped_column(String(64))
+    new_version_label: Mapped[str | None] = mapped_column(String(64))
+    reason: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

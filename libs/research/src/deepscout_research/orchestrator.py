@@ -1054,7 +1054,25 @@ class ResearchOrchestrator:
             revision_notes=revision_notes,
         )
         final_critic = run_final_answer_critic(self._store, run_id)
-        for _rewrite_round in range(1, self._settings.research_max_report_rewrites):
+        row = self._store.get_run_row(run_id)
+        max_rewrites = self._settings.research_max_report_rewrites
+        try:
+            from deepscout_evaluation.learning.policy_runtime import (
+                effective_report_rewrite_limit,
+                policy_from_run_snapshot,
+            )
+
+            effective = policy_from_run_snapshot(row.config_snapshot if row else None)
+            owner_id = row.owner_principal_id if row else None
+            max_rewrites = effective_report_rewrite_limit(
+                self._store,
+                self._settings,
+                owner_principal_id=owner_id,
+                effective=effective,
+            )
+        except Exception:
+            pass
+        for _rewrite_round in range(1, max_rewrites):
             self._store.merge_config_snapshot(
                 run_id,
                 {"final_critic": final_critic.model_dump(mode="json")},
