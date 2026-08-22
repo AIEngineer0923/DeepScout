@@ -35,6 +35,29 @@ Goal submitted
 
 Phases are owned by `libs/research/src/deepscout_research/orchestrator.py`. Each phase can invoke LangChain agents with an allowlisted tool set.
 
+## Retrieval path (hybrid)
+
+```mermaid
+flowchart TD
+  Q[Query] --> P[plan_retrieval_query]
+  P --> R[route_retrieval]
+  R --> B[BM25]
+  R --> F[PostgreSQL FTS]
+  R --> D[pgvector dense]
+  R --> CK[Compiled statements optional]
+  R --> G[Local graph 1-hop optional]
+  B --> RRF[RRF fusion]
+  F --> RRF
+  D --> RRF
+  RRF --> RR[Rerank]
+  CK --> M[Merge candidates]
+  G --> M
+  RR --> M
+  M --> X[EXTRACT → evidence → SourceSnapshot]
+```
+
+See [RAG_PIPELINE.md](architecture/RAG_PIPELINE.md) and [ADR-013](architecture/adr/ADR-013-retrieval-upgrade.md). Quality measurement: `scripts/retrieval_quality_benchmark.py`.
+
 ## AI & retrieval — what is actually implemented
 
 | Capability | Status | Notes |

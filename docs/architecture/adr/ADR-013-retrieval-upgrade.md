@@ -78,3 +78,4 @@ SPLADE, Neo4j GraphRAG, HNSW ANN, and cross-encoder rerank were re-evaluated.
 - New runs re-index with contextual chunks when embedding keys are configured.
 - Legacy runs without `context_text` continue to retrieve using chunk `text`.
 - Ablation: `scripts/retrieval_ablation_offline.py` (BM25 offline); live ablation remains `scripts/phase5_closure_gate.py`.
+- Quality suite v2: `scripts/retrieval_quality_benchmark.py` + `libs/evaluation/data/retrieval_quality_benchmark_v2.json` — router confusion matrix, per-retriever ablation, contextual raw vs prefix comparison, compiled + local graph fixtures.
