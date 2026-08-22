@@ -10,7 +10,10 @@ from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
-from deepscout_research.demo.presentation import load_bundled_presentation, merge_presentation_into_public_demo
+from deepscout_research.demo.presentation import (
+    load_bundled_presentation,
+    merge_presentation_into_public_demo,
+)
 from fastapi.testclient import TestClient
 from tests.db_helpers import database_url
 

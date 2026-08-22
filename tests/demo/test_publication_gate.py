@@ -6,9 +6,9 @@ import pytest
 from deepscout_core.domain.enums import ResearchRunStatus
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
+from deepscout_persistence.models import ResearchRunRow
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
-from deepscout_persistence.models import ResearchRunRow
 from deepscout_research.demo.publication import publish_demo
 from sqlalchemy import select
 from tests.db_helpers import database_url

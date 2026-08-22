@@ -5,7 +5,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-
 from deepscout_research.demo.catalog import DEMO_CATALOG
 from deepscout_research.demo.presentation import load_bundled_presentation
 from deepscout_research.demo.presentation_validation import (
