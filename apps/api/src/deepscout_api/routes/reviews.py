@@ -182,6 +182,29 @@ def _resolve_and_maybe_resume(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    row = store.get_run_row(run_id)
+    hitl_event = {
+        ReviewDecisionKind.APPROVE: "approved",
+        ReviewDecisionKind.REJECT: "rejected",
+        ReviewDecisionKind.EDIT: "edited",
+        ReviewDecisionKind.RESPOND: "responded",
+    }.get(decision_kind)
+    if hitl_event and row is not None:
+        from uuid import uuid4
+
+        from deepscout_evaluation.learning.experience_store import persist_learning_case
+        from deepscout_evaluation.learning.hitl_learning import learning_case_from_hitl_event
+
+        case = learning_case_from_hitl_event(
+            event_type=hitl_event,
+            research_run_id=run_id,
+            owner_principal_id=row.owner_principal_id,
+            payload={"reason": reason, "applied": result.applied},
+            event_id=uuid4(),
+        )
+        if case is not None:
+            persist_learning_case(store, case)
+
     job_id = None
     if result.run_status.value == "pending" and result.applied:
         jobs = JobService(store)

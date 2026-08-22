@@ -15,11 +15,11 @@ from deepscout_evaluation.learning.models import (
 from deepscout_evaluation.regression_origins import RegressionOrigin
 
 _HITL_EVENT_MAP: dict[str, tuple[LearningSubsystem, str]] = {
-    "candidate_rejected": (LearningSubsystem.EVALUATION, "candidate rejected by reviewer"),
-    "candidate_approved": (LearningSubsystem.EVALUATION, "candidate approved by reviewer"),
-    "budget_continuation_rejected": (LearningSubsystem.RUNTIME, "budget continuation rejected"),
-    "scope_edited": (LearningSubsystem.PLANNING, "operator edited research scope"),
-    "operator_correction": (LearningSubsystem.SYNTHESIS, "operator correction recorded"),
+    "rejected": (LearningSubsystem.RUNTIME, "authoritative review rejected"),
+    "approved": (LearningSubsystem.EVALUATION, "authoritative review approved"),
+    "edited": (LearningSubsystem.PLANNING, "operator edited review scope"),
+    "responded": (LearningSubsystem.SYNTHESIS, "operator correction recorded"),
+    "expired": (LearningSubsystem.HITL, "review expired without resolution"),
 }
 
 
@@ -39,7 +39,7 @@ def learning_case_from_hitl_event(
         case_id=f"hitl-{event_id}",
         subsystem=subsystem,
         failure_class=FailureClass.HITL_FAILURE.value
-        if "rejected" in event_type
+        if event_type in {"rejected", "expired"}
         else FailureClass.OPPORTUNITY.value,
         symptom=symptom,
         expected_behavior="authoritative human review outcome",
