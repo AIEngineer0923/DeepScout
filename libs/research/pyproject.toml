@@ -6,6 +6,7 @@ dependencies = [
     "deepscout-core",
     "deepscout-providers",
     "deepscout-persistence",
+    "deepscout-evaluation",
     "langchain>=0.3",
     "langgraph>=0.2",
     "langsmith>=0.3",
@@ -28,3 +29,4 @@ packages = ["src/deepscout_research"]
 deepscout-core = { workspace = true }
 deepscout-providers = { workspace = true }
 deepscout-persistence = { workspace = true }
+deepscout-evaluation = { workspace = true }

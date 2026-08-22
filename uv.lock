@@ -420,6 +420,7 @@ source = { editable = "apps/api" }
 dependencies = [
     { name = "authlib" },
     { name = "deepscout-core" },
+    { name = "deepscout-evaluation" },
     { name = "deepscout-persistence" },
     { name = "deepscout-providers" },
     { name = "deepscout-research" },
@@ -435,6 +436,7 @@ dependencies = [
 requires-dist = [
     { name = "authlib", specifier = ">=1.5" },
     { name = "deepscout-core", editable = "libs/core" },
+    { name = "deepscout-evaluation", editable = "libs/evaluation" },
     { name = "deepscout-persistence", editable = "libs/persistence" },
     { name = "deepscout-providers", editable = "libs/providers" },
     { name = "deepscout-research", editable = "libs/research" },
@@ -467,12 +469,16 @@ version = "0.1.0"
 source = { editable = "libs/evaluation" }
 dependencies = [
     { name = "deepscout-core" },
+    { name = "deepscout-persistence" },
+    { name = "deepscout-research" },
     { name = "langsmith" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "deepscout-core", editable = "libs/core" },
+    { name = "deepscout-persistence", editable = "libs/persistence" },
+    { name = "deepscout-research", editable = "libs/research" },
     { name = "langsmith", specifier = ">=0.3" },
 ]
 
@@ -525,6 +531,7 @@ source = { editable = "libs/research" }
 dependencies = [
     { name = "cryptography" },
     { name = "deepscout-core" },
+    { name = "deepscout-evaluation" },
     { name = "deepscout-persistence" },
     { name = "deepscout-providers" },
     { name = "httpx" },
@@ -538,6 +545,7 @@ dependencies = [
 requires-dist = [
     { name = "cryptography", specifier = ">=44.0" },
     { name = "deepscout-core", editable = "libs/core" },
+    { name = "deepscout-evaluation", editable = "libs/evaluation" },
     { name = "deepscout-persistence", editable = "libs/persistence" },
     { name = "deepscout-providers", editable = "libs/providers" },
     { name = "httpx", specifier = ">=0.28" },

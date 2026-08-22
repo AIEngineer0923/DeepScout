@@ -76,9 +76,9 @@ def test_hybrid_retrieval_overlaps_embedding_with_lexical(monkeypatch: pytest.Mo
 @pytest.mark.postgres
 def test_workspace_skips_evals_while_run_is_active(store, settings) -> None:
     run = store.create_run(ResearchRunCreate(goal="Pending workspace eval skip"), settings)
-    with patch("deepscout_api.workspace.evaluate_research_run") as mocked:
-        mocked.side_effect = AssertionError("evals must not run for non-terminal workspace")
+    with patch("deepscout_api.workspace.load_evaluation_rows", return_value=[]) as mocked:
         payload = assemble_workspace(store, run.id)
+    mocked.assert_called_once_with(store, run.id, include_evals=False, backfill=False)
     assert payload["evaluations"] == []
     assert payload["evaluations_deferred"] is True
     assert "db_load" in payload["timings_ms"]

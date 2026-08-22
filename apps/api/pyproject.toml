@@ -7,6 +7,7 @@ dependencies = [
     "deepscout-providers",
     "deepscout-research",
     "deepscout-persistence",
+    "deepscout-evaluation",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
     "sqlalchemy>=2.0",
@@ -28,6 +29,7 @@ deepscout-core = { workspace = true }
 deepscout-providers = { workspace = true }
 deepscout-research = { workspace = true }
 deepscout-persistence = { workspace = true }
+deepscout-evaluation = { workspace = true }
 
 [project.scripts]
 deepscout-api = "deepscout_api.main:run"

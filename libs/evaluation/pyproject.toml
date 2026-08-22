@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "deepscout-core",
+    "deepscout-persistence",
+    "deepscout-research",
     "langsmith>=0.3",
 ]
 
@@ -16,3 +18,5 @@ packages = ["src/deepscout_evaluation"]
 
 [tool.uv.sources]
 deepscout-core = { workspace = true }
+deepscout-persistence = { workspace = true }
+deepscout-research = { workspace = true }

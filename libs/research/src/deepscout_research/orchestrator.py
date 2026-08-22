@@ -270,6 +270,10 @@ class ResearchOrchestrator:
             self._run_corrective_research_loops(run_id, iterations_ref=iterations_box)
             iterations = iterations_box[0]
             self._run_finalize_phases(run_id)
+            from deepscout_evaluation.persist import persist_research_evaluations
+
+            persist_research_evaluations(self._store, run_id)
+            self._store.commit()
 
             final = evaluate_termination(
                 budget=run.budget,
@@ -325,6 +329,10 @@ class ResearchOrchestrator:
                     self._run_corrective_research_loops(run_id, iterations_ref=iterations_box)
                     iterations = iterations_box[0]
                     self._run_finalize_phases(run_id)
+                    from deepscout_evaluation.persist import persist_research_evaluations
+
+                    persist_research_evaluations(self._store, run_id)
+                    self._store.commit()
                 except RunCancelledError:
                     self._store.set_termination_reason(run_id, "cancelled")
                     self._store.update_run_status(run_id, ResearchRunStatus.CANCELLED)
