@@ -233,4 +233,6 @@ export const FORBIDDEN_UI_PATTERNS = [
   "llm as judge",
   "active now",
   "offline only",
+  "research_worker v1",
+  "schedule_kind",
 ] as const;

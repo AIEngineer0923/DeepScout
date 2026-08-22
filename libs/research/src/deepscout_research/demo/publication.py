@@ -11,6 +11,10 @@ from sqlalchemy import select
 
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
 from deepscout_research.demo.presentation import merge_presentation_into_public_demo
+from deepscout_research.demo.presentation_validation import (
+    resolve_publication_presentations,
+    validate_demo_presentation_locales,
+)
 from deepscout_research.demo.sanitization import sanitize_text
 
 
@@ -23,6 +27,23 @@ def _sanitize_run_content(store: ResearchStore, run_id: UUID) -> None:
         claim.statement = sanitize_text(claim.statement)
     for item in store.list_evidence(run_id):
         item.quote = sanitize_text(item.quote)
+
+
+def _presentation_reason_codes(store: ResearchStore, run_id: UUID, slug: str) -> list[str]:
+    row = store.get_run_row(run_id)
+    if row is None:
+        return ["PRESENTATION_SCHEMA_INVALID"]
+    snapshot = row.config_snapshot or {}
+    tasks = store.list_tasks(run_id)
+    claims = store.list_claims(run_id)
+    presentations = resolve_publication_presentations(snapshot, slug)
+    return validate_demo_presentation_locales(
+        presentations,
+        run_task_keys={task.task_key for task in tasks if task.task_key},
+        run_worker_ids={str(task.worker_id) for task in tasks if task.worker_id},
+        run_claim_ids={str(claim.id) for claim in claims},
+        expected_run_id=run_id,
+    )
 
 
 def publish_demo(
@@ -47,6 +68,9 @@ def publish_demo(
     )
     if existing is not None and existing.id != run_id:
         raise ValueError("slug already published")
+    presentation_errors = _presentation_reason_codes(store, run_id, slug)
+    if presentation_errors:
+        raise ValueError("; ".join(presentation_errors))
     _sanitize_run_content(store, run_id)
     meta = DEMO_BY_SLUG.get(slug)
     if meta:

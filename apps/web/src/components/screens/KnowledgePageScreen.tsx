@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { presentKnowledgeStatus } from "@/presentation/knowledge";
+import { StatusBadge } from "@/components/StatusBadge";
 
 export function KnowledgePageScreen() {
   const t = useT();
+  const { locale } = useI18n();
   const params = useParams<{ runId: string; pageId: string }>();
   const [page, setPage] = useState<Record<string, unknown> | null>(null);
   useEffect(() => {
@@ -18,7 +21,9 @@ export function KnowledgePageScreen() {
   return (
     <div>
       <h1 className="page-title wrap-text">{String(page.title)}</h1>
-      <p className="muted">{t("knowledge.notEvidence")} · v{String(page.version)} · {String(page.status)}</p>
+      <p className="muted">
+        {t("knowledge.notEvidence")} · v{String(page.version)} · {presentKnowledgeStatus(String(page.status), locale)}
+      </p>
       <pre className="wrap-text">{String(page.body_markdown ?? "")}</pre>
       <section className="card">
         <h2>{t("knowledge.statements")}</h2>
@@ -26,7 +31,7 @@ export function KnowledgePageScreen() {
           {statements.map((item) => (
             <li key={item.id}>
               <Link href={`/knowledge/${params.runId}/statement/${item.id}`}>{item.text}</Link>
-              <span className="muted"> · {item.status}</span>
+              <span className="muted"> · <StatusBadge status={item.status} /></span>
             </li>
           ))}
         </ul>

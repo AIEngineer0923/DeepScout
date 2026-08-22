@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { StatusBadge } from "@/components/StatusBadge";
+import {
+  formatMonitorTimestamp,
+  presentMonitorStatus,
+  presentScheduleKind,
+} from "@/presentation/monitors";
 
 export function MonitorDetailScreen() {
   const t = useT();
+  const { locale } = useI18n();
   const params = useParams<{ monitorId: string }>();
   const router = useRouter();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
@@ -20,9 +27,12 @@ export function MonitorDetailScreen() {
     <div>
       <h1 className="page-title">{String(data.name)}</h1>
       <p className="muted wrap-text">{String(data.goal)}</p>
-      <p>{t("table.status")}: {String(data.status)} · {String(data.timezone)} · {String(data.schedule_kind)}</p>
-      <p>{t("monitors.next")}: {String(data.next_run_at ?? "—")}</p>
-      <p>{t("monitors.lastChange")}: {String(data.last_change_at ?? "—")}</p>
+      <p>
+        {t("table.status")}: <StatusBadge status={String(data.status)} /> · {String(data.timezone)} ·{" "}
+        {presentScheduleKind(String(data.schedule_kind), locale)}
+      </p>
+      <p>{t("monitors.next")}: {formatMonitorTimestamp(String(data.next_run_at ?? ""), locale)}</p>
+      <p>{t("monitors.lastChange")}: {formatMonitorTimestamp(String(data.last_change_at ?? ""), locale)}</p>
       <div className="row">
         <button className="btn" type="button" onClick={() => void api.patchMonitor(params.monitorId, { enabled: !data.enabled }).then(() => location.reload())}>
           {data.enabled ? t("monitors.pause") : t("monitors.enable")}
@@ -39,7 +49,8 @@ export function MonitorDetailScreen() {
         <ul>
           {history.map((item, index) => (
             <li key={item.id}>
-              <Link href={`/research/${item.id}`}>{item.id}</Link> · {item.status}
+              <Link href={`/research/${item.id}`}>{t("monitors.openRun")}</Link> ·{" "}
+              <StatusBadge status={item.status} /> · {formatMonitorTimestamp(item.created_at, locale)}
               {index > 0 ? (
                 <>
                   {" · "}

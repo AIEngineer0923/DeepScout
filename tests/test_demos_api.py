@@ -10,7 +10,10 @@ from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
-from deepscout_research.demo.publication import publish_demo
+from deepscout_research.demo.presentation import (
+    load_bundled_presentation,
+    merge_presentation_into_public_demo,
+)
 from fastapi.testclient import TestClient
 from tests.db_helpers import database_url
 
@@ -39,7 +42,12 @@ def _completed_demo(store: ResearchStore, settings: Settings, slug: str):
     )
     row = store.get_run_row(run.id)
     row.status = ResearchRunStatus.COMPLETED
-    publish_demo(store, run.id, slug, require_completed=False)
+    bundled = load_bundled_presentation(slug)
+    if bundled:
+        public_demo = merge_presentation_into_public_demo({"slug": slug}, slug)
+        store.merge_config_snapshot(run.id, {"public_demo": public_demo})
+    row.is_public_demo = True
+    row.public_slug = slug
     store.commit()
     return run.id
 

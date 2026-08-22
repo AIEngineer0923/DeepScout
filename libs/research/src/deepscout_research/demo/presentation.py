@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 LOCALES = frozenset({"en", "it"})
+PRESENTATION_VERSION = 1
 _DATA_DIR = Path(__file__).parent / "presentation_data"
 
 
