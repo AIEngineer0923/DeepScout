@@ -2,9 +2,9 @@ import type { Locale } from "@/i18n/messages";
 import type { Workspace } from "@/lib/types";
 import {
   displayTaskObjective,
-  displayWorkerName,
   displayWorkerTask,
 } from "@/presentation/demo";
+import { presentWorkerCardTitle } from "@/presentation/workers";
 
 export function presentOutputLanguage(code: string | null | undefined, locale: Locale): string {
   if (!code) return "—";
@@ -89,14 +89,7 @@ export function presentWorkerHeadline(
   workerId: string,
   locale: Locale,
 ): string {
-  const worker = workspace.workers.find((item) => item.worker_id === workerId);
-  if (!worker) return locale === "it" ? "Ricercatore" : "Researcher";
-  const task = displayWorkerTask(workspace, workerId, worker.assigned_task);
-  if (task && !/^W\d+\b/i.test(task)) return task;
-  const name = displayWorkerName(workspace, workerId, worker.display_name);
-  const cleaned = name.replace(/^W\d+\s*(?:·|-)\s*/i, "").trim();
-  if (cleaned && cleaned !== name) return cleaned;
-  return presentWorkerIndex(workspace, worker.index, locale);
+  return presentWorkerCardTitle(workspace, workerId, locale);
 }
 
 export function presentTaskKey(
