@@ -65,11 +65,7 @@ def product_overview(
             else ("Authenticated" if access.principal else "Anonymous"),
             "mode": access.mode.value,
         },
-        "langsmith": (
-            {"connected": False, "project": None, "region": "off", "tracing": False}
-            if settings.is_hosted()
-            else _langsmith_status(settings)
-        ),
+        "langsmith": _resolve_langsmith_status(settings, access=access, session=store._session),
         "providers": _provider_status(settings, access=access, session=store._session),
     }
 
@@ -93,11 +89,7 @@ def product_settings(
         "plan": None,
         "mode": access.mode.value,
     }
-    langsmith = (
-        {"connected": False, "project": None, "region": "off", "tracing": False}
-        if hosted
-        else _langsmith_status(settings)
-    )
+    langsmith = _resolve_langsmith_status(settings, access=access, session=store._session)
     return {
         "identity": identity,
         "providers": _provider_status(settings, access=access, session=store._session),
@@ -129,9 +121,9 @@ def product_settings(
             "api": "ok",
             "postgres": postgres,
             "vector_store": "user_vault" if hosted else _vector_store_status(settings, postgres),
-            "langsmith": "off"
-            if hosted
-            else ("connected" if settings.langsmith_api_key is not None else "not_configured"),
+            "langsmith": "connected"
+            if langsmith["connected"]
+            else ("off" if hosted and access.principal is None else "not_configured"),
         },
         "security": {
             "untrusted_content": "Research titles, quotes, and reports are rendered as text.",
@@ -166,6 +158,10 @@ def _provider_status(settings: Settings, *, access=None, session=None) -> dict:
                 "source": "user_vault",
             },
             "tavily": {"configured": configured.get("tavily", False), "source": "user_vault"},
+            "langsmith": {
+                "configured": configured.get("langsmith", False),
+                "source": "user_vault",
+            },
         }
     return {
         "google": {"configured": settings.google_api_key is not None, "model": "gemini-3.7-flash"},
@@ -178,14 +174,44 @@ def _provider_status(settings: Settings, *, access=None, session=None) -> dict:
     }
 
 
-def _langsmith_status(settings: Settings) -> dict:
+def _langsmith_region(settings: Settings) -> str:
     endpoint = settings.langsmith_endpoint or ""
-    region = "EU" if "eu." in endpoint else ("configured" if endpoint else "unknown")
+    if "eu." in endpoint:
+        return "EU"
+    if endpoint:
+        return "configured"
+    return "unknown"
+
+
+def _langsmith_status(settings: Settings) -> dict:
     return {
         "connected": settings.langsmith_api_key is not None and settings.langsmith_tracing,
         "project": settings.langsmith_project,
-        "region": region,
+        "region": _langsmith_region(settings),
         "tracing": settings.langsmith_tracing,
+    }
+
+
+def _resolve_langsmith_status(settings: Settings, *, access=None, session=None) -> dict:
+    if not settings.is_hosted():
+        return _langsmith_status(settings)
+    if access is None or session is None or access.principal is None:
+        return {"connected": False, "project": None, "region": "off", "tracing": False}
+    from deepscout_persistence.identity import get_credential
+
+    row = get_credential(session, access.principal.id, CredentialProvider.LANGSMITH.value)
+    if row is None or row.status != "configured":
+        return {
+            "connected": False,
+            "project": settings.langsmith_project,
+            "region": "off",
+            "tracing": False,
+        }
+    return {
+        "connected": True,
+        "project": settings.langsmith_project,
+        "region": _langsmith_region(settings),
+        "tracing": True,
     }
 
 

@@ -117,6 +117,17 @@ def test_operator_vault_sync_only_for_configured_github_user(hosted_client) -> N
         other_profile = hosted_client.get("/api/v1/account", cookies={"ds_session": other_token})
         assert other_profile.json()["operator_vault_synced"] is False
         assert all(not row["configured"] for row in other_profile.json()["credentials"])
+
+        operator_settings = hosted_client.get(
+            "/api/v1/settings", cookies={"ds_session": operator_token}
+        )
+        assert operator_settings.status_code == 200
+        assert operator_settings.json()["langsmith"]["connected"] is True
+        assert operator_settings.json()["langsmith"]["tracing"] is True
+        assert operator_settings.json()["providers"]["langsmith"]["configured"] is True
+
+        other_settings = hosted_client.get("/api/v1/settings", cookies={"ds_session": other_token})
+        assert other_settings.json()["langsmith"]["connected"] is False
     finally:
         from deepscout_persistence.identity import delete_principal_data
 
