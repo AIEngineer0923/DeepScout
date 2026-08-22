@@ -65,7 +65,7 @@ from deepscout_core.domain.schemas import (
 from deepscout_core.domain.usage import RunUsageSummary, TokenUsageRecord
 from deepscout_core.settings import Settings
 from deepscout_providers.defaults import DEFAULT_CHAT_MODELS
-from sqlalchemy import case, delete, func, select, text
+from sqlalchemy import case, delete, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -522,8 +522,16 @@ class ResearchStore:
             ).all()
         )
 
+    def _evaluation_results_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("evaluation_results")
+        except Exception:
+            return False
+
     def list_evaluation_results(self, run_id: uuid.UUID) -> list[dict[str, object]]:
         self._require_run(run_id)
+        if not self._evaluation_results_available():
+            return []
         rows = self._session.scalars(
             select(EvaluationResultRow)
             .where(EvaluationResultRow.research_run_id == run_id)
@@ -548,6 +556,8 @@ class ResearchStore:
         self, run_id: uuid.UUID, rows: list[dict[str, object]]
     ) -> None:
         self._require_run(run_id)
+        if not self._evaluation_results_available():
+            return
         self._session.execute(
             delete(EvaluationResultRow).where(EvaluationResultRow.research_run_id == run_id)
         )
