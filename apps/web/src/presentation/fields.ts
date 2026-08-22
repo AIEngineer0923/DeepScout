@@ -3,6 +3,7 @@ import type { Workspace } from "@/lib/types";
 import {
   displayTaskObjective,
   displayWorkerName,
+  displayWorkerTask,
 } from "@/presentation/demo";
 
 export function presentOutputLanguage(code: string | null | undefined, locale: Locale): string {
@@ -80,11 +81,22 @@ export function presentWorkerIndex(
   locale: Locale,
 ): string {
   if (!workerIndex) return "—";
-  const worker = workspace.workers.find((item) => item.index === workerIndex);
-  if (worker) {
-    return displayWorkerName(workspace, worker.worker_id, worker.display_name);
-  }
   return locale === "it" ? `Ricercatore ${workerIndex}` : `Researcher ${workerIndex}`;
+}
+
+export function presentWorkerHeadline(
+  workspace: Workspace,
+  workerId: string,
+  locale: Locale,
+): string {
+  const worker = workspace.workers.find((item) => item.worker_id === workerId);
+  if (!worker) return locale === "it" ? "Ricercatore" : "Researcher";
+  const task = displayWorkerTask(workspace, workerId, worker.assigned_task);
+  if (task && !/^W\d+\b/i.test(task)) return task;
+  const name = displayWorkerName(workspace, workerId, worker.display_name);
+  const cleaned = name.replace(/^W\d+\s*(?:·|-)\s*/i, "").trim();
+  if (cleaned && cleaned !== name) return cleaned;
+  return presentWorkerIndex(workspace, worker.index, locale);
 }
 
 export function presentTaskKey(
@@ -118,9 +130,5 @@ export function presentWorkerLabel(
   locale: Locale,
 ): string {
   if (!workerId) return "—";
-  const worker = workspace.workers.find((item) => item.worker_id === workerId);
-  if (worker) {
-    return displayWorkerName(workspace, worker.worker_id, worker.display_name);
-  }
-  return locale === "it" ? "Ricercatore" : "Researcher";
+  return presentWorkerHeadline(workspace, workerId, locale);
 }
