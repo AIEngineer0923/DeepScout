@@ -412,11 +412,12 @@ def get_research_run_workspace(
     request: Request,
     response: Response,
     include_evals: bool | None = Query(default=None),
+    x_ui_locale: str | None = Header(default=None, alias="X-UI-Locale"),
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
     _require_run(request, store, settings, run_id, write=False)
-    payload = assemble_workspace(store, run_id, include_evals=include_evals)
+    payload = assemble_workspace(store, run_id, include_evals=include_evals, locale=x_ui_locale)
     payload.pop("_task_by_id", None)
     timings = payload.get("timings_ms") or {}
     if timings:

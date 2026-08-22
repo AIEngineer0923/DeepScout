@@ -6,15 +6,18 @@ import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { ExpandableText } from "@/components/ExpandableText";
 
 export function SnapshotsScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   if (!workspace) return <p className="empty">{t("live.loading")}</p>;
   return (
     <div>
       <RunHeader workspace={workspace} />
+      {demoReadOnly ? <p className="screen-intro">{t("demo.snapshot.intro")}</p> : null}
       <section className="card">
         <h2>{t("snapshot.listTitle")}</h2>
         {workspace.snapshots.length === 0 ? <p className="empty">{t("snapshot.empty")}</p> : null}

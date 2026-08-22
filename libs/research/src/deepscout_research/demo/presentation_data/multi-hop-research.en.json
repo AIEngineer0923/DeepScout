@@ -1,0 +1,34 @@
+{
+  "goal": "Identify who currently serves as President of the European Commission, then determine what concrete general-purpose AI model obligations the European Commission has published guidance on for providers in 2026. The second task must depend on correctly identifying the office holder in the first task. Use only official EU institutional sources.",
+  "title": "True multi-hop EU institutional research",
+  "summary": "Semantic dependency between identification and policy research tasks.",
+  "why_interesting": "Demonstrates planner DAG with depends_on edges.",
+  "tasks": {
+    "identify_ec_president": {
+      "objective": "Identify the current President of the European Commission using official European Union institutional portals.",
+      "display_name": "W01 · Identify the current President"
+    },
+    "research_gpai_2026_obligations": {
+      "objective": "Determine the concrete general-purpose AI model obligations and official guidance published by the European Commission for providers applicable in 2026.",
+      "display_name": "W02 · Determine the concrete general-purpose"
+    }
+  },
+  "workers": {
+    "c88fdb56-9f50-4ab2-97b5-03159685cb61": {
+      "display_name": "W01 · Identify the current President",
+      "assigned_task": "Identify the current President of the European Commission using official European Union institutional portals."
+    },
+    "733e02f6-b0dd-45d8-b92e-fdd272649828": {
+      "display_name": "W02 · Determine the concrete general-purpose",
+      "assigned_task": "Determine the concrete general-purpose AI model obligations and official guidance published by the European Commission for providers applicable in 2026."
+    }
+  },
+  "report": {
+    "title": "Research Report",
+    "body_markdown": "# Research Report\n\n**Goal:** Identify who currently serves as President of the European Commission, then determine what concrete general-purpose AI model obligations the European Commission has published guidance on for providers in 2026. The second task must depend on correctly identifying the office holder in the first task. Use only official EU institutional sources.\n\n## Questions\n- (answered) Identify the current President of the European Commission using official European Union institutional portals.\n- (answered) Determine the concrete general-purpose AI model obligations and official guidance published by the European Commission for providers applicable in 2026.\n\n## Synthesis\nINSUFFICIENT_EVIDENCE: Unable to determine the current President of the European Commission or the full scope of concrete general-purpose AI model obligations published in 2026 based on the provided claims.\n\nThe admissible claims do not contain evidence identifying the current President of the European Commission, which is a required prerequisite for addressing the subsequent task regarding general-purpose AI guidance. While claim 08b9522e-6541-4637-af21-b1553ee768da notes European Commission enforcement authorities and penalty thresholds, it does not specify guidance details or verify the office holder.\n\n## Sources\n- [World Humanitarian Day: EU answering to growing global humanitarian needs - European Commission](https://commission.europa.eu/news-and-media/news/world-humanitarian-day-eu-answering-growing-global-humanitarian-needs-2026-08-19_en)\n- [Press corner | European Commission](https://ec.europa.eu/commission/presscorner/detail/en/mex_26_1739)\n- [Panel remarks about the European economy during a discussion on the global economic outlook at the World Economic Forum](https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260819~98ddf24b7b.en.html)\n- [The EU can now inspect AI models, block market access, and fine providers 3% of turnover. The grace period is over. - The Next Web](https://thenextweb.com/news/eu-ai-act-enforcement-powers-inspect-fine-models)\n- [EU AI Act Explained - Diplomacy and Law](https://www.diplomacyandlaw.com/post/eu-ai-act-explained)\n- [EU Requires Labels For All AI Formats 08/03/2026 - MediaPost](https://www.mediapost.com/publications/article/416963/eu-requires-labels-for-all-ai-formats.html?edition=143543)\n\n## Evidence\n- Conflicts in the Middle East, Ukraine, and Sudan, as well as climate-related disasters, have contributed to humanitarian needs reaching an all-time high in 2026, with over 240 million people in need of assistance .\n- The Commission can now demand to evaluate models before regional release, restrict EU market access, and fine providers up to €15 million or 3% of global annual turnover, whichever is higher."
+  },
+  "claims": {
+    "fd4c69a7-7a0f-4603-aef1-375bc7c22c46": "Conflicts in the Middle East, Ukraine, and Sudan, as well as climate-related disasters, have contributed to humanitarian needs reaching an all-time high in 2026, with over 240 million people in need of assistance .",
+    "08b9522e-6541-4637-af21-b1553ee768da": "The Commission can now demand to evaluate models before regional release, restrict EU market access, and fine providers up to €15 million or 3% of global annual turnover, whichever is higher."
+  }
+}

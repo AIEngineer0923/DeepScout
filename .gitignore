@@ -63,3 +63,4 @@ storage/
 uploads/
 .tmp/
 .vercel
+.env*

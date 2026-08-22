@@ -30,6 +30,25 @@ export type DemoCatalogItem = RunListItem & {
   demo_title?: string | null;
   demo_summary?: string | null;
   demo_why?: string | null;
+  demo_goal?: string | null;
+  presentation_locale?: string | null;
+};
+
+export type WorkspacePresentation = {
+  locale: string;
+  goal: string;
+  title?: string;
+  summary?: string;
+  why_interesting?: string;
+  quality_intro?: string;
+  tasks?: Record<string, { objective: string; display_name?: string; rationale?: string }>;
+  workers?: Record<string, { display_name: string; assigned_task?: string }>;
+  claims?: Record<string, { statement: string }>;
+  report?: {
+    title: string;
+    body_markdown: string;
+    is_localized?: boolean;
+  } | null;
 };
 
 export type Workspace = {
@@ -37,6 +56,7 @@ export type Workspace = {
   event_head?: number;
   status: string;
   goal: string;
+  presentation?: WorkspacePresentation | null;
   termination_reason: string | null;
   llm_provider: string;
   llm_model: string;

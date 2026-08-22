@@ -5,6 +5,7 @@ import { api, apiUrl } from "@/lib/api";
 import { connectRunEventSource } from "@/lib/run-events";
 import type { Workspace } from "@/lib/types";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import { useI18n } from "@/i18n/context";
 
 type Ctx = {
   workspace: Workspace | null;
@@ -16,12 +17,13 @@ const RunContext = createContext<Ctx>({ workspace: null, error: null, reload: ()
 
 export function RunProvider({ runId, children }: { runId: string; children: React.ReactNode }) {
   const demoReadOnly = useDemoReadOnly();
+  const { locale } = useI18n();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    api.workspace(runId).then(setWorkspace).catch((err: Error) => setError(err.message));
-  }, [runId]);
+    api.workspace(runId, locale).then(setWorkspace).catch((err: Error) => setError(err.message));
+  }, [runId, locale]);
 
   useEffect(() => {
     reload();

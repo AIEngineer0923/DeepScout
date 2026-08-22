@@ -1,0 +1,44 @@
+{
+  "goal": "Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI models, distinguishing obligations already applicable from later obligations, and identify authoritative Commission or EU sources supporting each conclusion. Prioritize EUR-Lex, European Commission, and EU AI Office publications.",
+  "title": "EU AI Act GPAI provider obligations (2026)",
+  "summary": "Regulatory synthesis from official EU sources.",
+  "why_interesting": "Current institutional web research with provenance.",
+  "tasks": {
+    "gpai_obligations_and_guidance_lookup": {
+      "objective": "Identify core obligations for baseline GPAI and systemic-risk GPAI providers (transparency, copyright policy, summary of training data, model evaluations, cybersecurity) and retrieve recent European Commission and EU AI Office communications, draft/final Codes of Practice, and delegated acts.",
+      "display_name": "W01 · Identify core obligations for"
+    },
+    "gpai_statutory_timeline_analysis": {
+      "objective": "Extract the entry-into-application rules and transitional deadlines from Regulation (EU) 2024/1689 (specifically Articles 51-56 and 111) to establish the timeline distinguishing obligations active in 2025, 2026, and 2027.",
+      "display_name": "W02 · Extract the entry-into-application rules"
+    },
+    "synthesis_and_citation_mapping": {
+      "objective": "Synthesize findings to clearly distinguish obligations already in force prior to 2026, obligations newly or actively governing providers in 2026, and obligations deferred beyond 2026, referencing authoritative EU legal citations for every point.",
+      "display_name": "W03 · Synthesize findings to clearly"
+    }
+  },
+  "workers": {
+    "55ff10e6-5108-473d-b56e-bda7450381fa": {
+      "display_name": "W01 · Identify core obligations for",
+      "assigned_task": "Identify core obligations for baseline GPAI and systemic-risk GPAI providers (transparency, copyright policy, summary of training data, model evaluations, cybersecurity) and retrieve recent European Commission and EU AI Office communications, draft/final Codes of Practice, and delegated acts."
+    },
+    "1df2df52-8e0f-45cd-8649-3c7edae96582": {
+      "display_name": "W02 · Extract the entry-into-application rules",
+      "assigned_task": "Extract the entry-into-application rules and transitional deadlines from Regulation (EU) 2024/1689 (specifically Articles 51-56 and 111) to establish the timeline distinguishing obligations active in 2025, 2026, and 2027."
+    },
+    "aa2ee64f-b825-4e02-86bc-38bb4b5ed87f": {
+      "display_name": "W03 · Synthesize findings to clearly",
+      "assigned_task": "Synthesize findings to clearly distinguish obligations already in force prior to 2026, obligations newly or actively governing providers in 2026, and obligations deferred beyond 2026, referencing authoritative EU legal citations for every point."
+    }
+  },
+  "report": {
+    "title": "Research Report",
+    "body_markdown": "# Research Report\n\n**Goal:** Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI models, distinguishing obligations already applicable from later obligations, and identify authoritative Commission or EU sources supporting each conclusion. Prioritize EUR-Lex, European Commission, and EU AI Office publications.\n\n## Questions\n- (answered) Extract the entry-into-application rules and transitional deadlines from Regulation (EU) 2024/1689 (specifically Articles 51-56 and 111) to establish the timeline distinguishing obligations active in 2025, 2026, and 2027.\n- (answered) Identify core obligations for baseline GPAI and systemic-risk GPAI providers (transparency, copyright policy, summary of training data, model evaluations, cybersecurity) and retrieve recent European Commission and EU AI Office communications, draft/final Codes of Practice, and delegated acts.\n- (answered) Synthesize findings to clearly distinguish obligations already in force prior to 2026, obligations newly or actively governing providers in 2026, and obligations deferred beyond 2026, referencing authoritative EU legal citations for every point.\n\n## Synthesis\nUnder the EU AI Act (Regulation (EU) 2024/1689), general-purpose AI (GPAI) model providers in 2026 must adhere to the obligations established in Articles 51 through 56, which have already been applicable since 2 August 2025. Providers must maintain technical documentation, furnish documentation for downstream providers, publish a summary of training data, ensure compliance with EU copyright law, and fulfill specific systemic risk requirements if their models meet the systemic risk classification criteria.\n\nRegulation (EU) 2024/1689 entered into force on 1 August 2024. Under the regulation's staged application schedule, GPAI model requirements operate on an earlier, distinct track compared to certain high-risk system timelines. Specifically, Articles 51–56 took effect on 2 August 2025, meaning that by 2026, obligations regarding technical documentation, downstream information sharing, training content summaries, copyright adherence, and systemic risk mitigation are fully active and enforceable against GPAI model providers.\n\n## Sources\n- [Article 84 — Union testing facilities (EU AI Act) | Regulation AI](https://www.regulation-ai.eu/en/articles/article-84)\n- [Europe’s AI labeling and transparency rules are now in effect - The Verge](https://www.theverge.com/ai-artificial-intelligence/974571/eu-ai-act-transparency-labels-rules-deepfakes)\n- [Europeans Are About to Find Out How Entrenched AI Is in Their Daily Lives - WIRED](https://www.wired.com/story/europeans-are-about-to-find-out-how-entrenched-ai-is-in-their-daily-lives/)\n- [EU AI Act Explained - Diplomacy and Law](https://www.diplomacyandlaw.com/post/eu-ai-act-explained)\n- [EU AI Act: Obligations for Research Orgs — CASRAI](https://casrai.org/guides/eu-ai-act-obligations-and-exemptions-for-research-organizations)\n- [ACHNET Releases AI Act Documentation for Employers Using High-Risk Hiring AI - markets.businessinsider.com](https://markets.businessinsider.com/news/stocks/achnet-releases-ai-act-documentation-for-employers-using-high-risk-hiring-ai-1036432508)\n- [Morrisons debt pile swells to £7.5bn as lease liabilities climb - Retail Gazette](https://www.retailgazette.co.uk/blog/2026/08/morrisons-debt-pile-swells-to-7-5bn-as-lease-liabilities-climb/)\n\n## Evidence\n- Key reference dates for the broader compliance context: 1 August 2024 — Regulation (EU) 2024/1689 entered into force.\n- GPAI: a separate, already-active obligation track General-purpose AI (GPAI) model obligations (Articles 51–56 — technical documentation, downstream-provider documentation, training-data summary publication, EU copyright-law compliance, and \n- Providers face requirements covering areas such as risk management, data governance, technical documentation, logging, human oversight by design, and system accuracy, while employers deploying high-risk systems carry separate duties around \n- Morrisons debt pile swells to £7.5bn as lease liabilities climb - Retail Gazette Tash Whitmey on how Tesco is becoming a “media owner with soul” Read More"
+  },
+  "claims": {
+    "4427c2d4-0268-4362-b792-99bd59a3a20e": "Key reference dates for the broader compliance context: 1 August 2024 — Regulation (EU) 2024/1689 entered into force.",
+    "7f59d0d0-4ade-492c-a3d9-a333a38664ac": "GPAI: a separate, already-active obligation track General-purpose AI (GPAI) model obligations (Articles 51–56 — technical documentation, downstream-provider documentation, training-data summary publication, EU copyright-law compliance, and additional requirements for models classified as carrying “systemic risk”) have applied since 2 August 2025 , on a separate track from the high-risk-system timeline below.",
+    "b8c59445-6446-4c40-9c5d-0a057976b785": "Providers face requirements covering areas such as risk management, data governance, technical documentation, logging, human oversight by design, and system accuracy, while employers deploying high-risk systems carry separate duties around oversight, monitoring, record retention, and transparency.",
+    "21bc8542-e917-48af-9787-e015bdc09db9": "Morrisons debt pile swells to £7.5bn as lease liabilities climb - Retail Gazette Tash Whitmey on how Tesco is becoming a “media owner with soul” Read More"
+  }
+}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { DemoCatalogItem } from "@/lib/types";
-import { useT } from "@/i18n/context";
+import { useI18n } from "@/i18n/context";
 import { relativeTime } from "@/lib/format";
 
 function categoryLabel(t: (key: string) => string, category?: string | null) {
@@ -15,22 +15,24 @@ function categoryLabel(t: (key: string) => string, category?: string | null) {
 }
 
 export default function DemoPage() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const [items, setItems] = useState<DemoCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
-      .demos()
+      .demos(locale)
       .then((data) => setItems(data.items))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [locale]);
 
   return (
     <div className="grid" style={{ gap: 22 }}>
       <div className="page-head">
-        <h1 className="page-title">{t("demo.title")}</h1>
+        <h1 className="page-title" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          {t("demo.title")}
+        </h1>
         <p className="page-sub">{t("demo.subtitle")}</p>
       </div>
       {loading ? (
@@ -47,19 +49,30 @@ export default function DemoPage() {
                 <span className="chip">{categoryLabel(t, item.demo_category)}</span>
                 {item.completed_at ? (
                   <span className="muted" style={{ fontSize: 13 }}>
-                    {relativeTime(item.completed_at)}
+                    {relativeTime(item.completed_at, locale)}
                   </span>
                 ) : null}
               </div>
-              <h2 style={{ marginTop: 12, fontSize: 18 }}>{item.demo_title || item.goal}</h2>
+              <h2>{item.demo_title || item.goal}</h2>
               {item.demo_summary ? <p className="muted">{item.demo_summary}</p> : null}
-              {item.demo_why ? <p style={{ fontSize: 14 }}>{item.demo_why}</p> : null}
+              {item.demo_why ? <p style={{ fontSize: 14, lineHeight: 1.5 }}>{item.demo_why}</p> : null}
               <div className="chip-row" style={{ marginTop: 12 }}>
-                <span className="chip">{item.source_count} sources</span>
-                <span className="chip">{item.claim_count} claims</span>
-                <span className="chip">{item.task_count} tasks</span>
+                <span className="chip">
+                  {item.source_count} {t("demo.catalog.sources")}
+                </span>
+                <span className="chip">
+                  {item.claim_count} {t("demo.catalog.claims")}
+                </span>
+                <span className="chip">
+                  {item.task_count} {t("demo.catalog.tasks")}
+                </span>
               </div>
-              <Link href={`/research/${item.id}`} className="btn primary" style={{ marginTop: 16 }} data-testid="demo-explore">
+              <Link
+                href={`/research/${item.id}`}
+                className="btn primary"
+                style={{ marginTop: 16 }}
+                data-testid="demo-explore"
+              >
                 {t("demo.exploreResearch")}
               </Link>
             </article>

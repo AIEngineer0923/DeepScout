@@ -72,18 +72,36 @@ Disable idle sleep / keep a minimum replica. Transaction poolers must not be use
 
 ## Vercel
 
-The Next.js app lives in `apps/web` and deploys to Vercel. Set production-only:
+The Next.js app lives in `apps/web` and deploys to the existing Vercel project **`deep-scout`**
+(`https://deep-scout-plum.vercel.app`). Set production-only:
 
 - `API_REWRITE_ORIGIN` — persistent API origin (server rewrite for `/api`, `/live`, `/ready`, `/health`)
 - leave `NEXT_PUBLIC_API_URL` unset in production so the browser uses same-origin `/api`
 
-**Project settings (required for Git auto-deploy):**
+**Project settings:**
 
+- Project: `deep-scout`
 - Root Directory: `apps/web`
-- Production Branch: `main`
-- Git repository linked to this monorepo
+- Framework: Next.js
 
-Verify a production deployment matches GitHub `main`:
+Do **not** create a new Vercel project or deploy to another production domain unless explicitly authorized.
+
+### Production frontend workflow (authoritative)
+
+GitHub is the source of truth. Production frontend deploy is **manual** from a verified clean `main`:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git status          # must be clean
+git rev-parse HEAD
+git rev-parse origin/main   # must match HEAD
+
+cd /path/to/deepscout
+vercel --prod --yes         # uses .vercel/project.json → deep-scout
+```
+
+After deploy, verify the production revision:
 
 ```bash
 curl -sS https://deep-scout-plum.vercel.app/api/build-info
@@ -93,14 +111,28 @@ curl -sS https://api-production-f724.up.railway.app/health
 # → { "status": "ok", "git_sha": "<main-sha>" }
 ```
 
-If `git_sha` is missing locally, set `GIT_SHA` at build time. Vercel injects
-`VERCEL_GIT_COMMIT_SHA` automatically on Git-connected deployments.
+`git_sha` in `/api/build-info` **must** equal `origin/main` for the release being deployed.
+Do not accept “deployment succeeded” without this SHA check.
+
+Vercel Git auto-deploy is **optional and not required**. Missing GitHub ↔ Vercel repository linking is not a deployment blocker.
 
 Do not put production OAuth secrets, `SESSION_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`, or `DATABASE_URL` on Vercel. Those belong on the persistent API/worker.
 
 Preview deployments from untrusted forks must not receive production secrets.
 
 One-click Vercel is not offered: it would imply a working agent runtime that Vercel cannot host.
+
+## Railway (API + worker)
+
+Deploy Railway services **only when backend/runtime code changes** (FastAPI, worker, scheduler, API contracts, auth, SSE, database-facing behavior). Frontend-only CSS/component/i18n changes do not require a Railway redeploy unless API compatibility demands it.
+
+After merging to `main` and confirming CI is green, redeploy the affected Railway services from the same `main` revision. Verify:
+
+```bash
+curl -sS https://api-production-f724.up.railway.app/health
+```
+
+If the release includes a new Alembic migration, run `uv run alembic upgrade head` once against production PostgreSQL and confirm `alembic current` matches the expected head before declaring the deployment complete.
 
 ## Public Internet
 

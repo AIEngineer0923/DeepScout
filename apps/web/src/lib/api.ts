@@ -1,4 +1,6 @@
 import type { Overview, Workspace } from "./types";
+import type { Locale } from "@/i18n/messages";
+import { UI_LOCALE_KEY } from "@/i18n/messages";
 
 export const apiUrl =
   process.env.NEXT_PUBLIC_API_URL !== undefined
@@ -7,8 +9,17 @@ export const apiUrl =
       ? ""
       : "http://localhost:8000";
 
-function apiFetch(url: string, init: RequestInit = {}) {
-  return fetch(url, { credentials: "include", cache: "no-store", ...init });
+function readClientLocale(): Locale | undefined {
+  if (typeof window === "undefined") return undefined;
+  const stored = window.localStorage.getItem(UI_LOCALE_KEY);
+  return stored === "en" || stored === "it" ? stored : undefined;
+}
+
+function apiFetch(url: string, init: RequestInit = {}, locale?: Locale) {
+  const headers = new Headers(init.headers);
+  const resolved = locale ?? readClientLocale();
+  if (resolved) headers.set("X-UI-Locale", resolved);
+  return fetch(url, { credentials: "include", cache: "no-store", ...init, headers });
 }
 
 async function parse<T>(responsePromise: Promise<Response>): Promise<T> {
@@ -40,9 +51,9 @@ export type ResearchPreferencesPayload = {
 
 export const api = {
   overview: () => parse<Overview>(apiFetch(`${apiUrl}/api/v1/overview`, { cache: "no-store" })),
-  demos: () =>
+  demos: (locale?: Locale) =>
     parse<{ items: import("./types").DemoCatalogItem[]; total: number }>(
-      apiFetch(`${apiUrl}/api/v1/demos`, { cache: "no-store" }),
+      apiFetch(`${apiUrl}/api/v1/demos`, { cache: "no-store" }, locale),
     ),
   me: () =>
     parse<{
@@ -163,8 +174,10 @@ export const api = {
         body: JSON.stringify(body),
       }),
     ),
-  workspace: (runId: string) =>
-    parse<Workspace>(apiFetch(`${apiUrl}/api/v1/research-runs/${runId}/workspace`, { cache: "no-store" })),
+  workspace: (runId: string, locale?: Locale) =>
+    parse<Workspace>(
+      apiFetch(`${apiUrl}/api/v1/research-runs/${runId}/workspace`, { cache: "no-store" }, locale),
+    ),
   snapshot: (runId: string, snapshotId: string) =>
     parse<Record<string, unknown>>(
       apiFetch(`${apiUrl}/api/v1/research-runs/${runId}/snapshots/${snapshotId}`, { cache: "no-store" }),

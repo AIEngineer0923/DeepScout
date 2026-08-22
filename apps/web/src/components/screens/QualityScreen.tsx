@@ -5,10 +5,12 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 
 export function QualityScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   if (!workspace) return <p className="empty">{t("quality.loading")}</p>;
   const claimById = Object.fromEntries(workspace.claims.map((claim) => [claim.id, claim]));
   const deterministic = workspace.evaluations.filter((item) => item.method === "deterministic_code");
@@ -17,7 +19,7 @@ export function QualityScreen() {
       <RunHeader workspace={workspace} />
       <section className="card">
         <h2>{t("quality.checks")}</h2>
-        <p className="muted">{t("quality.note")}</p>
+        <p className="muted">{demoReadOnly ? t("demo.quality.intro") : t("quality.note")}</p>
         <div className="grid cols-metrics">
           {deterministic.slice(0, 6).map((item) => (
             <article key={item.evaluator_id} className="metric">

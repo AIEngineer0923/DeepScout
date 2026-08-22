@@ -15,6 +15,12 @@ export function formatStatus(status: string): string {
   return status.replaceAll("_", " ");
 }
 
+export function formatResearchMode(mode: string, t: (key: string) => string): string {
+  const key = `researchMode.${mode}`;
+  const translated = t(key);
+  return translated === key ? mode.replaceAll("_", " ") : translated;
+}
+
 export function statusTone(status: string): "ok" | "run" | "warn" | "bad" | "muted" {
   const value = status.toLowerCase();
   if (["completed", "fetched", "supported", "verified", "connected", "ok"].includes(value)) return "ok";

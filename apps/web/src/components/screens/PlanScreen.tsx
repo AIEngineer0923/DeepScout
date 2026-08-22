@@ -6,10 +6,15 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import { displayTaskObjective, dependsOnLabels } from "@/presentation/demo";
+import { useI18n } from "@/i18n/context";
 
 export function PlanScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const { locale } = useI18n();
+  const demoReadOnly = useDemoReadOnly();
   const [selected, setSelected] = useState<string | null>(null);
   if (!workspace) return <p className="empty">{t("plan.loading")}</p>;
   const task = workspace.tasks.find((item) => item.id === selected) ?? workspace.tasks[0];
@@ -30,12 +35,16 @@ export function PlanScreen() {
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                 <strong className="wrap-text">
                   <span className="task-index">{index + 1}.</span>
-                  {item.objective}
+                  {displayTaskObjective(workspace, item.task_key, item.objective)}
                 </strong>
                 <StatusBadge status={item.status} />
               </div>
-              <div className="muted">{item.display_name}</div>
-              <div className="muted">{t("plan.dependsOn", { deps: item.depends_on.join(", ") || t("plan.dependsNone") })}</div>
+              {!demoReadOnly ? <div className="muted">{item.display_name}</div> : null}
+              <div className="muted">
+                {t("plan.dependsOn", {
+                  deps: dependsOnLabels(workspace, item.depends_on, locale),
+                })}
+              </div>
             </button>
           ))}
         </section>

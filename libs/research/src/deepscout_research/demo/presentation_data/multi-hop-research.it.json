@@ -1,0 +1,34 @@
+{
+  "goal": "Identifica chi ricopre attualmente la carica di Presidente della Commissione europea, quindi determina su quali obblighi concreti relativi ai modelli di IA per finalità generali la Commissione europea ha pubblicato linee guida destinate ai fornitori per il 2026. La seconda attività deve dipendere dalla corretta identificazione del titolare della carica nella prima attività. Utilizza esclusivamente fonti istituzionali ufficiali dell'UE.",
+  "title": "Ricerca istituzionale UE multi-hop",
+  "summary": "Dipendenza semantica tra attività di identificazione e di ricerca normativa.",
+  "why_interesting": "Mostra il DAG del planner con archi depends_on.",
+  "tasks": {
+    "identify_ec_president": {
+      "objective": "Obiettivo dell'attività\n\nIdentifica l'attuale Presidente della Commissione europea utilizzando i portali istituzionali ufficiali dell'Unione europea.",
+      "display_name": "Etichetta attività\n\nW01 · Identifica l'attuale Presidente"
+    },
+    "research_gpai_2026_obligations": {
+      "objective": "Obiettivo del task\n\nDeterminare gli obblighi concreti relativi ai modelli di IA per finalità generali e le linee guida ufficiali pubblicate dalla Commissione europea per i fornitori applicabili nel 2026.",
+      "display_name": "W02 · Determinare lo scopo generale concreto"
+    }
+  },
+  "workers": {
+    "c88fdb56-9f50-4ab2-97b5-03159685cb61": {
+      "display_name": "Etichetta agente\n\nW01 · Identifica l'attuale Presidente",
+      "assigned_task": "Attività assegnata\n\nIdentifica l'attuale Presidente della Commissione europea utilizzando i portali istituzionali ufficiali dell'Unione europea."
+    },
+    "733e02f6-b0dd-45d8-b92e-fdd272649828": {
+      "display_name": "Etichetta agente\n\nW02 · Determinare lo scopo generale concreto",
+      "assigned_task": "Attività assegnata\n\nDeterminare gli obblighi concreti relativi ai modelli di IA per finalità generali e gli orientamenti ufficiali pubblicati dalla Commissione europea per i fornitori, applicabili nel 2026."
+    }
+  },
+  "report": {
+    "title": "Titolo del report\n\nReport di ricerca",
+    "body_markdown": "# Rapporto di ricerca\n\n**Obiettivo:** Identificare chi ricopre attualmente la carica di Presidente della Commissione europea, quindi determinare quali obblighi concreti relativi ai modelli di IA per finalità generali (general-purpose AI) la Commissione europea ha pubblicato come linee guida per i fornitori nel 2026. Il secondo compito deve dipendere dalla corretta identificazione del titolare della carica nel primo compito. Utilizzare esclusivamente fonti istituzionali ufficiali dell'UE.\n\n## Domande\n- (risposta) Identificare l'attuale Presidente della Commissione europea utilizzando i portali istituzionali ufficiali dell'Unione europea.\n- (risposta) Determinare gli obblighi concreti relativi ai modelli di IA per finalità generali e gli orientamenti ufficiali pubblicati dalla Commissione europea per i fornitori applicabili nel 2026.\n\n## Sintesi\nINSUFFICIENT_EVIDENCE: Impossibile determinare l'attuale Presidente della Commissione europea o l'ambito completo degli obblighi concreti per i modelli di IA per finalità generali pubblicati nel 2026 sulla base delle informazioni fornite.\n\nLe asserzioni ammissibili non contengono prove che identifichino l'attuale Presidente della Commissione europea, prerequisito necessario per affrontare il compito successivo relativo alle linee guida sull'IA per finalità generali. Sebbene l'asserzione 08b9522e-6541-4637-af21-b1553ee768da indichi i poteri di esecuzione della Commissione europea e le soglie delle sanzioni, non specifica i dettagli delle linee guida né verifica il titolare della carica.\n\n## Fonti\n- [World Humanitarian Day: EU answering to growing global humanitarian needs - European Commission](https://commission.europa.eu/news-and-media/news/world-humanitarian-day-eu-answering-growing-global-humanitarian-needs-2026-08-19_en)\n- [Press corner | European Commission](https://ec.europa.eu/commission/presscorner/detail/en/mex_26_1739)\n- [Panel remarks about the European economy during a discussion on the global economic outlook at the World Economic Forum](https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260819~98ddf24b7b.en.html)\n- [The EU can now inspect AI models, block market access, and fine providers 3% of turnover. The grace period is over. - The Next Web](https://thenextweb.com/news/eu-ai-act-enforcement-powers-inspect-fine-models)\n- [EU AI Act Explained - Diplomacy and Law](https://www.diplomacyandlaw.com/post/eu-ai-act-explained)\n- [EU Requires Labels For All AI Formats 08/03/2026 - MediaPost](https://www.mediapost.com/publications/article/416963/eu-requires-labels-for-all-ai-formats.html?edition=143543)\n\n## Prove\n- I conflitti in Medio Oriente, Ucraina e Sudan, nonché i disastri legati al clima, hanno contribuito a far raggiungere ai bisogni umanitari un massimo storico nel 2026, con oltre 240 milioni di persone bisognose di assistenza.\n- La Commissione può ora esigere di valutare i modelli prima della commercializzazione a livello regionale, limitare l'accesso al mercato dell'UE e sanzionare i fornitori con multe fino a 15 milioni di euro o al 3% del fatturato annuo globale, se superiore."
+  },
+  "claims": {
+    "fd4c69a7-7a0f-4603-aef1-375bc7c22c46": "Dichiarazione sui risultati della ricerca\n\nI conflitti in Medio Oriente, Ucraina e Sudan, così come i disastri legati al clima, hanno contribuito a far raggiungere ai bisogni umanitari un livello record nel 2026, con oltre 240 milioni di persone che necessitano di assistenza.",
+    "08b9522e-6541-4637-af21-b1553ee768da": "Dichiarazione sui risultati della ricerca\n\nLa Commissione può ora richiedere di valutare i modelli prima del rilascio regionale, limitare l'accesso al mercato dell'UE e sanzionare i fornitori con multe fino a 15 milioni di euro o al 3% del fatturato annuo globale, a seconda di quale sia l'importo più elevato."
+  }
+}

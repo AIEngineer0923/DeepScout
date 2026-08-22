@@ -6,6 +6,8 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import { displayReport } from "@/presentation/demo";
 
 const SUGGESTIONS = [
   "Dig deeper into the strongest claim.",
@@ -17,17 +19,18 @@ const SUGGESTIONS = [
 export function ReportScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   const router = useRouter();
   const [followup, setFollowup] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!workspace) return <p className="empty">{t("report.loading")}</p>;
   const current = workspace;
-  const report = current.report;
+  const reportView = displayReport(current);
   const parentId = workspace.runtime?.parent_run_id;
   async function copyMarkdown() {
-    if (!report) return;
-    await navigator.clipboard.writeText(report.body_markdown);
+    if (!reportView.body) return;
+    await navigator.clipboard.writeText(reportView.body);
   }
   async function startFollowUp() {
     const goal = followup.trim();
@@ -47,10 +50,10 @@ export function ReportScreen() {
     <div>
       <RunHeader workspace={workspace} />
       <div className="grid cols-2">
-        <article className="card">
+        <article className="card report-document">
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <h2 className="wrap-text">{report?.title ?? t("report.title")}</h2>
-            {report ? (
+            <h2 className="wrap-text">{reportView.title || t("report.title")}</h2>
+            {reportView.body && !demoReadOnly ? (
               <div className="row">
                 <button className="btn" onClick={() => void copyMarkdown()}>{t("action.copy")}</button>
                 <a className="btn" href={api.exportUrl(workspace.run_id, "markdown")}>{t("action.exportMarkdown")}</a>
@@ -59,8 +62,8 @@ export function ReportScreen() {
               </div>
             ) : null}
           </div>
-          {report ? (
-            <pre className="wrap-text">{report.body_markdown}</pre>
+          {reportView.body ? (
+            <pre className="wrap-text">{reportView.body}</pre>
           ) : (
             <p className="empty">{t("report.empty")}</p>
           )}
@@ -68,9 +71,11 @@ export function ReportScreen() {
         <aside className="drawer">
           <h2>{t("report.info")}</h2>
           <p>{t("report.generatedBy")}</p>
-          <p>
-            {t("report.model")}: {workspace.llm_model}
-          </p>
+          {!demoReadOnly ? (
+            <p>
+              {t("report.model")}: {workspace.llm_model}
+            </p>
+          ) : null}
           <p>{t("table.claims")}: {workspace.counts.claims}</p>
           <p>{t("table.sources")}: {workspace.counts.sources}</p>
           <p>{t("nav.workers")}: {workspace.workers.length}</p>

@@ -5,10 +5,12 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 
 export function EvaluationsScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   const [query, setQuery] = useState("");
   const rows = useMemo(
     () =>
@@ -23,7 +25,7 @@ export function EvaluationsScreen() {
     <div>
       <RunHeader workspace={workspace} />
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <p className="muted">{t("evals.note")}</p>
+        <p className="muted">{demoReadOnly ? t("demo.eval.intro") : t("evals.note")}</p>
         <a className="btn" href={api.exportUrl(workspace.run_id, "evals-json")}>{t("action.exportEvals")} JSON</a>
         <a className="btn" href={api.exportUrl(workspace.run_id, "evals-csv")}>{t("action.exportEvals")} CSV</a>
       </div>

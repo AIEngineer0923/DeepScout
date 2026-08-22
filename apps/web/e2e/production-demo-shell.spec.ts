@@ -1,15 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 const BASE = process.env.PRODUCTION_URL ?? "https://deep-scout-plum.vercel.app";
+const describeProductionUx = process.env.CI && !process.env.PRODUCTION_E2E ? test.describe.skip : test.describe;
 
-test.describe("production demo shell", () => {
+describeProductionUx("production demo shell", () => {
   test("demo navigation tabs are active for published run", async ({ page }) => {
     const catalog = await page.request.get(`${BASE}/api/v1/demos`);
     const demos = (await catalog.json()).items;
     const runId = demos[0].id as string;
     await page.goto(`${BASE}/research/${runId}/plan`);
     await expect(page.getByTestId("demo-shell")).toBeVisible({ timeout: 20_000 });
-    const plan = page.getByRole("link", { name: /plan/i });
+    await expect(page.getByTestId("demo-run-tabs")).toBeVisible({ timeout: 20_000 });
+    const plan = page.getByTestId("demo-run-tabs").getByRole("link", { name: /plan/i });
     await expect(plan).toBeVisible();
     await expect(plan).not.toHaveClass(/disabled|muted/);
     await page.getByRole("link", { name: /report/i }).click();

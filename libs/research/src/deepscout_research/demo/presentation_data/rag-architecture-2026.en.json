@@ -1,0 +1,51 @@
+{
+  "goal": "Compare hybrid RAG, GraphRAG, and long-context retrieval architectures for a production knowledge assistant in 2026. Evaluate retrieval quality, provenance, update cost, operational complexity, latency, security, evaluation strategy, and the workloads for which each architecture is most appropriate. Prefer original papers and official framework or vendor documentation.",
+  "title": "Hybrid RAG vs GraphRAG vs long-context (2026)",
+  "summary": "Architecture trade-offs for production knowledge assistants.",
+  "why_interesting": "Technical synthesis from primary documentation and papers.",
+  "tasks": {
+    "graph_rag_analysis": {
+      "objective": "Investigate GraphRAG architectures (entity extraction, graph construction, hierarchical Leiden clustering, community summaries), analyzing multi-hop synthesis, index building/update costs, latency, provenance, and RBAC support.",
+      "display_name": "W01 · Investigate GraphRAG architectures entity"
+    },
+    "hybrid_rag_analysis": {
+      "objective": "Investigate Hybrid RAG architectures (dense vector + BM25/SPLADE sparse search + rerankers), analyzing retrieval precision/recall, latency, update workflows, chunking/provenance tracking, and multi-tenant access control.",
+      "display_name": "W02 · Investigate Hybrid RAG architectures"
+    },
+    "long_context_analysis": {
+      "objective": "Investigate Long-Context retrieval architectures, evaluating context-window retrieval fidelity, prompt caching latency and cost economics, context updating mechanisms, and granular document-level security limitations.",
+      "display_name": "W03 · Investigate Long-Context retrieval architectures"
+    },
+    "comparative_synthesis": {
+      "objective": "Synthesize findings into an enterprise comparative evaluation matrix covering retrieval quality, provenance/auditability, update cost, operational complexity, latency/throughput, security/RBAC, evaluation strategies (e.g., Ragas, TruLens), and workload decision frameworks.",
+      "display_name": "W04 · Synthesize findings into an"
+    }
+  },
+  "workers": {
+    "30462813-ba15-49e1-a563-4b4437685305": {
+      "display_name": "W01 · Investigate GraphRAG architectures entity",
+      "assigned_task": "Investigate GraphRAG architectures (entity extraction, graph construction, hierarchical Leiden clustering, community summaries), analyzing multi-hop synthesis, index building/update costs, latency, provenance, and RBAC support."
+    },
+    "b689b55a-e797-49d0-8262-68b5a9cd9d43": {
+      "display_name": "W02 · Investigate Hybrid RAG architectures",
+      "assigned_task": "Investigate Hybrid RAG architectures (dense vector + BM25/SPLADE sparse search + rerankers), analyzing retrieval precision/recall, latency, update workflows, chunking/provenance tracking, and multi-tenant access control."
+    },
+    "891bc734-fc6d-432b-807a-b35fffe88d8b": {
+      "display_name": "W03 · Investigate Long-Context retrieval architectures",
+      "assigned_task": "Investigate Long-Context retrieval architectures, evaluating context-window retrieval fidelity, prompt caching latency and cost economics, context updating mechanisms, and granular document-level security limitations."
+    },
+    "996dbcce-97c2-4e01-9380-f05d0347c175": {
+      "display_name": "W04 · Synthesize findings into an",
+      "assigned_task": "Synthesize findings into an enterprise comparative evaluation matrix covering retrieval quality, provenance/auditability, update cost, operational complexity, latency/throughput, security/RBAC, evaluation strategies (e.g., Ragas, TruLens), and workload decision frameworks."
+    }
+  },
+  "report": {
+    "title": "Research Report",
+    "body_markdown": "# Research Report\n\n**Goal:** Compare hybrid RAG, GraphRAG, and long-context retrieval architectures for a production knowledge assistant in 2026. Evaluate retrieval quality, provenance, update cost, operational complexity, latency, security, evaluation strategy, and the workloads for which each architecture is most appropriate. Prefer original papers and official framework or vendor documentation.\n\n## Questions\n- (answered) Investigate Hybrid RAG architectures (dense vector + BM25/SPLADE sparse search + rerankers), analyzing retrieval precision/recall, latency, update workflows, chunking/provenance tracking, and multi-tenant access control.\n- (answered) Investigate GraphRAG architectures (entity extraction, graph construction, hierarchical Leiden clustering, community summaries), analyzing multi-hop synthesis, index building/update costs, latency, provenance, and RBAC support.\n- (answered) Investigate Long-Context retrieval architectures, evaluating context-window retrieval fidelity, prompt caching latency and cost economics, context updating mechanisms, and granular document-level security limitations.\n- (answered) Synthesize findings into an enterprise comparative evaluation matrix covering retrieval quality, provenance/auditability, update cost, operational complexity, latency/throughput, security/RBAC, evaluation strategies (e.g., Ragas, TruLens), and workload decision frameworks.\n\n## Synthesis\nDefer final architectural selection between Hybrid RAG, GraphRAG, and Long-Context retrieval architectures due to insufficient comparative benchmark and architectural evidence. In the interim, implement rigorous pre-ingestion data sanitization and defense-in-depth security controls against indirect prompt injection across any retrieval pipeline.\n\nThe available verified evidence addresses only generic data privacy and security considerations in retrieval pipelines—specifically highlighting the necessity of pre-filtering sensitive data prior to indexing and the inherent vulnerability where models process attacker-controlled text before detecting malicious instructions. There is currently insufficient verified evidence to evaluate or contrast Hybrid RAG, GraphRAG, and Long-Context retrieval systems across retrieval quality, provenance tracking, update overhead, operational complexity, latency, and specific 2026 workload archetypes.\n\n## Sources\n- [Hasty Adoption of Internal AI Tools Can Expose Sensitive Data - news.bloomberglaw.com](https://news.bloomberglaw.com/legal-exchange-insights-and-commentary/hasty-adoption-of-internal-ai-tools-can-expose-sensitive-data)\n- [AI Security Incident Case: Document Worm Achieves Self Replication and Propagation Via Word Copilot - Security Boulevard](https://securityboulevard.com/2026/08/ai-security-incident-case-document-worm-achieves-self-replication-and-propagation-via-word-copilot/)\n- [Geneva leads world list of most expensive cities for construction - Building Design + Construction](https://www.bdcnetwork.com/construction-costs/article/55393280/geneva-leads-world-list-of-most-expensive-cities-for-construction)\n- [Thinking – And Re-Thinking – Context In AI - Forbes](https://www.forbes.com/sites/johnwerner/2026/08/05/thinking--and-re-thinking--context-in-ai/)\n- [The Enterprise Semantic Backbone A Foundation for Reliable and Scalable Agentic AI - industryweek.com](https://www.industryweek.com/sponsored/whitepaper/55392492/the-enterprise-semantic-backbone-a-foundation-for-reliable-and-scalable-agentic-ai)\n- [The Semantic Advantage: Scaling Enterprise-Ready GraphRAG and Trustworthy AI with Graphwise - industryweek.com](https://www.industryweek.com/sponsored/whitepaper/55392494/the-semantic-advantage-scaling-enterprise-ready-graphrag-and-trustworthy-ai-with-graphwise)\n- [Industry Voices—Hospital AI committees are asking the wrong privacy question - Fierce Healthcare](https://www.fiercehealthcare.com/ai-and-machine-learning/industry-voices-hospital-ai-committees-are-asking-wrong-privacy-question)\n- [Ashok Miji - 🚀 AI ENGINEERING WORKFLOWS 2026 🌌...](https://www.facebook.com/ashok.miji.710/posts/-ai-engineering-workflows-2026-singularity-intelligence-workflow-2026data-founda/1801096907559955)\n- [Dev Leader - Weekly Recap: NLog, AI Workflows, and C#...](https://www.facebook.com/DevLeaderCa/posts/weekly-recap-nlog-ai-workflows-and-c-design-patterns-aug-2026this-week-covers-nl/1384545363807418)\n- [Hyperight AB - Beyond RAG: 5 Enterprise Frameworks for...](https://www.facebook.com/HyperightAB/posts/beyond-rag-5-enterprise-frameworks-for-scaling-knowledge-mesh-and-agentic-aimovi/1648177307314717)\n\n## Evidence\n- Because it can be difficult to “untrain” an AI model, it is important to examine training and RAG database data before any training or retrieval occurs, to confirm whether such data contains any sensitive or proprietary data, and to limit t\n- The problem is that the model must process external content before it can determine whether it contains an attack; but by the time it makes a judgment, the text controlled by the attacker has already affected the computational process that \n- Geneva leads world list of most expensive cities for construction | Building Design + Construction"
+  },
+  "claims": {
+    "9e80cbc2-2a69-4754-ac1e-082ec82c0629": "Because it can be difficult to “untrain” an AI model, it is important to examine training and RAG database data before any training or retrieval occurs, to confirm whether such data contains any sensitive or proprietary data, and to limit the use of such data as appropriate.",
+    "675cc46f-f6c3-4db8-a748-10f1ef8f44fb": "The problem is that the model must process external content before it can determine whether it contains an attack; but by the time it makes a judgment, the text controlled by the attacker has already affected the computational process that produced that judgment.",
+    "19eb4b7c-1966-4a76-a820-43aa54f8f8c2": "Geneva leads world list of most expensive cities for construction | Building Design + Construction"
+  }
+}

@@ -10,6 +10,11 @@ from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
 from deepscout_evaluation.run_evals import evaluate_research_run
 from deepscout_persistence.store import ResearchStore
+from deepscout_research.demo.presentation import (
+    build_presentation_payload,
+    normalize_locale,
+    resolve_presentation,
+)
 
 
 def worker_display_name(index: int, objective: str) -> str:
@@ -52,6 +57,7 @@ def assemble_workspace(
     run_id: UUID,
     *,
     include_evals: bool | None = None,
+    locale: str | None = None,
 ) -> dict:
     started = time.perf_counter()
     run = store.get_run(run_id)
@@ -300,7 +306,7 @@ def assemble_workspace(
     ]
     latest_job = jobs[0] if jobs else None
 
-    return {
+    payload = {
         "run_id": str(run.id),
         "event_head": events[-1].sequence if events else 0,
         "status": run.status.value,
@@ -445,6 +451,12 @@ def assemble_workspace(
         },
         "_task_by_id": {key: str(value.id) for key, value in task_by_id.items()},
     }
+    if row and row.is_public_demo:
+        slug = row.public_slug
+        loc = normalize_locale(locale)
+        presentation = resolve_presentation(row.config_snapshot, slug, loc)
+        payload["presentation"] = build_presentation_payload(payload, presentation, locale=loc)
+    return payload
 
 
 def snapshot_detail(store: ResearchStore, run_id: UUID, snapshot_id: UUID) -> dict:

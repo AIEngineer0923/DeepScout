@@ -8,10 +8,13 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useT } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import { displayClaimStatement } from "@/presentation/demo";
 
 export function ClaimsScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const demoReadOnly = useDemoReadOnly();
   const params = useSearchParams();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(params.get("claim"));
@@ -32,6 +35,7 @@ export function ClaimsScreen() {
   return (
     <div>
       <RunHeader workspace={workspace} />
+      {demoReadOnly ? <p className="screen-intro">{t("demo.evidence.intro")}</p> : null}
       <div className="grid cols-metrics">
         {summary.map(([key, value]) => (
           <article key={key} className="card metric">
@@ -75,7 +79,7 @@ export function ClaimsScreen() {
             <>
               <h2>{t("claims.selected")}</h2>
               <StatusBadge status={claim.verification_status} />
-              <p className="wrap-text">{claim.statement}</p>
+              <p className="wrap-text">{displayClaimStatement(workspace, claim.id, claim.statement)}</p>
               <p>
                 {t("table.worker")}: {claim.worker_index ? `W${String(claim.worker_index).padStart(2, "0")}` : "—"}
               </p>

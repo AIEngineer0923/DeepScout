@@ -10,6 +10,7 @@ from deepscout_persistence.store import ResearchStore
 from sqlalchemy import select
 
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
+from deepscout_research.demo.presentation import merge_presentation_into_public_demo
 from deepscout_research.demo.sanitization import sanitize_text
 
 
@@ -49,18 +50,17 @@ def publish_demo(
     _sanitize_run_content(store, run_id)
     meta = DEMO_BY_SLUG.get(slug)
     if meta:
-        store.merge_config_snapshot(
-            run_id,
+        public_demo = merge_presentation_into_public_demo(
             {
-                "public_demo": {
-                    "slug": slug,
-                    "category": meta["category"],
-                    "title": meta["title"],
-                    "summary": meta["summary"],
-                    "why_interesting": meta["why_interesting"],
-                }
+                "slug": slug,
+                "category": meta["category"],
+                "title": meta["title"],
+                "summary": meta["summary"],
+                "why_interesting": meta["why_interesting"],
             },
+            slug,
         )
+        store.merge_config_snapshot(run_id, {"public_demo": public_demo})
     row.is_public_demo = True
     row.public_slug = slug
     store._session.flush()
