@@ -14,6 +14,12 @@ from deepscout_evaluation.run_evals import evaluate_research_run
 def persist_research_evaluations(store: ResearchStore, run_id: UUID) -> list[dict[str, object]]:
     rows = build_evaluation_rows(evaluate_research_run(store, run_id))
     store.replace_evaluation_results(run_id, rows)
+    try:
+        from deepscout_evaluation.learning.experience_store import observe_and_persist_terminal_run
+
+        observe_and_persist_terminal_run(store, run_id)
+    except Exception:
+        pass
     return rows
 
 

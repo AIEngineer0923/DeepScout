@@ -1092,3 +1092,106 @@ class EvaluationResultRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class LearningCaseRow(Base):
+    __tablename__ = "learning_cases"
+    __table_args__ = (
+        UniqueConstraint("case_key", "owner_principal_id", name="uq_learning_cases_key_owner"),
+        Index("ix_learning_cases_owner", "owner_principal_id"),
+        Index("ix_learning_cases_review_state", "review_state"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    case_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    owner_principal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE")
+    )
+    research_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="SET NULL")
+    )
+    subsystem: Mapped[str] = mapped_column(String(32), nullable=False)
+    failure_class: Mapped[str] = mapped_column(String(64), nullable=False)
+    symptom: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_behavior: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    observed_behavior: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    origin: Mapped[str] = mapped_column(String(64), nullable=False)
+    trust_level: Mapped[str] = mapped_column(String(64), nullable=False)
+    review_state: Mapped[str] = mapped_column(String(64), nullable=False)
+    sanitized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    human_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    root_cause_class: Mapped[str | None] = mapped_column(String(64))
+    is_root_cause: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    downstream_symptom_of: Mapped[str | None] = mapped_column(String(128))
+    diagnostic_evidence: Mapped[dict | None] = mapped_column(JSONB)
+    evaluator_signals: Mapped[dict | None] = mapped_column(JSONB)
+    affected_requirements: Mapped[list | None] = mapped_column(JSONB)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False, default="medium")
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    reproducibility: Mapped[str] = mapped_column(String(64), nullable=False, default="unknown")
+    architecture_version: Mapped[str] = mapped_column(String(32), nullable=False, default="learning-v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ImprovementCandidateRow(Base):
+    __tablename__ = "improvement_candidates"
+    __table_args__ = (
+        Index("ix_improvement_candidates_case", "learning_case_id"),
+        Index("ix_improvement_candidates_owner", "owner_principal_id"),
+        Index("ix_improvement_candidates_status", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    learning_case_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("learning_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    owner_principal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE")
+    )
+    candidate_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    policy_delta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    expected_benefit: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    possible_regressions: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    affected_subsystem: Mapped[str] = mapped_column(String(32), nullable=False)
+    evaluation_plan: Mapped[dict | None] = mapped_column(JSONB)
+    supporting_case_ids: Mapped[list | None] = mapped_column(JSONB)
+    trust_level: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    rollback_info: Mapped[dict | None] = mapped_column(JSONB)
+    experiment_result: Mapped[dict | None] = mapped_column(JSONB)
+    promotion_verdict: Mapped[str | None] = mapped_column(String(64))
+    promotion_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class LearningPolicyVersionRow(Base):
+    __tablename__ = "learning_policy_versions"
+    __table_args__ = (
+        Index("ix_learning_policy_versions_key", "policy_key"),
+        Index("ix_learning_policy_versions_active", "active"),
+        Index("ix_learning_policy_versions_owner", "owner_principal_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    policy_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    version_label: Mapped[str] = mapped_column(String(64), nullable=False)
+    owner_principal_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE")
+    )
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    promoted_from_candidate_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    promotion_reason: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

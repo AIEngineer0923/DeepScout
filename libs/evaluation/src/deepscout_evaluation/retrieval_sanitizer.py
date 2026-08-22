@@ -128,3 +128,54 @@ def validate_fixture_privacy(fixture: dict[str, Any]) -> list[str]:
         if origin == RegressionOrigin.PRODUCTION_CANDIDATE:
             violations.append(f"{case.get('case_id')}: production_candidate must not be committed")
     return violations
+
+
+def sanitize_learning_export(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Sanitize a learning-case observation payload; fail closed on secrets."""
+    errors: list[str] = []
+    blob = str(payload)
+    if contains_secret_material(blob):
+        return {}, ["secret-like pattern detected; refuse export"]
+    out: dict[str, Any] = {}
+    for key, value in payload.items():
+        if key in _TENANT_KEYS:
+            continue
+        if isinstance(value, str):
+            out[key] = sanitize_text(value)
+        elif isinstance(value, dict):
+            nested, nested_errors = sanitize_learning_export(value)
+            if nested_errors:
+                errors.extend(nested_errors)
+            out[key] = nested
+        elif isinstance(value, list):
+            out[key] = [
+                sanitize_text(str(item)) if isinstance(item, str) else item for item in value
+            ]
+        else:
+            out[key] = value
+    for key in ("symptom", "observed_behavior", "expected_behavior", "note"):
+        if key in out and isinstance(out[key], str):
+            out[key] = sanitize_text(out[key])
+    return out, errors
+
+
+def validate_safe_for_export(payload: dict[str, Any]) -> list[str]:
+    """Validate learning payload is safe to persist outside tenant boundary."""
+    violations: list[str] = []
+    blob = str(payload)
+    if contains_secret_material(blob):
+        violations.append("secret-like pattern detected")
+    if _EMAIL.search(blob):
+        violations.append("email address detected")
+    for key in _TENANT_KEYS:
+        if key in payload:
+            violations.append(f"tenant field present: {key}")
+    origin = str(payload.get("origin", ""))
+    if origin == RegressionOrigin.PRODUCTION_UNSANITIZED:
+        violations.append("production_unsanitized origin forbidden")
+    urls = payload.get("urls") or payload.get("source_urls") or []
+    if isinstance(urls, list):
+        for url in urls:
+            if isinstance(url, str) and contains_private_url(url):
+                violations.append(f"private url: {url[:80]}")
+    return violations

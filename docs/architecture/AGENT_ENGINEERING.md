@@ -25,8 +25,8 @@ Public project document. Status: **IMPLEMENTED** | **FOUNDATION** | **DEFERRED**
 | Parallelism | IMPLEMENTED | Ready-task fan-out with max concurrency |
 | Checkpointing | IMPLEMENTED | Postgres LangGraph ConnectionPool checkpointer + domain task reclaim |
 | Retries | IMPLEMENTED | Central `retry.py` for transient 429/5xx/network; security failures never retry |
-| Reflection | DEFERRED | No automatic policy mutation |
-| Trace-driven learning | DEFERRED | LangSmith traces captured; eval loop later |
+| Reflection | DEFERRED | No automatic policy mutation without promotion gate |
+| Trace-driven learning | FOUNDATION | Learning cases + deterministic loop gate; episodic memory still deferred |
 | Retrieval optimization | IMPLEMENTED | Phase 5 hybrid FTS + pgvector |
 | Reranking | IMPLEMENTED | Deterministic rerank + RRF |
 | Knowledge compaction / wiki memory | IMPLEMENTED | Run-scoped compiled Wiki (ADR-009) |

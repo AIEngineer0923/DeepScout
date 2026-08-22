@@ -141,6 +141,13 @@ def evaluate_corrective_research(
     additions: list[PlannerTask] = []
     new_fingerprints: list[str] = []
     limit = settings.research_max_gap_queries_per_round
+    try:
+        from deepscout_evaluation.learning.policy_runtime import corrective_gap_queries_bonus
+
+        owner_id = row.owner_principal_id if row else None
+        limit += corrective_gap_queries_bonus(store, owner_principal_id=owner_id)
+    except Exception:
+        pass
     req_by_id = {item.requirement_id: item for item in contract.requirements}
     for req_id in gap_ids:
         req = req_by_id.get(req_id)

@@ -196,6 +196,53 @@ flowchart LR
   H --> E
 ```
 
+## Continuous learning loop (ADR-018)
+
+System-wide controlled self-improvement extends evaluation — **not** autonomous code mutation.
+
+```mermaid
+flowchart LR
+  A[Terminal run] --> B[Observe eval signals]
+  B --> C[Learning case]
+  C --> D[Diagnose root cause]
+  D --> E[Improvement candidate]
+  E --> F[Deterministic experiment]
+  F --> G{Promotion gate}
+  G -->|safe| H[Versioned policy]
+  G -->|review| I[HITL / operator]
+  G -->|reject| J[No change]
+  H --> K[Bounded runtime hook]
+  K --> L[Monitor + rollback]
+  D --> M[Retrieval regression ingest]
+  M --> C
+```
+
+| Layer | Command / path | CI | Provider spend |
+|-------|----------------|----|----------------|
+| Deterministic learning loop | `scripts/learning_loop_gate.py` | Yes | None |
+| Retrieval regression | `scripts/retrieval_regression_gate.py` | Yes | None |
+| Live benchmark | `scripts/retrieval_quality_benchmark.py --live` | No | Manual |
+| Experience store | `learning_cases`, `improvement_candidates`, `learning_policy_versions` (migration `014`) | N/A | None |
+
+### Trust levels
+
+| Level | Meaning |
+|-------|---------|
+| `untrusted_observation` | Raw signal, not actionable |
+| `sanitized_candidate` | Passed sanitizer, pending review |
+| `reviewed_case` | Human-reviewed |
+| `validated_learning` | Synthetic fixture or validated offline |
+| `promoted_policy` | Active versioned policy |
+
+### Defaults
+
+- Public demos **never** create learning cases
+- `production_candidate` never auto-promotes to CI or global policy
+- Promotion default: **NO CHANGE** when inconclusive
+- Runtime hook today: `gap_queries_per_round_bonus` capped at +1 for corrective research only
+
+See [ADR-018](../architecture/adr/ADR-018-continuous-learning.md).
+
 Legacy scripts still useful for focused checks:
 
 - `scripts/retrieval_ablation_offline.py` — BM25 phrase-recall on v1.1 corpus

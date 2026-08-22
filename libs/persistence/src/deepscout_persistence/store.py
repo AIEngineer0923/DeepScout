@@ -80,6 +80,9 @@ from deepscout_persistence.models import (
     EvaluationResultRow,
     EvidenceRow,
     HumanFeedbackRow,
+    ImprovementCandidateRow,
+    LearningCaseRow,
+    LearningPolicyVersionRow,
     ReportEvidenceRow,
     ReportRow,
     ResearchJobRow,
@@ -576,6 +579,223 @@ class ResearchStore:
                     description=str(item["description"]),
                 )
             )
+
+    def _learning_tables_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("learning_cases")
+        except Exception:
+            return False
+
+    def learning_tables_available(self) -> bool:
+        return self._learning_tables_available()
+
+    def upsert_learning_case(self, payload: dict[str, object]) -> uuid.UUID:
+        if not self._learning_tables_available():
+            raise RuntimeError("learning_cases table unavailable")
+        owner = payload.get("owner_principal_id")
+        case_key = str(payload["case_key"])
+        existing = self.get_learning_case_by_key(case_key, owner_principal_id=owner)
+        if existing is not None:
+            return existing
+        row = LearningCaseRow(
+            case_key=case_key,
+            owner_principal_id=owner,
+            research_run_id=payload.get("research_run_id"),
+            subsystem=str(payload["subsystem"]),
+            failure_class=str(payload["failure_class"]),
+            symptom=str(payload["symptom"]),
+            expected_behavior=str(payload.get("expected_behavior", "")),
+            observed_behavior=str(payload.get("observed_behavior", "")),
+            origin=str(payload["origin"]),
+            trust_level=str(payload["trust_level"]),
+            review_state=str(payload["review_state"]),
+            sanitized=bool(payload.get("sanitized", False)),
+            human_reviewed=bool(payload.get("human_reviewed", False)),
+            root_cause_class=payload.get("root_cause_class"),
+            is_root_cause=bool(payload.get("is_root_cause", True)),
+            downstream_symptom_of=payload.get("downstream_symptom_of"),
+            diagnostic_evidence=payload.get("diagnostic_evidence"),
+            evaluator_signals=payload.get("evaluator_signals"),
+            affected_requirements=payload.get("affected_requirements"),
+            severity=str(payload.get("severity", "medium")),
+            confidence=float(payload.get("confidence", 0.5)),
+            reproducibility=str(payload.get("reproducibility", "unknown")),
+            architecture_version=str(payload.get("architecture_version", "learning-v1")),
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def get_learning_case_by_key(
+        self, case_key: str, *, owner_principal_id: uuid.UUID | None
+    ) -> uuid.UUID | None:
+        if not self._learning_tables_available():
+            return None
+        stmt = select(LearningCaseRow).where(LearningCaseRow.case_key == case_key)
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningCaseRow.owner_principal_id.is_(None))
+        row = self._session.scalar(stmt)
+        return None if row is None else row.id
+
+    def list_learning_cases(
+        self, *, owner_principal_id: uuid.UUID | None, review_state: str | None = None
+    ) -> list[dict[str, object]]:
+        if not self._learning_tables_available():
+            return []
+        stmt = select(LearningCaseRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
+        if review_state:
+            stmt = stmt.where(LearningCaseRow.review_state == review_state)
+        stmt = stmt.order_by(LearningCaseRow.created_at.desc())
+        rows = self._session.scalars(stmt).all()
+        return [
+            {
+                "id": row.id,
+                "case_key": row.case_key,
+                "subsystem": row.subsystem,
+                "failure_class": row.failure_class,
+                "symptom": row.symptom,
+                "review_state": row.review_state,
+                "trust_level": row.trust_level,
+                "root_cause_class": row.root_cause_class,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+
+    def upsert_improvement_candidate(self, payload: dict[str, object]) -> uuid.UUID:
+        if not self._learning_tables_available():
+            raise RuntimeError("improvement_candidates table unavailable")
+        row = ImprovementCandidateRow(
+            candidate_key=str(payload["candidate_key"]),
+            learning_case_id=payload["learning_case_row_id"],  # type: ignore[arg-type]
+            owner_principal_id=payload.get("owner_principal_id"),
+            candidate_type=str(payload["candidate_type"]),
+            title=str(payload["title"]),
+            rationale=str(payload["rationale"]),
+            policy_delta=dict(payload.get("policy_delta") or {}),
+            expected_benefit=str(payload.get("expected_benefit", "")),
+            possible_regressions=str(payload.get("possible_regressions", "")),
+            affected_subsystem=str(payload["affected_subsystem"]),
+            evaluation_plan=payload.get("evaluation_plan"),
+            supporting_case_ids=payload.get("supporting_case_ids"),
+            trust_level=str(payload["trust_level"]),
+            status=str(payload["status"]),
+            confidence=float(payload.get("confidence", 0.5)),
+            rollback_info=payload.get("rollback_info"),
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def list_improvement_candidates(
+        self, *, owner_principal_id: uuid.UUID | None, status: str | None = None
+    ) -> list[dict[str, object]]:
+        if not self._learning_tables_available():
+            return []
+        stmt = select(ImprovementCandidateRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(ImprovementCandidateRow.owner_principal_id == owner_principal_id)
+        if status:
+            stmt = stmt.where(ImprovementCandidateRow.status == status)
+        stmt = stmt.order_by(ImprovementCandidateRow.created_at.desc())
+        rows = self._session.scalars(stmt).all()
+        return [
+            {
+                "id": row.id,
+                "candidate_key": row.candidate_key,
+                "title": row.title,
+                "status": row.status,
+                "candidate_type": row.candidate_type,
+                "promotion_verdict": row.promotion_verdict,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+
+    def update_improvement_candidate_status(
+        self,
+        candidate_id: uuid.UUID,
+        *,
+        status: str,
+        promotion_verdict: str | None = None,
+        promotion_reason: str | None = None,
+    ) -> bool:
+        if not self._learning_tables_available():
+            return False
+        row = self._session.get(ImprovementCandidateRow, candidate_id)
+        if row is None:
+            return False
+        row.status = status
+        if promotion_verdict is not None:
+            row.promotion_verdict = promotion_verdict
+        if promotion_reason is not None:
+            row.promotion_reason = promotion_reason
+        return True
+
+    def promote_learning_policy(
+        self,
+        *,
+        policy_key: str,
+        version_label: str,
+        payload: dict,
+        owner_principal_id: uuid.UUID | None,
+        promoted_from_candidate_id: uuid.UUID | None,
+        promotion_reason: str,
+        evidence: dict | None,
+    ) -> uuid.UUID:
+        if not self._learning_tables_available():
+            raise RuntimeError("learning_policy_versions table unavailable")
+        stmt = select(LearningPolicyVersionRow).where(
+            LearningPolicyVersionRow.policy_key == policy_key,
+            LearningPolicyVersionRow.active.is_(True),
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        for active in self._session.scalars(stmt).all():
+            active.active = False
+        row = LearningPolicyVersionRow(
+            policy_key=policy_key,
+            version_label=version_label,
+            owner_principal_id=owner_principal_id,
+            payload=dict(payload),
+            active=True,
+            promoted_from_candidate_id=promoted_from_candidate_id,
+            promotion_reason=promotion_reason,
+            evidence=evidence,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def get_active_learning_policy(
+        self, *, policy_key: str, owner_principal_id: uuid.UUID | None
+    ) -> dict[str, object] | None:
+        if not self._learning_tables_available():
+            return None
+        stmt = select(LearningPolicyVersionRow).where(
+            LearningPolicyVersionRow.policy_key == policy_key,
+            LearningPolicyVersionRow.active.is_(True),
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        row = self._session.scalar(stmt.order_by(LearningPolicyVersionRow.created_at.desc()))
+        if row is None:
+            return None
+        return {
+            "id": row.id,
+            "policy_key": row.policy_key,
+            "version_label": row.version_label,
+            "payload": dict(row.payload or {}),
+            "promotion_reason": row.promotion_reason,
+        }
 
     def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
         self._require_run(run_id)

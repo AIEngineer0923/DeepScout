@@ -13,6 +13,7 @@ from deepscout_api.routes.account import router as account_router
 from deepscout_api.routes.auth import router as auth_router
 from deepscout_api.routes.demos import router as demos_router
 from deepscout_api.routes.knowledge import router as knowledge_router
+from deepscout_api.routes.learning import router as learning_router
 from deepscout_api.routes.monitors import router as monitors_router
 from deepscout_api.routes.product import router as product_router
 from deepscout_api.routes.research_runs import router as research_runs_router
@@ -46,6 +47,7 @@ app.include_router(account_router)
 app.include_router(research_runs_router)
 app.include_router(product_router)
 app.include_router(reviews_router)
+app.include_router(learning_router)
 app.include_router(templates_router)
 app.include_router(knowledge_router)
 app.include_router(monitors_router)

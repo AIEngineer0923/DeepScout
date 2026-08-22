@@ -108,6 +108,9 @@ jobs:
       - name: Retrieval regression gate
         run: uv run python scripts/retrieval_regression_gate.py
 
+      - name: Learning loop gate
+        run: uv run python scripts/learning_loop_gate.py
+
       - name: Python dependency audit
         run: uv run --with pip-audit pip-audit --progress-spinner off
 

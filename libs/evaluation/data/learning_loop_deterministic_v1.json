@@ -1,0 +1,126 @@
+{
+  "version": "1",
+  "corpus_type": "learning_loop_deterministic",
+  "origin": "development_synthetic",
+  "description": "Deterministic end-to-end learning loop fixtures — zero provider spend",
+  "baseline_policy_version": "learning-policy-baseline-v1",
+  "cases": [
+    {
+      "case_id": "loop-observe-failure",
+      "stage": "observe_failure",
+      "origin": "development_synthetic",
+      "expected_failure_class": "claim_failure",
+      "evaluation_rows": [
+        {"evaluator_id": "claim_has_evidence", "status": "failed", "reason": "unsupported claim"},
+        {"evaluator_id": "budget_compliance", "status": "passed"}
+      ]
+    },
+    {
+      "case_id": "loop-demo-blocked",
+      "stage": "observe_demo_blocked",
+      "evaluation_rows": [
+        {"evaluator_id": "claim_has_evidence", "status": "failed"}
+      ]
+    },
+    {
+      "case_id": "loop-diagnose-upstream",
+      "stage": "diagnose_upstream",
+      "symptom": "weak final report",
+      "expected_behavior": "supported claims with evidence",
+      "observed_behavior": "report lacks citations",
+      "expected_root_cause": "retrieval_failure",
+      "diagnostic_evidence": {
+        "retrieval_failure_class": "routing_failure",
+        "final_critic_verdict": "BLOCKED_BY_EVIDENCE"
+      },
+      "evaluator_signals": {
+        "claim_has_evidence": "failed"
+      }
+    },
+    {
+      "case_id": "loop-coverage-improve",
+      "stage": "full_loop",
+      "subsystem": "coverage",
+      "failure_class": "coverage_failure",
+      "root_cause_class": "coverage_failure",
+      "symptom": "critical requirement SEARCHED_NO_EVIDENCE",
+      "expected_behavior": "gap queries recover authoritative source",
+      "observed_behavior": "corrective round exhausted with gaps",
+      "fixture": {
+        "failure_class": "coverage_failure",
+        "baseline_quality": 0.72,
+        "baseline_cost": 1.0,
+        "coverage_score": 0.65
+      },
+      "baseline_policy": {"gap_queries_per_round_bonus": 0},
+      "expected_verdict": "safe_to_promote",
+      "human_approved": true,
+      "expect_runtime_bonus": 1
+    },
+    {
+      "case_id": "loop-candidate-reject",
+      "stage": "full_loop",
+      "subsystem": "coverage",
+      "failure_class": "coverage_failure",
+      "root_cause_class": "coverage_failure",
+      "symptom": "gap queries triggered security-sensitive expansion",
+      "expected_behavior": "improve coverage without security regression",
+      "observed_behavior": "security evaluator would fail",
+      "fixture": {
+        "failure_class": "coverage_failure",
+        "baseline_quality": 0.72,
+        "baseline_cost": 1.0,
+        "coverage_score": 0.65,
+        "scenario": "security_regression"
+      },
+      "baseline_policy": {"gap_queries_per_round_bonus": 0},
+      "expected_verdict": "rejected"
+    },
+    {
+      "case_id": "loop-inconclusive",
+      "stage": "full_loop",
+      "subsystem": "retrieval",
+      "failure_class": "retrieval_failure",
+      "root_cause_class": "retrieval_failure",
+      "symptom": "marginal rank change",
+      "expected_behavior": "stable ranking",
+      "observed_behavior": "no measurable delta",
+      "fixture": {
+        "failure_class": "retrieval_failure",
+        "baseline_quality": 0.8,
+        "baseline_cost": 1.0
+      },
+      "baseline_policy": {"retrieval_candidate_k_multiplier": 1.1},
+      "expected_verdict": "no_change"
+    },
+    {
+      "case_id": "loop-opportunity-detect",
+      "stage": "opportunity_detect",
+      "strategy_a": {"quality": 0.85, "cost": 1.0},
+      "strategy_b": {"quality": 0.86, "cost": 0.7},
+      "sample_count": 8,
+      "expect_opportunity": true
+    },
+    {
+      "case_id": "loop-opportunity-insufficient-samples",
+      "stage": "opportunity_detect",
+      "strategy_a": {"quality": 0.85, "cost": 1.0},
+      "strategy_b": {"quality": 0.86, "cost": 0.7},
+      "sample_count": 2,
+      "expect_opportunity": false
+    },
+    {
+      "case_id": "loop-poison-reject",
+      "stage": "poison_reject",
+      "payload": {
+        "origin": "production_candidate",
+        "symptom": "token leak in observation",
+        "observed_behavior": "contact at example.invalid"
+      }
+    },
+    {
+      "case_id": "loop-rollback",
+      "stage": "rollback"
+    }
+  ]
+}
