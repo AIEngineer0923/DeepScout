@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 from deepscout_core.deployment import CredentialProvider, CredentialStatus
 from deepscout_core.settings import Settings, get_settings
 from deepscout_persistence.identity import (
@@ -15,7 +13,12 @@ from deepscout_persistence.identity import (
     revoke_all_sessions,
 )
 from deepscout_persistence.models import ProviderCredentialRow
-from deepscout_research.credentials.vault import CredentialVault, VaultError, decode_master_key
+from deepscout_research.credentials.operator_vault import try_sync_operator_vault
+from deepscout_research.credentials.vault import VaultError
+from deepscout_research.credentials.vault_store import (
+    VaultNotConfiguredError,
+    upsert_vault_credential,
+)
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, SecretStr
 
@@ -37,15 +40,8 @@ class CredentialWrite(BaseModel):
     secret: SecretStr = Field(min_length=8, max_length=4096)
 
 
-def _vault(settings: Settings) -> CredentialVault:
-    if settings.credential_encryption_key is None:
-        raise HTTPException(status_code=503, detail="credential vault is not configured")
-    try:
-        return CredentialVault(
-            decode_master_key(settings.credential_encryption_key.get_secret_value())
-        )
-    except VaultError as exc:
-        raise HTTPException(status_code=503, detail="credential vault is not configured") from exc
+def _vault_error_response(exc: VaultNotConfiguredError | VaultError) -> HTTPException:
+    return HTTPException(status_code=503, detail="credential vault is not configured")
 
 
 def _meta(row: ProviderCredentialRow | None, provider: str) -> dict:
@@ -72,6 +68,7 @@ def account_profile(
 ) -> dict:
     access = load_access(request, store._session, settings)
     principal = require_user(access)
+    operator_synced = try_sync_operator_vault(store._session, principal.id, settings)
     rows = {row.provider: row for row in list_credentials(store._session, principal.id)}
     return {
         "id": str(principal.id),
@@ -80,6 +77,7 @@ def account_profile(
         "privacy": PRIVACY_COPY,
         "credentials": [_meta(rows.get(item.value), item.value) for item in CredentialProvider],
         "credential_source": "USER_VAULT" if access.mode.value == "hosted" else "ENV",
+        "operator_vault_synced": bool(operator_synced),
     }
 
 
@@ -95,32 +93,20 @@ def put_credential(
         raise HTTPException(status_code=404, detail="unknown provider")
     access = load_access(request, store._session, settings)
     principal = require_user(access)
-    vault = _vault(settings)
-    nonce, ciphertext, version = vault.encrypt(
-        body.secret.get_secret_value().strip(),
-        principal_id=principal.id,
-        provider=provider,
-    )
-    row = get_credential(store._session, principal.id, provider)
-    if row is None:
-        row = ProviderCredentialRow(
-            id=uuid4(),
+    existing = get_credential(store._session, principal.id, provider)
+    try:
+        row = upsert_vault_credential(
+            store._session,
             principal_id=principal.id,
             provider=provider,
-            nonce=nonce,
-            ciphertext=ciphertext,
-            key_version=version,
-            status="configured",
+            secret=body.secret.get_secret_value(),
+            settings=settings,
+            event_type="credential_add" if existing is None else "credential_replace",
         )
-        store._session.add(row)
-        record_event(store._session, principal.id, "credential_add", provider)
-    else:
-        row.nonce = nonce
-        row.ciphertext = ciphertext
-        row.key_version = version
-        row.status = "configured"
-        record_event(store._session, principal.id, "credential_replace", provider)
-    store._session.flush()
+    except VaultNotConfiguredError as exc:
+        raise _vault_error_response(exc) from exc
+    except VaultError as exc:
+        raise _vault_error_response(exc) from exc
     return _meta(row, provider)
 
 

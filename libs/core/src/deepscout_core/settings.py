@@ -131,6 +131,10 @@ class Settings(BaseSettings):
         default="/,/account,/research/new,/onboarding",
         alias="OAUTH_REDIRECT_ALLOWLIST",
     )
+    maintainer_vault_github_id: str | None = Field(
+        default=None,
+        alias="MAINTAINER_VAULT_GITHUB_ID",
+    )
 
     def is_hosted(self) -> bool:
         return self.deployment_mode == DeploymentMode.HOSTED

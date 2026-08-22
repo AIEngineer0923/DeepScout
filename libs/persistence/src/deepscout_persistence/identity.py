@@ -206,6 +206,20 @@ def consume_oauth_state(session: Session, state: str, provider: str) -> OAuthSta
     return row
 
 
+def get_auth_provider_account_id(
+    session: Session, principal_id: UUID, provider: str
+) -> str | None:
+    row = session.scalar(
+        select(AuthAccountRow.provider_account_id).where(
+            AuthAccountRow.principal_id == principal_id,
+            AuthAccountRow.provider == provider,
+        )
+    )
+    if row is None:
+        return None
+    return str(row)
+
+
 def get_credential(
     session: Session, principal_id: UUID, provider: str
 ) -> ProviderCredentialRow | None:

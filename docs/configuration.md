@@ -52,6 +52,7 @@ Local compose default is in `.env.example` (lab password only).
 | `CREDENTIAL_ENCRYPTION_KEY` | 32-byte key (raw or urlsafe base64) for BYOK vault |
 | `GITHUB_OAUTH_CLIENT_ID` / `SECRET` | GitHub OAuth |
 | `GOOGLE_OAUTH_CLIENT_ID` / `SECRET` | Google OAuth |
+| `MAINTAINER_VAULT_GITHUB_ID` | GitHub numeric user ID for the operator whose BYOK vault is auto-seeded from maintainer env API keys (hosted only; no other users) |
 
 ## Redis
 

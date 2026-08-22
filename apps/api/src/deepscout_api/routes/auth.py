@@ -13,6 +13,10 @@ from deepscout_persistence.identity import (
     save_oauth_state,
     upsert_oauth_principal,
 )
+from deepscout_research.credentials.operator_vault import (
+    is_operator_github_account,
+    try_sync_operator_vault,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -193,6 +197,12 @@ def login_callback(
         email_verified=email_verified,
         avatar_url=avatar,
     )
+    if is_operator_github_account(
+        settings,
+        provider=provider,
+        provider_account_id=provider_account_id,
+    ):
+        try_sync_operator_vault(store._session, principal.id, settings)
     token = create_session(store._session, principal.id)
     web = settings.cors_origins.split(",")[0].strip() or "http://localhost:3000"
     response = RedirectResponse(f"{web}{saved.next_path}", status_code=302)
