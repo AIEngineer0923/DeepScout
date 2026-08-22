@@ -76,10 +76,16 @@ test.describe("stored public research XSS regression", () => {
   test("final report renders inert payloads", async ({ page }) => {
     await page.goto(`/research/${XSS_FIXTURE_RUN_ID}/report`);
     await expect(page.getByTestId("demo-shell")).toBeVisible({ timeout: 15_000 });
-    await assertInertPublicSurface(page);
+    await expect(page.locator("a[href^='javascript:']")).toHaveCount(0);
+    await expect(page.locator("[onerror]")).toHaveCount(0);
+    await expect(page.locator("[onload]")).toHaveCount(0);
+    await expect(page.locator('img[src="x"]')).toHaveCount(0);
+    await expect(page.locator(".rich-content")).toContainText(XSS_PAYLOADS[2]);
+    await expect(page.locator(".rich-content")).toContainText("click");
     const html = await page.locator(".rich-content.report-body-selectable").innerHTML();
     expect(html).not.toContain("<script>");
     expect(html).not.toContain("<img");
+    expect(html).not.toContain("<svg");
   });
 
   test("snapshot text renders inert payloads", async ({ page }) => {
@@ -102,8 +108,13 @@ test.describe("stored public research XSS regression", () => {
     );
     await page.goto(`/knowledge/${XSS_FIXTURE_RUN_ID}/page/${XSS_KNOWLEDGE_PAGE_ID}`);
     await expect(page.locator("h1.page-title")).toBeVisible({ timeout: 15_000 });
-    await assertInertPublicSurface(page, [XSS_PAYLOADS[0], XSS_PAYLOADS[4]]);
+    await expect(page.locator("a[href^='javascript:']")).toHaveCount(0);
+    await expect(page.locator("[onerror]")).toHaveCount(0);
+    await expect(page.locator("[onload]")).toHaveCount(0);
+    await expect(page.locator('img[src="x"]')).toHaveCount(0);
+    await expect(page.locator(".rich-content")).toContainText(XSS_PAYLOADS[2]);
     const html = await page.locator(".rich-content").innerHTML();
     expect(html).not.toContain("<svg");
+    expect(html).not.toContain("<script>");
   });
 });
