@@ -3,7 +3,7 @@ from deepscout_core.domain.enums import ResearchRunStatus
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import get_settings
 from deepscout_evaluation.matrix import build_evaluation_rows
-from deepscout_evaluation.persist import load_evaluation_rows, persist_research_evaluations
+from deepscout_evaluation.persist import load_evaluation_rows
 
 
 @pytest.fixture

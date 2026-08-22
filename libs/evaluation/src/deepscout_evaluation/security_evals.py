@@ -60,7 +60,11 @@ def eval_code_injection_texts(texts: list[str]) -> bool:
 
 
 def eval_prompt_injection_texts(texts: list[str]) -> bool:
-    return all(not scan_text_for_patterns(text, PROMPT_INJECTION_PATTERNS) for text in texts if text)
+    return all(
+        not scan_text_for_patterns(text, PROMPT_INJECTION_PATTERNS)
+        for text in texts
+        if text
+    )
 
 
 def eval_pii_leakage_texts(texts: list[str]) -> bool:

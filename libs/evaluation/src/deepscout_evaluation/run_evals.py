@@ -111,11 +111,13 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         *(item.output_summary for item in tool_executions),
     ]
     source_urls = [item.url for item in sources if item.url]
+    unique_hashes = {snapshot.content_hash for snapshot in snapshots if snapshot.content_hash}
     duplicate_rate = duplicate_candidate_rate(
         total=len(candidates),
-        unique_snapshots=len({snapshot.content_hash for snapshot in snapshots if snapshot.content_hash}),
+        unique_snapshots=len(unique_hashes),
     )
-    isolation_ok = all(item.snapshot_id in {snapshot.id for snapshot in snapshots} for item in evidence)
+    snapshot_ids = {snapshot.id for snapshot in snapshots}
+    isolation_ok = all(item.snapshot_id in snapshot_ids for item in evidence)
 
     results: dict[str, object] = {
         "run_id": str(run_id),
