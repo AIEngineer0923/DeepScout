@@ -7,8 +7,7 @@ from datetime import datetime
 from uuid import UUID
 
 from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
-from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
-from deepscout_evaluation.run_evals import evaluate_research_run
+from deepscout_evaluation.persist import load_evaluation_rows
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.demo.presentation import (
     build_presentation_payload,
@@ -274,30 +273,7 @@ def assemble_workspace(
     evals_started = time.perf_counter()
     terminal = run.status in TERMINAL_RESEARCH_RUN_STATUSES
     do_evals = include_evals if include_evals is not None else terminal
-    eval_rows = []
-    if do_evals:
-        evals = evaluate_research_run(store, run_id)
-        for spec in BUILTIN_EVALUATOR_MATRIX:
-            value = evals.get(spec.evaluator_id)
-            if spec.evaluator_id == "citation_correctness":
-                value = evals.get("citation_resolve_rate")
-            if spec.evaluator_id == "provenance_complete":
-                value = evals.get("provenance_complete_rate")
-            if spec.evaluator_id == "dag_cycle_free":
-                value = evals.get("dag_cycle_free")
-            if spec.evaluator_id == "termination_correctness":
-                value = evals.get("termination_correct")
-            eval_rows.append(
-                {
-                    "evaluator_id": spec.evaluator_id,
-                    "version": spec.version,
-                    "category": spec.category,
-                    "method": spec.method.value,
-                    "applicability": spec.applicability.value,
-                    "description": spec.description,
-                    "value": value,
-                }
-            )
+    eval_rows = load_evaluation_rows(store, run_id, include_evals=do_evals, backfill=terminal)
     evals_ms = (time.perf_counter() - evals_started) * 1000
 
     completed_tasks = [task for task in tasks if task.status.value == "completed"]

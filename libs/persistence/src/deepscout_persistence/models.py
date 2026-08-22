@@ -1065,3 +1065,29 @@ class AuthEventRow(Base):
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     detail: Mapped[str] = mapped_column(String(256), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvaluationResultRow(Base):
+    __tablename__ = "evaluation_results"
+    __table_args__ = (
+        UniqueConstraint("research_run_id", "evaluator_id", name="uq_evaluation_results_run_evaluator"),
+        Index("ix_evaluation_results_run_id", "research_run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    evaluator_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    evaluator_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSONB)
+    reason: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    method: Mapped[str] = mapped_column(String(64), nullable=False)
+    applicability: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

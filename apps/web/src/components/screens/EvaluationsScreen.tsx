@@ -8,10 +8,11 @@ import { useI18n, useT } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import {
   presentEvaluator,
+  presentEvaluationOutcome,
   presentEvaluatorApplicability,
   presentEvaluatorCategory,
   presentEvaluatorMethod,
-  presentEvaluatorResult,
+  shouldShowEvaluationRow,
 } from "@/presentation/evaluators";
 
 export function EvaluationsScreen() {
@@ -24,6 +25,7 @@ export function EvaluationsScreen() {
     if (!workspace) return [];
     const q = query.toLowerCase();
     return workspace.evaluations.filter((item) => {
+      if (!shouldShowEvaluationRow(item.applicability)) return false;
       if (!q) return true;
       const presented = presentEvaluator(item.evaluator_id, locale, item.description);
       return `${presented.title} ${presented.description} ${item.category}`.toLowerCase().includes(q);
@@ -37,7 +39,13 @@ export function EvaluationsScreen() {
   return (
     <div className="evaluations-page">
       <RunHeader workspace={workspace} />
-      <p className="screen-intro">{demoReadOnly ? t("demo.eval.intro") : t("evals.note")}</p>
+      <p className="screen-intro">
+        {workspace.evaluations_deferred
+          ? t("evals.deferred")
+          : demoReadOnly
+            ? t("demo.eval.intro")
+            : t("evals.note")}
+      </p>
       {!demoReadOnly ? (
         <div className="row eval-actions">
           <a className="btn" href={api.exportUrl(workspace.run_id, "evals-json")}>
@@ -70,8 +78,14 @@ export function EvaluationsScreen() {
                     <dl className="kv-list compact">
                       <div className="kv-row">
                         <dt>{t("table.result")}</dt>
-                        <dd>{presentEvaluatorResult(item.evaluator_id, item.value, locale)}</dd>
+                        <dd>{presentEvaluationOutcome(item.evaluator_id, item, locale)}</dd>
                       </div>
+                      {item.reason ? (
+                        <div className="kv-row">
+                          <dt>{t("table.reason")}</dt>
+                          <dd className="wrap-text">{item.reason}</dd>
+                        </div>
+                      ) : null}
                       <div className="kv-row">
                         <dt>{t("table.method")}</dt>
                         <dd>{presentEvaluatorMethod(item.method, locale)}</dd>

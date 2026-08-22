@@ -213,8 +213,11 @@ export type Workspace = {
     method: string;
     applicability: string;
     description: string;
+    status: string;
     value: unknown;
+    reason?: string | null;
   }>;
+  evaluations_deferred?: boolean;
   runtime?: {
     parent_run_id: string | null;
     root_run_id?: string | null;

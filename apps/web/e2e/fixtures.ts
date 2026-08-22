@@ -278,6 +278,7 @@ export const workspaceFixture = {
       method: "deterministic_code",
       applicability: "active_now",
       description: "Claims have evidence",
+      status: "passed",
       value: true,
     },
   ],

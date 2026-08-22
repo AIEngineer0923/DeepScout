@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from deepscout_core.domain.enums import ResearchRunStatus
+from deepscout_core.domain.schemas import WORKER_TOOL_ALLOWLIST
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.tasks.graph import TaskGraph, TaskGraphError
 
@@ -16,6 +17,14 @@ from deepscout_evaluation.deterministic import (
     eval_quote_resolves,
     eval_termination_correct,
     eval_unsupported_claim_rate,
+)
+from deepscout_evaluation.retrieval_metrics import duplicate_candidate_rate
+from deepscout_evaluation.security_evals import (
+    eval_code_injection_texts,
+    eval_pii_leakage_texts,
+    eval_prompt_injection_texts,
+    eval_secret_leakage_texts,
+    eval_ssrf_urls,
 )
 from deepscout_evaluation.trajectory import (
     REQUIRED_MULTI_AGENT_ACTIONS,
@@ -34,6 +43,11 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
     tasks = store.list_tasks(run_id)
     events = store.list_run_events(run_id)
     consumption = store.get_consumption(run_id)
+    sources = store.list_sources(run_id)
+    snapshots = store.list_snapshots_for_run(run_id)
+    candidates = store.list_search_candidates(run_id)
+    tool_executions = store.list_tool_executions(run_id)
+    report = store.get_report(run_id)
 
     evidence_by_claim = {item.claim_id for item in evidence}
     unsupported = sum(1 for claim in claims if claim.id not in evidence_by_claim)
@@ -70,10 +84,40 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         ["phase.plan", "phase.research", "phase.report"],
         mode=TrajectoryMatchMode.SUPERSET,
     )
+    plan_adherence = match_trajectory(
+        [action for action in actual_actions if action.startswith("phase.")],
+        ["phase.plan", "phase.research", "phase.report"],
+        mode=TrajectoryMatchMode.SUPERSET,
+    )
+    tool_selection = match_trajectory(
+        actual_actions,
+        ["tool.web_search"],
+        mode=TrajectoryMatchMode.SUPERSET,
+    )
 
     unique_keys = len({task.task_key for task in tasks})
     completed = sum(1 for task in tasks if task.status.value == "completed")
-    results = {
+    allowed_tools = {
+        tool
+        for task in tasks
+        for tool in task.allowed_tools
+        if tool in WORKER_TOOL_ALLOWLIST
+    } or set(WORKER_TOOL_ALLOWLIST)
+    forbidden_tool_ok = all(item.tool_name in allowed_tools for item in tool_executions)
+
+    scan_texts = [
+        report.body_markdown if report is not None else "",
+        *(item.quote for item in evidence),
+        *(item.output_summary for item in tool_executions),
+    ]
+    source_urls = [item.url for item in sources if item.url]
+    duplicate_rate = duplicate_candidate_rate(
+        total=len(candidates),
+        unique_snapshots=len({snapshot.content_hash for snapshot in snapshots if snapshot.content_hash}),
+    )
+    isolation_ok = all(item.snapshot_id in {snapshot.id for snapshot in snapshots} for item in evidence)
+
+    results: dict[str, object] = {
         "run_id": str(run_id),
         "claim_has_evidence": eval_claim_has_evidence(evidence_count=len(evidence)),
         "unsupported_claim_rate": eval_unsupported_claim_rate(
@@ -84,7 +128,7 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         "duplicate_work": eval_duplicate_work(
             unique_task_keys=unique_keys, completed_tasks=completed
         ),
-        "budget_sources": eval_budget_compliance(
+        "budget_compliance": eval_budget_compliance(
             consumed=float(consumption.sources), limit=float(run.budget.max_sources)
         ),
         "dag_cycle_free": dag_ok,
@@ -97,9 +141,21 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
                 ResearchRunStatus.FAILED.value,
             },
         ),
-        "trajectory_superset": trajectory_ok,
+        "trajectory_accuracy": trajectory_ok,
+        "plan_adherence": plan_adherence,
+        "tool_selection": tool_selection,
+        "task_completion": run.status == ResearchRunStatus.COMPLETED,
+        "assertions": report is not None and len(claims) > 0,
+        "secret_leakage": eval_secret_leakage_texts(scan_texts),
+        "pii_leakage": eval_pii_leakage_texts(scan_texts),
+        "code_injection": eval_code_injection_texts(scan_texts),
+        "prompt_injection": eval_prompt_injection_texts(scan_texts),
+        "ssrf_url": eval_ssrf_urls(source_urls),
+        "forbidden_tool": forbidden_tool_ok,
+        "retrieval_duplicate_rate": duplicate_rate,
+        "retrieval_cross_run_isolation": isolation_ok,
         "task_count": len(tasks),
-        "source_count": len(store.list_sources(run_id)),
+        "source_count": len(sources),
         "evidence_count": len(evidence),
         "status": run.status.value,
     }

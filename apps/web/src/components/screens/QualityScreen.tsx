@@ -9,7 +9,7 @@ import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayClaimStatement } from "@/presentation/demo";
 import {
   presentEvaluator,
-  presentEvaluatorResult,
+  presentEvaluationOutcome,
 } from "@/presentation/evaluators";
 
 export function QualityScreen() {
@@ -19,7 +19,9 @@ export function QualityScreen() {
   const demoReadOnly = useDemoReadOnly();
   if (!workspace) return <p className="empty">{t("quality.loading")}</p>;
   const claimById = Object.fromEntries(workspace.claims.map((claim) => [claim.id, claim]));
-  const deterministic = workspace.evaluations.filter((item) => item.method === "deterministic_code");
+  const deterministic = workspace.evaluations.filter(
+    (item) => item.method === "deterministic_code" && item.status !== "not_applicable",
+  );
   return (
     <div>
       <RunHeader workspace={workspace} />
@@ -33,7 +35,7 @@ export function QualityScreen() {
               <article key={item.evaluator_id} className="metric">
                 <div className="k">{presented.title}</div>
                 <div className="v" style={{ fontSize: 16 }}>
-                  {presentEvaluatorResult(item.evaluator_id, item.value, locale)}
+                  {presentEvaluationOutcome(item.evaluator_id, item, locale)}
                 </div>
               </article>
             );

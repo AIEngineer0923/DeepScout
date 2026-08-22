@@ -77,6 +77,7 @@ from deepscout_persistence.models import (
     ContradictionRow,
     DecisionClaimRow,
     DecisionRow,
+    EvaluationResultRow,
     EvidenceRow,
     HumanFeedbackRow,
     ReportEvidenceRow,
@@ -520,6 +521,51 @@ class ResearchStore:
                 .order_by(ToolExecutionRow.created_at.desc())
             ).all()
         )
+
+    def list_evaluation_results(self, run_id: uuid.UUID) -> list[dict[str, object]]:
+        self._require_run(run_id)
+        rows = self._session.scalars(
+            select(EvaluationResultRow)
+            .where(EvaluationResultRow.research_run_id == run_id)
+            .order_by(EvaluationResultRow.evaluator_id.asc())
+        ).all()
+        return [
+            {
+                "evaluator_id": row.evaluator_id,
+                "version": row.evaluator_version,
+                "category": row.category,
+                "method": row.method,
+                "applicability": row.applicability,
+                "description": row.description,
+                "status": row.status,
+                "value": row.value,
+                "reason": row.reason,
+            }
+            for row in rows
+        ]
+
+    def replace_evaluation_results(
+        self, run_id: uuid.UUID, rows: list[dict[str, object]]
+    ) -> None:
+        self._require_run(run_id)
+        self._session.execute(
+            delete(EvaluationResultRow).where(EvaluationResultRow.research_run_id == run_id)
+        )
+        for item in rows:
+            self._session.add(
+                EvaluationResultRow(
+                    research_run_id=run_id,
+                    evaluator_id=str(item["evaluator_id"]),
+                    evaluator_version=str(item["version"]),
+                    status=str(item["status"]),
+                    value=item.get("value"),
+                    reason=item.get("reason") if item.get("reason") else None,
+                    category=str(item["category"]),
+                    method=str(item["method"]),
+                    applicability=str(item["applicability"]),
+                    description=str(item["description"]),
+                )
+            )
 
     def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
         self._require_run(run_id)

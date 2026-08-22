@@ -750,7 +750,7 @@ def export_research_run(
         return {"run_id": str(run_id), "evaluations": workspace["evaluations"]}
     if format == "evals-csv":
         body = render_csv(
-            ["evaluator_id", "version", "category", "method", "applicability", "value"],
+            ["evaluator_id", "version", "category", "method", "applicability", "status", "value", "reason"],
             [
                 [
                     item["evaluator_id"],
@@ -758,7 +758,9 @@ def export_research_run(
                     item["category"],
                     item["method"],
                     item["applicability"],
-                    item.get("value") or "",
+                    item.get("status") or "",
+                    item.get("value") if item.get("value") is not None else "",
+                    item.get("reason") or "",
                 ]
                 for item in workspace["evaluations"]
             ],

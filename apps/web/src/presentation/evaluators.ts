@@ -105,6 +105,78 @@ const EVALUATORS: Record<string, EvaluatorPresentation> = {
     },
     passWhenTrue: true,
   },
+  retrieval_duplicate_rate: {
+    title: { en: "Duplicate retrieval rate", it: "Tasso di retrieval duplicato" },
+    description: {
+      en: "Measures how often the same captured content is retrieved more than once.",
+      it: "Misura quanto spesso lo stesso contenuto acquisito viene recuperato più volte.",
+    },
+    isRate: true,
+  },
+  dag_cycle_free: {
+    title: { en: "Plan graph validity", it: "Validità del grafo di pianificazione" },
+    description: {
+      en: "The research plan does not contain dependency cycles.",
+      it: "Il piano di ricerca non contiene cicli di dipendenza.",
+    },
+    passWhenTrue: true,
+  },
+  termination_correctness: {
+    title: { en: "Termination correctness", it: "Correttezza della terminazione" },
+    description: {
+      en: "The run ended in a valid terminal state.",
+      it: "La ricerca si è conclusa in uno stato terminale valido.",
+    },
+    passWhenTrue: true,
+  },
+  forbidden_tool: {
+    title: { en: "Forbidden tool usage", it: "Uso di strumenti non consentiti" },
+    description: {
+      en: "Only approved tools were used during the research run.",
+      it: "Durante la ricerca sono stati usati solo strumenti approvati.",
+    },
+    passWhenTrue: true,
+  },
+  secret_leakage: {
+    title: { en: "Secret leakage", it: "Perdita di segreti" },
+    description: {
+      en: "Checks report and trace artifacts for credential-like strings.",
+      it: "Verifica report e tracce alla ricerca di stringhe simili a credenziali.",
+    },
+    passWhenTrue: true,
+  },
+  pii_leakage: {
+    title: { en: "PII leakage", it: "Perdita di dati personali" },
+    description: {
+      en: "Checks generated artifacts for obvious personal identifiers.",
+      it: "Verifica gli artefatti generati alla ricerca di identificatori personali evidenti.",
+    },
+    passWhenTrue: true,
+  },
+  prompt_injection: {
+    title: { en: "Prompt injection", it: "Prompt injection" },
+    description: {
+      en: "Scans captured content for common injection patterns.",
+      it: "Analizza i contenuti acquisiti alla ricerca di pattern comuni di injection.",
+    },
+    passWhenTrue: true,
+  },
+  code_injection: {
+    title: { en: "Code injection", it: "Code injection" },
+    description: {
+      en: "Checks generated artifacts for executable injection markers.",
+      it: "Verifica gli artefatti generati alla ricerca di marcatori di injection eseguibile.",
+    },
+    passWhenTrue: true,
+  },
+  ssrf_url: {
+    title: { en: "Unsafe source URLs", it: "URL sorgente non sicuri" },
+    description: {
+      en: "Source URLs should not target private or metadata endpoints.",
+      it: "Gli URL delle fonti non devono puntare a endpoint privati o di metadati.",
+    },
+    passWhenTrue: true,
+  },
   plan_adherence: {
     title: { en: "Plan adherence", it: "Aderenza al piano" },
     description: {
@@ -175,6 +247,47 @@ export function presentEvaluatorMethod(method: string, locale: Locale): string {
 
 export function presentEvaluatorApplicability(applicability: string, locale: Locale): string {
   return APPLICABILITY_LABELS[applicability]?.[locale] ?? applicability.replaceAll("_", " ");
+}
+
+export type EvaluationPresentationInput = {
+  status?: string;
+  value?: unknown;
+  reason?: string | null;
+  applicability?: string;
+};
+
+export function presentEvaluationOutcome(
+  evaluatorId: string,
+  evaluation: EvaluationPresentationInput,
+  locale: Locale,
+): string {
+  const status = evaluation.status;
+  if (status === "not_applicable") {
+    return locale === "it" ? "Non applicabile" : "Not applicable";
+  }
+  if (status === "unavailable") {
+    return locale === "it" ? "Non disponibile" : "Unavailable";
+  }
+  if (status === "skipped") {
+    return locale === "it" ? "Saltato" : "Skipped";
+  }
+  if (status === "error") {
+    return locale === "it" ? "Errore di valutazione" : "Evaluation error";
+  }
+  if (status === "pending") {
+    return locale === "it" ? "In corso" : "Pending";
+  }
+  if (evaluation.value == null || evaluation.value === "—") {
+    if (evaluation.reason) {
+      return locale === "it" ? "Non disponibile" : "Unavailable";
+    }
+    return locale === "it" ? "Non valutato" : "Not evaluated";
+  }
+  return presentEvaluatorResult(evaluatorId, evaluation.value, locale);
+}
+
+export function shouldShowEvaluationRow(applicability: string): boolean {
+  return !["not_applicable_by_design", "future_modality_gated"].includes(applicability);
 }
 
 export function presentEvaluatorResult(
