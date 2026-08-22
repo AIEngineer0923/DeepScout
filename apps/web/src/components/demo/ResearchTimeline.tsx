@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import type { Workspace } from "@/lib/types";
 import { relativeTime } from "@/lib/format";
 import { useI18n } from "@/i18n/context";
-import { eventMatchesFilter, isLowValueTimelineEvent, presentEvent } from "@/presentation/events";
+import {
+  eventMatchesFilter,
+  isLowValueTimelineEvent,
+  presentEvent,
+  timelineDedupKey,
+} from "@/presentation/events";
 
 const FILTERS = ["all", "phase", "worker", "source", "evidence", "quality", "report"] as const;
 
@@ -19,18 +24,22 @@ export function ResearchTimeline({
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
 
   const events = useMemo(() => {
-    const rows = [...workspace.activity].reverse().filter((event) => !isLowValueTimelineEvent(event.type));
-    const filtered = rows.filter((event) => eventMatchesFilter(event.type, filter));
+    const rows = [...workspace.activity]
+      .sort((a, b) => b.sequence - a.sequence)
+      .filter((event) => !isLowValueTimelineEvent(event.type));
+    const filtered = rows.filter((event) =>
+      eventMatchesFilter(event.type, filter, event.payload ?? {}),
+    );
     const seen = new Set<string>();
     const deduped = [];
     for (const event of filtered) {
-      const key = `${event.type}:${JSON.stringify(event.payload?.phase ?? "")}`;
+      const key = timelineDedupKey(event.type, event.payload ?? {});
       if (seen.has(key) && (event.type === "phase.started" || event.type === "phase.completed")) {
         continue;
       }
       seen.add(key);
       deduped.push(event);
-      if (deduped.length >= 16) break;
+      if (deduped.length >= 24) break;
     }
     return deduped;
   }, [workspace.activity, filter]);
@@ -68,7 +77,9 @@ export function ResearchTimeline({
                 <strong>{presented.label}</strong>
                 {presented.detail ? <div className="muted timeline-detail">{presented.detail}</div> : null}
               </div>
-              <time className="muted timeline-time">{relativeTime(event.created_at, locale)}</time>
+              <time className="muted timeline-time" dateTime={event.created_at ?? undefined}>
+                {relativeTime(event.created_at, locale)}
+              </time>
             </li>
           );
         })}

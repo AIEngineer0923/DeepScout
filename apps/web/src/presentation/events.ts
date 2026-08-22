@@ -12,11 +12,32 @@ type EventPresentation = {
 };
 
 const PHASE_LABELS: Record<string, Record<Locale, string>> = {
-  planning: { en: "Planning", it: "Pianificazione" },
+  plan: { en: "Planning", it: "Pianificazione" },
   research: { en: "Research", it: "Ricerca" },
-  verification: { en: "Verification", it: "Verifica" },
-  synthesis: { en: "Conclusions", it: "Sintesi" },
-  reporting: { en: "Reporting", it: "Report" },
+  compile_knowledge: { en: "Compiled knowledge", it: "Conoscenza compilata" },
+  fetch: { en: "Fetch", it: "Acquisizione" },
+  index: { en: "Indexing", it: "Indicizzazione" },
+  extract: { en: "Extraction", it: "Estrazione" },
+  verify: { en: "Verification", it: "Verifica" },
+  contradiction: { en: "Contradictions", it: "Contraddizioni" },
+  critic: { en: "Quality review", it: "Controllo qualità" },
+  synthesis: { en: "Synthesis", it: "Sintesi" },
+  report: { en: "Report", it: "Report" },
+};
+
+/** Maps runtime phase names to timeline filter categories for phase.* events. */
+const PHASE_FILTER_CATEGORY: Record<string, EventCategory> = {
+  plan: "phase",
+  research: "phase",
+  compile_knowledge: "phase",
+  fetch: "source",
+  index: "phase",
+  extract: "evidence",
+  verify: "quality",
+  contradiction: "quality",
+  critic: "quality",
+  synthesis: "report",
+  report: "report",
 };
 
 const REGISTRY: Record<string, EventPresentation> = {
@@ -168,6 +189,49 @@ function humanizeRawEvent(type: string, locale: Locale): string {
   return `Event: ${cleaned}`;
 }
 
+function hostnameFromUrl(value: string): string | undefined {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return value.length > 64 ? `${value.slice(0, 61)}…` : value;
+  }
+}
+
+function eventCategory(type: string, payload: Record<string, unknown>): EventCategory {
+  const entry = REGISTRY[type];
+  if ((type === "phase.started" || type === "phase.completed") && typeof payload.phase === "string") {
+    return PHASE_FILTER_CATEGORY[payload.phase.toLowerCase()] ?? "phase";
+  }
+  return entry?.category ?? "system";
+}
+
+function buildDetail(
+  type: string,
+  payload: Record<string, unknown>,
+  workspace: Workspace | null | undefined,
+  locale: Locale,
+): string | undefined {
+  const parts: string[] = [];
+
+  if (typeof payload.task_key === "string" && workspace) {
+    parts.push(presentTaskKey(workspace, payload.task_key));
+  }
+  if (typeof payload.worker_id === "string" && workspace) {
+    parts.push(presentWorkerLabel(workspace, payload.worker_id, locale));
+  }
+  if (typeof payload.url === "string" && (type === "source.discovered" || type === "source.fetched")) {
+    parts.push(hostnameFromUrl(payload.url) ?? payload.url);
+  }
+  if (typeof payload.skill === "string" && type === "skill.selected") {
+    parts.push(payload.skill);
+  }
+  if (typeof payload.count === "number" && type === "workers.allocated") {
+    parts.push(locale === "it" ? `${payload.count} agenti` : `${payload.count} agents`);
+  }
+
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
 export function presentEvent(
   type: string,
   locale: Locale,
@@ -177,6 +241,7 @@ export function presentEvent(
   const entry = REGISTRY[type];
   const phase = typeof payload.phase === "string" ? payload.phase.toLowerCase() : "";
   const phaseLabel = phase ? PHASE_LABELS[phase]?.[locale] : undefined;
+  const category = eventCategory(type, payload);
 
   if (entry) {
     let label = entry.label[locale];
@@ -186,16 +251,10 @@ export function presentEvent(
     if (type === "phase.completed" && phaseLabel) {
       label = locale === "it" ? `${phaseLabel} completata` : `${phaseLabel} completed`;
     }
-    const detail =
-      typeof payload.task_key === "string" && workspace
-        ? presentTaskKey(workspace, payload.task_key)
-        : typeof payload.worker_id === "string" && workspace
-          ? presentWorkerLabel(workspace, payload.worker_id, locale)
-          : undefined;
     return {
       label,
-      detail,
-      category: entry.category,
+      detail: buildDetail(type, payload, workspace, locale),
+      category,
       icon: entry.icon,
     };
   }
@@ -207,19 +266,35 @@ export function presentEvent(
   };
 }
 
-export function eventMatchesFilter(type: string, filter: string): boolean {
+export function eventMatchesFilter(
+  type: string,
+  filter: string,
+  payload: Record<string, unknown> = {},
+): boolean {
   if (filter === "all") return true;
-  const entry = REGISTRY[type];
-  if (!entry) return filter === "system";
-  if (filter === "phase") return entry.category === "phase";
-  if (filter === "worker") return entry.category === "worker";
-  if (filter === "source") return entry.category === "source";
-  if (filter === "evidence") return entry.category === "evidence";
-  if (filter === "quality") return entry.category === "quality";
-  if (filter === "report") return entry.category === "report";
-  return entry.category === filter;
+  const category = eventCategory(type, payload);
+  if (filter === "phase") return category === "phase";
+  if (filter === "worker") return category === "worker";
+  if (filter === "source") return category === "source";
+  if (filter === "evidence") return category === "evidence";
+  if (filter === "quality") return category === "quality";
+  if (filter === "report") return category === "report";
+  return category === filter;
 }
 
 export function isLowValueTimelineEvent(type: string): boolean {
   return type === "worker.progress" || type === "budget.updated" || type === "context.compacted";
+}
+
+export function timelineDedupKey(type: string, payload: Record<string, unknown> = {}): string {
+  if (type === "phase.started" || type === "phase.completed") {
+    return `${type}:${String(payload.phase ?? "")}`;
+  }
+  if (type === "source.discovered" || type === "source.fetched") {
+    return `${type}:${String(payload.url ?? payload.task_key ?? "")}`;
+  }
+  if (type === "worker.started" || type === "worker.completed" || type === "worker.failed") {
+    return `${type}:${String(payload.worker_id ?? "")}:${String(payload.task_key ?? "")}`;
+  }
+  return `${type}:${JSON.stringify(payload)}`;
 }

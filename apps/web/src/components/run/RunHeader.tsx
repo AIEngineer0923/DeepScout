@@ -35,7 +35,9 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
     >
       <div className="research-header-main">
         <div className="research-header-copy">
-          {demoReadOnly ? <span className="demo-readonly-pill inline">{t("demo.readOnlyPill")}</span> : null}
+          {demoReadOnly ? (
+            <span className="demo-readonly-pill inline research-demo-pill">{t("demo.readOnlyPill")}</span>
+          ) : null}
           <h1 className="research-title">{title}</h1>
           <div className="research-meta">
             <StatusBadge status={workspace.status} />
