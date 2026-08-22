@@ -21,6 +21,7 @@ Two deployment modes:
 | Planner / DAG | `libs/research/src/deepscout_research/planner.py`, `tasks/graph.py` |
 | Retrieval / RAG | `libs/research/src/deepscout_research/retrieval/`, `libs/persistence/src/deepscout_persistence/retrieval.py` |
 | Retrieval quality benchmark | `scripts/retrieval_quality_benchmark.py`, `libs/evaluation/data/retrieval_quality_benchmark_v2.json` |
+| Production retrieval regression | `scripts/retrieval_regression_gate.py`, `libs/evaluation/data/retrieval_production_regressions_v1.json` |
 | Fetch / SSRF | `libs/research/src/deepscout_research/fetch/` |
 | Evaluations | `libs/evaluation/src/deepscout_evaluation/`, persist in `persist.py` |
 | DB models / store | `libs/persistence/src/deepscout_persistence/models.py`, `store.py` |
@@ -88,6 +89,7 @@ bash scripts/scan-secrets.sh
 | Area | Command |
 |------|---------|
 | Evaluations | `uv run pytest tests/evaluation/` |
+| Retrieval regression gate | `uv run python scripts/retrieval_regression_gate.py` |
 | Tenant isolation | `uv run pytest tests/security/test_tenant_isolation.py` |
 | HITL | `uv run pytest tests/research/test_hitl_*.py tests/security/test_hitl_injection.py` |
 | Demo security | `uv run pytest tests/security/test_demo_mutation_auth_order.py` |

@@ -1,0 +1,21 @@
+{
+  "version": "retrieval-regression-baseline-v1",
+  "corpus_version": "retrieval-production-regressions-v1",
+  "description": "Expected deterministic gate outcomes. Update only with documented ground-truth corrections.",
+  "router_accuracy_min": 0.94,
+  "critical_cases": {
+    "reg-en-institutional-primary": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-authority-not-relevance": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-it-regulatory-timeline": {"router_pass": true, "skip_deterministic_retrieval": true},
+    "reg-en-bev-ice-quant": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-lfp-nmc-tradeoff": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-cve-identifier": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-conflicting-sources": {"router_pass": true, "bm25_hit_at_3_min": 0.0},
+    "reg-en-no-answer-quantum": {"router_pass": true, "bm25_hit_at_3_max": 0.0},
+    "reg-en-injection-query": {"router_pass": true},
+    "reg-boundary-identifier-vs-semantic": {"router_pass": true},
+    "reg-boundary-semantic-vs-global": {"router_pass": true},
+    "reg-en-office-holder": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-it-identifier-cve": {"router_pass": true, "bm25_hit_at_3_min": 1.0}
+  }
+}

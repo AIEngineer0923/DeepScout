@@ -108,6 +108,8 @@ class TemporalRelation(StrEnum):
 
 
 class RetrievalFailureClass(StrEnum):
+    """Diagnostic failure classes for retrieval and evidence pipelines."""
+
     SEARCH_DID_NOT_SURFACE_SOURCE = "search_did_not_surface_source"
     SOURCE_FETCH_FAILED = "source_fetch_failed"
     SOURCE_NOT_ADMISSIBLE = "source_not_admissible"
@@ -115,6 +117,17 @@ class RetrievalFailureClass(StrEnum):
     ENTITY_NOT_CURRENT = "entity_not_current"
     EVIDENCE_NOT_VERIFIED = "evidence_not_verified"
     LEGAL_REFERENCE_UNRESOLVED = "legal_reference_unresolved"
+    ROUTING_FAILURE = "routing_failure"
+    LEXICAL_RETRIEVAL_FAILURE = "lexical_retrieval_failure"
+    DENSE_RETRIEVAL_FAILURE = "dense_retrieval_failure"
+    FUSION_FAILURE = "fusion_failure"
+    RERANK_FAILURE = "rerank_failure"
+    GRAPH_RETRIEVAL_FAILURE = "graph_retrieval_failure"
+    COMPILED_KNOWLEDGE_FAILURE = "compiled_knowledge_failure"
+    PROVENANCE_FAILURE = "provenance_failure"
+    NO_ANSWER_FALSE_POSITIVE = "no_answer_false_positive"
+    NO_ANSWER_FALSE_NEGATIVE = "no_answer_false_negative"
+    CONTENT_EXTRACTION_FAILURE = "content_extraction_failure"
 
 
 class LegalReference(BaseModel):

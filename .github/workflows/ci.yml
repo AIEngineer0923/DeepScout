@@ -105,6 +105,9 @@ jobs:
       - name: Pytest
         run: uv run pytest -m "not integration"
 
+      - name: Retrieval regression gate
+        run: uv run python scripts/retrieval_regression_gate.py
+
       - name: Python dependency audit
         run: uv run --with pip-audit pip-audit --progress-spinner off
 
