@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { StatusBadge } from "@/components/StatusBadge";
+import {
+  formatMonitorTimestamp,
+  presentMonitorStatus,
+  presentScheduleKind,
+} from "@/presentation/monitors";
 
 type Monitor = {
   id: string;
@@ -21,6 +27,7 @@ type Monitor = {
 
 export function MonitorsScreen() {
   const t = useT();
+  const { locale } = useI18n();
   const [rows, setRows] = useState<Monitor[]>([]);
   const [name, setName] = useState("Daily monitor");
   const [goal, setGoal] = useState("");
@@ -81,8 +88,13 @@ export function MonitorsScreen() {
                   <Link href={`/monitors/${row.id}`}>{row.name}</Link>
                   <div className="muted wrap-text">{row.goal}</div>
                 </td>
-                <td>{row.status}</td>
-                <td>{row.next_run_at ?? "—"}</td>
+                <td>
+                  <StatusBadge status={row.status} />
+                  {!row.enabled ? (
+                    <span className="muted"> · {presentMonitorStatus("disabled", locale)}</span>
+                  ) : null}
+                </td>
+                <td>{formatMonitorTimestamp(row.next_run_at, locale)}</td>
                 <td>
                   {row.last_run_id ? <Link href={`/research/${row.last_run_id}`}>{t("monitors.openRun")}</Link> : "—"}
                 </td>

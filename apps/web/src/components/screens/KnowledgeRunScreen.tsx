@@ -4,12 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import {
+  presentKnowledgePageType,
+  presentKnowledgeRelation,
+  presentKnowledgeStatus,
+} from "@/presentation/knowledge";
+import { StatusBadge } from "@/components/StatusBadge";
 
 type Page = { id: string; title: string; slug: string; status: string; page_type: string };
 
 export function KnowledgeRunScreen() {
   const t = useT();
+  const { locale } = useI18n();
   const params = useParams<{ runId: string }>();
   const runId = params.runId;
   const [pages, setPages] = useState<Page[]>([]);
@@ -54,7 +61,10 @@ export function KnowledgeRunScreen() {
             {pages.map((page) => (
               <li key={page.id}>
                 <Link href={`/knowledge/${runId}/page/${page.id}`}>{page.title}</Link>
-                <span className="muted"> · {page.page_type} · {page.status}</span>
+                <span className="muted">
+                  {" "}
+                  · {presentKnowledgePageType(page.page_type, locale)} · <StatusBadge status={page.status} />
+                </span>
               </li>
             ))}
           </ul>
@@ -86,7 +96,7 @@ export function KnowledgeRunScreen() {
                 <tr key={index}>
                   <td className="wrap-text">{edge.from}</td>
                   <td className="wrap-text">{edge.to}</td>
-                  <td>{edge.type}</td>
+                  <td>{presentKnowledgeRelation(edge.type, locale)}</td>
                 </tr>
               ))}
             </tbody>

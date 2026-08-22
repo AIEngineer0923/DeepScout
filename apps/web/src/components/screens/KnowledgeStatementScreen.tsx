@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { StatusBadge } from "@/components/StatusBadge";
 
 export function KnowledgeStatementScreen() {
   const t = useT();
@@ -29,7 +30,7 @@ export function KnowledgeStatementScreen() {
       <p className="muted" data-testid="knowledge-not-evidence">{t("knowledge.notEvidence")}</p>
       <article className="card">
         <p className="wrap-text">{String(data.text)}</p>
-        <p>{t("table.status")}: {String(data.status)}</p>
+        <p>{t("table.status")}: <StatusBadge status={String(data.status)} /></p>
       </article>
       {claim ? (
         <section className="card">

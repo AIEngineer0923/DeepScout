@@ -9,6 +9,10 @@ from uuid import UUID
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.demo.catalog import DEMO_BY_SLUG
+from deepscout_research.demo.presentation_validation import (
+    resolve_publication_presentations,
+    validate_demo_presentation_locales,
+)
 
 _SECRET_PATTERNS = (
     re.compile(r"sk-[a-zA-Z0-9]{10,}"),
@@ -100,6 +104,27 @@ def review_demo_candidate(
     if report_citations < 1 and len(claims) > 0:
         warnings.append("REPORT_WARN: no markdown citations detected")
 
+    presentation_codes: list[str] = []
+    slug_value = slug or row.public_slug or ""
+    if slug_value:
+        snapshot = row.config_snapshot or {}
+        presentations = resolve_publication_presentations(snapshot, slug_value)
+        presentation_codes = validate_demo_presentation_locales(
+            presentations,
+            run_task_keys={task.task_key for task in tasks if task.task_key},
+            run_worker_ids={str(task.worker_id) for task in tasks if task.worker_id},
+            run_claim_ids={str(claim.id) for claim in claims},
+            expected_run_id=run_id,
+        )
+    else:
+        presentation_codes = ["PRESENTATION_EN_MISSING", "PRESENTATION_IT_MISSING"]
+
+    checks["PRESENTATION_EN"] = "PRESENTATION_EN_MISSING" not in presentation_codes
+    checks["PRESENTATION_IT"] = "PRESENTATION_IT_MISSING" not in presentation_codes
+    checks["PRESENTATION_VALID"] = not presentation_codes
+    for code in presentation_codes:
+        reasons.append(f"PRESENTATION_FAILURE: {code}")
+
     hard_fail = [name for name, ok in checks.items() if not ok]
     if hard_fail:
         verdict = "FAIL"
@@ -127,5 +152,6 @@ def review_demo_candidate(
         "checks": checks,
         "reason_codes": reasons,
         "warnings": warnings,
+        "presentation_codes": presentation_codes,
         "PUBLICATION_DECISION": verdict,
     }

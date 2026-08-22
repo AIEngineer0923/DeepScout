@@ -9,6 +9,7 @@ import { workerProgress, workerTone } from "@/lib/visual";
 import { useI18n, useT } from "@/i18n/context";
 import { displayWorkerName, displayWorkerTask } from "@/presentation/demo";
 import { presentWorkerHeadline, presentWorkerIndex } from "@/presentation/fields";
+import { presentToolList } from "@/presentation/tools";
 
 const DOWNSTREAM = ["extraction", "verification", "quality", "synthesis", "report"] as const;
 
@@ -192,9 +193,11 @@ export function WorkersScreen() {
                   </div>
                   <div className="kv-row">
                     <dt>{t("workers.allowed")}</dt>
-                    <dd>{worker.allowed_tools.join(", ") || "—"}</dd>
+                    <dd>{presentToolList(worker.allowed_tools, locale)}</dd>
+                  </div>
+                  <div className="kv-row">
                     <dt>{t("workers.skills")}</dt>
-                    <dd>{(worker.skills ?? []).join(", ") || "—"}</dd>
+                    <dd>{worker.skills?.length ? worker.skills.join(", ") : "—"}</dd>
                   </div>
                 </dl>
               </div>
@@ -219,7 +222,6 @@ export function WorkersScreen() {
                   </div>
                 </dl>
               </div>
-              <p className="muted">{t("workers.prompt")}</p>
             </>
           ) : (
             <p className="empty">{t("workers.select")}</p>

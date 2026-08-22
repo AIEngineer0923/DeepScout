@@ -829,45 +829,6 @@ html, body { overflow-x: hidden; }
   display: grid;
   gap: 8px;
 }
-.demo-run-nav {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 0 24px 12px;
-  border-bottom: 1px solid var(--ds-line);
-  background: #fff;
-}
-.demo-run-nav a {
-  color: var(--ds-muted);
-  text-decoration: none;
-  font-size: 14px;
-}
-.demo-run-nav a.active,
-.demo-run-nav a:hover {
-  color: var(--ds-text);
-}
-
-.demo-shell {
-  background: linear-gradient(180deg, #f8fafc 0%, #f4f6fa 100%);
-}
-.demo-app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--ds-line);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(8px);
-  flex-wrap: wrap;
-}
-.demo-app-header-left,
-.demo-app-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 .demo-badge {
   font-size: 12px;
   font-weight: 600;
@@ -876,41 +837,6 @@ html, body { overflow-x: hidden; }
   border: 1px solid #dbeafe;
   border-radius: 999px;
   padding: 4px 10px;
-}
-.demo-back-link {
-  font-size: 13px;
-  color: var(--ds-muted);
-  text-decoration: none;
-}
-.demo-back-link:hover { color: var(--ds-primary); }
-.demo-main { padding-top: 20px; }
-.demo-workspace-nav {
-  background: #fff;
-  border-bottom: 1px solid var(--ds-line);
-  padding: 0 24px;
-  overflow-x: auto;
-}
-.demo-workspace-tabs {
-  display: flex;
-  gap: 4px;
-  min-width: max-content;
-}
-.demo-tab {
-  display: inline-flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 14px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--ds-muted);
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-}
-.demo-tab:hover { color: var(--ds-ink); }
-.demo-tab.active {
-  color: var(--ds-primary);
-  border-bottom-color: var(--ds-primary);
-  background: linear-gradient(180deg, transparent 0%, rgba(37, 99, 235, 0.06) 100%);
 }
 .research-header {
   margin-bottom: 18px;
@@ -1068,9 +994,6 @@ html, body { overflow-x: hidden; }
   max-width: 72ch;
 }
 @media (max-width: 768px) {
-  .demo-app-header { padding: 12px 16px; }
-  .demo-workspace-nav { padding: 0 12px; }
-  .public-main.demo-main { padding: 16px 16px 40px; }
   .research-header-main { flex-direction: column; }
   .research-header-cta { width: 100%; }
   .research-header-cta .btn { width: 100%; justify-content: center; }
