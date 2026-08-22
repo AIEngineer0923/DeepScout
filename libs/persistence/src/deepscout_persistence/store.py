@@ -797,6 +797,60 @@ class ResearchStore:
             "promotion_reason": row.promotion_reason,
         }
 
+    def rollback_learning_policy(
+        self,
+        *,
+        policy_key: str,
+        owner_principal_id: uuid.UUID | None,
+        rollback_reason: str,
+        actor: str = "operator",
+    ) -> uuid.UUID | None:
+        """Reactivate the previous policy version; preserve full history."""
+        if not self._learning_tables_available():
+            return None
+        active_stmt = select(LearningPolicyVersionRow).where(
+            LearningPolicyVersionRow.policy_key == policy_key,
+            LearningPolicyVersionRow.active.is_(True),
+        )
+        if owner_principal_id is not None:
+            active_stmt = active_stmt.where(
+                LearningPolicyVersionRow.owner_principal_id == owner_principal_id
+            )
+        else:
+            active_stmt = active_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        current = self._session.scalar(active_stmt.order_by(LearningPolicyVersionRow.created_at.desc()))
+        if current is None:
+            return None
+        previous_stmt = (
+            select(LearningPolicyVersionRow)
+            .where(
+                LearningPolicyVersionRow.policy_key == policy_key,
+                LearningPolicyVersionRow.active.is_(False),
+                LearningPolicyVersionRow.id != current.id,
+            )
+            .order_by(LearningPolicyVersionRow.created_at.desc())
+        )
+        if owner_principal_id is not None:
+            previous_stmt = previous_stmt.where(
+                LearningPolicyVersionRow.owner_principal_id == owner_principal_id
+            )
+        else:
+            previous_stmt = previous_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        previous = self._session.scalar(previous_stmt)
+        if previous is None:
+            return None
+        current.active = False
+        current.superseded_by = previous.id
+        previous.active = True
+        previous.evidence = {
+            **(previous.evidence or {}),
+            "rollback_from": str(current.id),
+            "rollback_reason": rollback_reason,
+            "rollback_actor": actor,
+            "rolled_back_at": datetime.now(UTC).isoformat(),
+        }
+        return previous.id
+
     def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
         self._require_run(run_id)
         return list(
