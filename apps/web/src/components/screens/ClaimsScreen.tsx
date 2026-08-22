@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayClaimStatement } from "@/presentation/demo";
+import { AutoLinkText } from "@/components/AutoLinkText";
 import { presentTaskKey, presentWorkerIndex } from "@/presentation/fields";
 
 export function ClaimsScreen() {
@@ -89,7 +90,7 @@ export function ClaimsScreen() {
               <h3>{t("claims.evidence")}</h3>
               {evidence.map((item) => (
                 <article key={item.id} style={{ marginBottom: 12 }}>
-                  <ExpandableText text={`“${item.quote}”`} />
+                  <ExpandableText text={`“${item.quote}”`} renderText={(value) => <AutoLinkText text={value} />} />
                   {item.snapshot_id ? (
                     <Link href={`/research/${workspace.run_id}/snapshots/${item.snapshot_id}`}>{t("claims.openSnapshot")}</Link>
                   ) : null}

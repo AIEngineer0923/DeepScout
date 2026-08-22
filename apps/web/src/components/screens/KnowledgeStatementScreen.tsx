@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AutoLinkText } from "@/components/AutoLinkText";
+import { ExternalLink } from "@/components/ExternalLink";
 
 export function KnowledgeStatementScreen() {
   const t = useT();
@@ -43,11 +45,11 @@ export function KnowledgeStatementScreen() {
         <h2>{t("knowledge.provenance")}</h2>
         {provenance.map((item) => (
           <article key={item.evidence_id} className="card">
-            <p className="wrap-text"><strong>{t("table.evidence")}</strong>: {item.quote}</p>
-            <p className="wrap-text"><strong>{t("nav.snapshot")}</strong>: {item.passage}</p>
+            <p><strong>{t("table.evidence")}</strong>: <AutoLinkText text={item.quote} /></p>
+            <p><strong>{t("nav.snapshot")}</strong>: <AutoLinkText text={item.passage} /></p>
             {item.source_url ? (
               <p>
-                {t("table.source")}: {item.source_url}
+                {t("table.source")}: <ExternalLink href={item.source_url}>{item.source_url}</ExternalLink>
                 {item.source_id ? (
                   <>
                     {" · "}

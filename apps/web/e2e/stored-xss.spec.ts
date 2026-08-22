@@ -77,8 +77,9 @@ test.describe("stored public research XSS regression", () => {
     await page.goto(`/research/${XSS_FIXTURE_RUN_ID}/report`);
     await expect(page.getByTestId("demo-shell")).toBeVisible({ timeout: 15_000 });
     await assertInertPublicSurface(page);
-    const html = await page.locator("pre.wrap-text").innerHTML();
+    const html = await page.locator(".rich-content.report-body-selectable").innerHTML();
     expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img");
   });
 
   test("snapshot text renders inert payloads", async ({ page }) => {
@@ -102,7 +103,7 @@ test.describe("stored public research XSS regression", () => {
     await page.goto(`/knowledge/${XSS_FIXTURE_RUN_ID}/page/${XSS_KNOWLEDGE_PAGE_ID}`);
     await expect(page.locator("h1.page-title")).toBeVisible({ timeout: 15_000 });
     await assertInertPublicSurface(page, [XSS_PAYLOADS[0], XSS_PAYLOADS[4]]);
-    const html = await page.locator("pre.wrap-text").innerHTML();
+    const html = await page.locator(".rich-content").innerHTML();
     expect(html).not.toContain("<svg");
   });
 });

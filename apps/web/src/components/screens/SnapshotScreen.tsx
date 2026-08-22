@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { ExternalLink } from "@/components/ExternalLink";
+import { AutoLinkText } from "@/components/AutoLinkText";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useT } from "@/i18n/context";
 
@@ -54,9 +55,15 @@ export function SnapshotScreen({ snapshotId }: { snapshotId: string }) {
             {snapshot ? <a className="btn" href={api.exportUrl(workspace.run_id, "snapshot-text", snapshotId)}>{t("snapshot.download")}</a> : null}
           </div>
           <pre className="wrap-text" style={{ maxHeight: 480, overflow: "auto", background: "#f8fafc", padding: 12, borderRadius: 8 }}>
-            {highlighted.map((part, index) => (
-              <span key={index} id={part.id ?? undefined} style={part.id ? { background: "#fef08a" } : undefined}>{part.text}</span>
-            ))}
+            {highlighted.map((part, index) =>
+              part.id ? (
+                <span key={index} id={part.id} style={{ background: "#fef08a" }}>
+                  <AutoLinkText text={part.text} className="" />
+                </span>
+              ) : (
+                <AutoLinkText key={index} text={part.text} className="" />
+              ),
+            )}
           </pre>
         </section>
         <aside className="drawer">

@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { ExpandableText } from "@/components/ExpandableText";
+import { AutoLinkText } from "@/components/AutoLinkText";
 import { presentSnapshotSummary } from "@/presentation/fields";
 
 export function SnapshotsScreen() {
@@ -26,7 +27,9 @@ export function SnapshotsScreen() {
         {workspace.snapshots.map((item) => (
           <article key={item.id} className="card snapshot-card compact">
             <ExpandableText text={item.source_title} />
-            <p className="muted wrap-text snapshot-url">{item.url}</p>
+            <p className="muted snapshot-url">
+              <AutoLinkText text={item.url} />
+            </p>
             <p className="muted">{presentSnapshotSummary(item, locale)}</p>
             <div className="row snapshot-actions">
               <Link className="btn" href={`/research/${workspace.run_id}/snapshots/${item.id}`}>

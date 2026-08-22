@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -839,6 +840,33 @@ def _wrap_pdf_line(text: str, width: int = 92) -> list[str]:
     return lines or [""]
 
 
+def _strip_inline_markdown(text: str) -> str:
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", text)
+    return text.strip()
+
+
+def _is_table_separator(line: str) -> bool:
+    stripped = line.strip()
+    if "|" not in stripped:
+        return False
+    return bool(re.fullmatch(r"\|?[\s:|-]+\|?[\s:|-|]*", stripped))
+
+
+def _parse_table_row(line: str) -> list[str]:
+    return [_strip_inline_markdown(cell) for cell in line.strip().strip("|").split("|")]
+
+
+def _format_table_row(cells: list[str], widths: list[int]) -> str:
+    padded = []
+    for index, cell in enumerate(cells):
+        width = widths[index] if index < len(widths) else 20
+        padded.append(cell[: width + 8].ljust(min(width, 28)))
+    return "  ".join(padded).rstrip()
+
+
 def _report_pdf(title: str, body: str) -> bytes:
     """Simple multi-page Helvetica PDF with wrapping, margins, and heading hierarchy."""
     page_width = 612
@@ -863,23 +891,59 @@ def _report_pdf(title: str, body: str) -> bytes:
         current.append((size, text))
         y -= 22 if size >= 15 else (18 if size >= 13 else line_height)
 
-    add_line(title_size, title[:180] or "DeepScout report")
+    add_line(title_size, _strip_inline_markdown(title[:180] or "DeepScout report"))
     add_line(body_size, "")
-    for raw in body.replace("\r", "").split("\n"):
+
+    lines = body.replace("\r", "").split("\n")
+    index = 0
+    while index < len(lines):
+        raw = lines[index]
         stripped = raw.strip()
+        if stripped.startswith("|") and index + 1 < len(lines) and _is_table_separator(lines[index + 1]):
+            table_rows: list[list[str]] = []
+            while index < len(lines):
+                row = lines[index].strip()
+                if not row.startswith("|"):
+                    break
+                if _is_table_separator(row):
+                    index += 1
+                    continue
+                table_rows.append(_parse_table_row(row))
+                index += 1
+            if table_rows:
+                widths = [
+                    max(len(row[col]) for row in table_rows if col < len(row))
+                    for col in range(max(len(row) for row in table_rows))
+                ]
+                widths = [min(max(width, 8), 28) for width in widths]
+                add_line(body_size, "")
+                for row_index, row in enumerate(table_rows):
+                    size = heading_size if row_index == 0 else body_size
+                    for wrapped in _wrap_pdf_line(_format_table_row(row, widths), 92):
+                        add_line(size, wrapped)
+                add_line(body_size, "")
+            continue
+        index += 1
         if stripped.startswith("# "):
-            add_line(heading_size, stripped[2:])
+            add_line(heading_size, _strip_inline_markdown(stripped[2:]))
             continue
         if stripped.startswith("## "):
-            add_line(heading_size, stripped[3:])
+            add_line(heading_size, _strip_inline_markdown(stripped[3:]))
             continue
         if stripped.startswith("### "):
-            add_line(body_size, stripped[4:])
+            add_line(body_size, _strip_inline_markdown(stripped[4:]))
+            continue
+        if stripped.startswith("#### "):
+            add_line(body_size, _strip_inline_markdown(stripped[5:]))
+            continue
+        if stripped in {"---", "***", "___"}:
+            add_line(body_size, "—" * 24)
             continue
         if not stripped:
             add_line(body_size, "")
             continue
-        for wrapped in _wrap_pdf_line(stripped, 88):
+        plain = _strip_inline_markdown(stripped)
+        for wrapped in _wrap_pdf_line(plain, 88):
             add_line(body_size, wrapped)
     if current:
         pages.append(current)
