@@ -6,6 +6,7 @@ import re
 from typing import Any
 from uuid import UUID
 
+from deepscout_core.domain.contracts import SourceConstraintMode
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.contracts.extract import contract_from_snapshot
@@ -82,12 +83,18 @@ def review_demo_candidate(
     else:
         checks["SOURCE_BREADTH"] = True
 
-    if len(unique_domains) < min(2, len(sources)):
+    contract = contract_from_snapshot(row.config_snapshot)
+    has_only_constraint = contract is not None and any(
+        constraint.mode == SourceConstraintMode.ONLY
+        for constraint in contract.source_constraints
+    )
+
+    if has_only_constraint or len(unique_domains) >= min(2, len(sources)):
+        checks["SOURCE_DIVERSITY"] = True
+    else:
         checks["SOURCE_DIVERSITY"] = len(sources) <= 1
         if len(sources) > 1:
             reasons.append("SOURCE_QUALITY_FAILURE: insufficient independent domains")
-    else:
-        checks["SOURCE_DIVERSITY"] = True
 
     if category == "multi-hop":
         dag_ok = len(tasks) >= 2 and dependency_edges >= 1
@@ -106,7 +113,6 @@ def review_demo_candidate(
     if report_citations < 1 and len(claims) > 0:
         warnings.append("REPORT_WARN: no markdown citations detected")
 
-    contract = contract_from_snapshot(row.config_snapshot)
     if contract is not None:
         violating_sources = [
             source
