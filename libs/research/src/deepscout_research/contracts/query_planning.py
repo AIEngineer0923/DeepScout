@@ -104,6 +104,7 @@ def diversified_official_queries(
     requirement_text: str,
     *,
     intent: str,
+    max_namespaces: int = 3,
 ) -> list[str]:
     """Bounded multi-namespace official search for hard source scopes."""
     namespaces = official_source_namespaces(contract)
@@ -111,7 +112,8 @@ def diversified_official_queries(
         return [f"{contract.primary_question[:140]} {requirement_text[:120]}"[:500]]
     base = requirement_text[:140]
     queries: list[str] = []
-    for index, domain in enumerate(namespaces[:3]):
+    cap = max(1, min(3, max_namespaces))
+    for index, domain in enumerate(namespaces[:cap]):
         suffix = {
             "legal_text": "regulation article application date transitional",
             "implementation_timeline": "implementation timeline enforcement date official",

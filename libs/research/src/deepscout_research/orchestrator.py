@@ -508,13 +508,28 @@ class ResearchOrchestrator:
             )
 
         remaining_tools = max(0, run.budget.max_tool_calls - consumption.tool_calls)
+        from deepscout_evaluation.learning.policy_runtime import (
+            effective_allocation_parallelism,
+            effective_sufficiency_params,
+            policy_from_run_snapshot,
+        )
+
         from deepscout_research.runtime.allocation import allocate_workers
 
+        row = self._store.get_run_row(run_id)
+        effective = policy_from_run_snapshot(row.config_snapshot if row else None)
+        parallel_pref = effective_allocation_parallelism(
+            self._store,
+            self._settings,
+            owner_principal_id=row.owner_principal_id if row else None,
+            effective=effective,
+        )
         allocation = allocate_workers(
             tasks,
             settings=self._settings,
             concurrency_limit=self._store.get_concurrency_limit(run_id),
             remaining_tool_calls=remaining_tools,
+            parallel_preference=parallel_pref,
         )
         if allocation.max_workers <= 0:
             return evaluate_termination(
@@ -590,6 +605,7 @@ class ResearchOrchestrator:
             batch=results,
             remaining_iterations=max(0, run.budget.max_iterations - iteration),
             evidence_count=evidence_count,
+            **effective_sufficiency_params(effective),
         )
         terminal = evaluate_termination(
             budget=run.budget,
@@ -600,7 +616,7 @@ class ResearchOrchestrator:
         if (
             not terminal.should_stop
             and sufficiency.action.value == "finalize"
-            and sufficiency.reason == "low_marginal_yield"
+            and sufficiency.reason in {"low_marginal_yield", "evidence_sufficiency_met"}
         ):
             return TerminationDecision(
                 should_stop=True,

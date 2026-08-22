@@ -9,11 +9,19 @@ from deepscout_persistence.store import ResearchStore
 
 from deepscout_evaluation.learning.policy import (
     allocation_parallel_preference,
+    authority_namespace_diversification,
+    evidence_sufficiency_threshold_delta,
     gap_queries_per_round_bonus,
+    low_marginal_yield_threshold_delta,
+    max_tasks_bonus,
+    planner_decomposition_strictness,
     prefer_lower_cost_strategy,
+    reasoning_effort_from_policy,
     report_rewrite_bonus,
     retrieval_candidate_k_multiplier,
     retrieval_top_k_delta,
+    search_variant_count_delta,
+    zero_yield_reformulation_bonus,
 )
 from deepscout_evaluation.learning.policy_families import (
     EffectivePolicyVersionRef,
@@ -146,6 +154,51 @@ def effective_prefer_lower_cost(
         store, Settings(), owner_principal_id=owner_principal_id
     )
     return prefer_lower_cost_strategy(policy.cost_latency)
+
+
+def effective_query_strategy_params(
+    effective: EffectiveRuntimePolicy | None,
+) -> dict[str, int | float]:
+    payload = effective.query_strategy if effective else {}
+    return {
+        "search_variant_count_delta": search_variant_count_delta(payload),
+        "authority_namespace_diversification": authority_namespace_diversification(payload),
+        "zero_yield_reformulation_bonus": zero_yield_reformulation_bonus(payload),
+    }
+
+
+def effective_sufficiency_params(
+    effective: EffectiveRuntimePolicy | None,
+) -> dict[str, float]:
+    payload = effective.sufficiency if effective else {}
+    return {
+        "low_marginal_yield_threshold_delta": low_marginal_yield_threshold_delta(payload),
+        "evidence_sufficiency_threshold_delta": evidence_sufficiency_threshold_delta(payload),
+    }
+
+
+def effective_planner_params(
+    effective: EffectiveRuntimePolicy | None,
+) -> dict[str, int | float]:
+    payload = effective.planner if effective else {}
+    return {
+        "max_tasks_bonus": max_tasks_bonus(payload),
+        "planner_decomposition_strictness": planner_decomposition_strictness(payload),
+    }
+
+
+def effective_reasoning_effort(
+    effective: EffectiveRuntimePolicy | None,
+) -> str | None:
+    payload = effective.reasoning if effective else {}
+    return reasoning_effort_from_policy(payload)
+
+
+def effective_namespace_cap(effective: EffectiveRuntimePolicy | None) -> int:
+    div = authority_namespace_diversification(
+        effective.query_strategy if effective else {}
+    )
+    return max(1, min(3, round(1 + div * 2)))
 
 
 def policy_from_run_snapshot(snapshot: dict | None) -> EffectiveRuntimePolicy | None:

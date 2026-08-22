@@ -46,6 +46,10 @@ def build_research_plan(
     except KeyError:
         planner_spec = get_prompt("planner")
     router = ModelRouter(settings)
+    if store is not None:
+        from deepscout_research.runtime.learning_context import model_router_for_run
+
+        router = model_router_for_run(settings, store, run_id)
     model, selection = router.build_chat_model(AgentRole.PLANNER)
     structured_model = model.with_structured_output(PlannerStructuredOutput, include_raw=True)
     language_note = (
@@ -126,6 +130,23 @@ def build_research_plan(
     repaired, diagnostics = finalize_plan(
         settings, run_id=run_id, goal=goal, output=draft, store=store
     )
+    if store is not None:
+        from deepscout_evaluation.learning.policy_runtime import (
+            effective_planner_params,
+            policy_from_run_snapshot,
+        )
+
+        from deepscout_research.runtime.planner_policy import apply_planner_runtime_policy
+
+        row = store.get_run_row(run_id)
+        effective = policy_from_run_snapshot(row.config_snapshot if row else None)
+        params = effective_planner_params(effective)
+        repaired, cap = apply_planner_runtime_policy(
+            repaired,
+            max_tasks_bonus=int(params["max_tasks_bonus"]),
+            decomposition_strictness=float(params["planner_decomposition_strictness"]),
+        )
+        diagnostics["planner_policy_task_cap"] = cap
     if store is not None:
         store.merge_config_snapshot(run_id, {"plan_diagnostics": diagnostics})
     return repaired

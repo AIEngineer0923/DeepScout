@@ -134,6 +134,109 @@ def prefer_lower_cost_strategy(policy: dict[str, Any] | None) -> bool:
     return bool(policy.get("prefer_lower_cost_strategy", False))
 
 
+def search_variant_count_delta(policy: dict[str, Any] | None) -> int:
+    if not policy:
+        return 0
+    clamped = clamp_payload(
+        {"search_variant_count_delta": policy.get("search_variant_count_delta", 0)},
+        family=PolicyFamily.QUERY_STRATEGY,
+    )
+    return int(clamped.get("search_variant_count_delta", 0))
+
+
+def authority_namespace_diversification(policy: dict[str, Any] | None) -> float:
+    if not policy:
+        return 0.0
+    raw = float(policy.get("authority_namespace_diversification", 0.0))
+    return float(min(1.0, max(0.0, raw)))
+
+
+def zero_yield_reformulation_bonus(policy: dict[str, Any] | None) -> int:
+    if not policy:
+        return 0
+    clamped = clamp_payload(
+        {"zero_yield_reformulation_bonus": policy.get("zero_yield_reformulation_bonus", 0)},
+        family=PolicyFamily.QUERY_STRATEGY,
+    )
+    return int(clamped.get("zero_yield_reformulation_bonus", 0))
+
+
+def max_tasks_bonus(policy: dict[str, Any] | None) -> int:
+    if not policy:
+        return 0
+    clamped = clamp_payload(
+        {"max_tasks_bonus": policy.get("max_tasks_bonus", 0)},
+        family=PolicyFamily.PLANNER,
+    )
+    return int(clamped.get("max_tasks_bonus", 0))
+
+
+def planner_decomposition_strictness(policy: dict[str, Any] | None) -> float:
+    if not policy:
+        return 0.5
+    clamped = clamp_payload(
+        {"planner_decomposition_strictness": policy.get("planner_decomposition_strictness", 0.5)},
+        family=PolicyFamily.PLANNER,
+    )
+    return float(clamped.get("planner_decomposition_strictness", 0.5))
+
+
+def low_marginal_yield_threshold_delta(policy: dict[str, Any] | None) -> float:
+    if not policy:
+        return 0.0
+    clamped = clamp_payload(
+        {
+            "low_marginal_yield_threshold_delta": policy.get(
+                "low_marginal_yield_threshold_delta", 0.0
+            )
+        },
+        family=PolicyFamily.SUFFICIENCY,
+    )
+    return float(clamped.get("low_marginal_yield_threshold_delta", 0.0))
+
+
+def evidence_sufficiency_threshold_delta(policy: dict[str, Any] | None) -> float:
+    if not policy:
+        return 0.0
+    clamped = clamp_payload(
+        {
+            "evidence_sufficiency_threshold_delta": policy.get(
+                "evidence_sufficiency_threshold_delta", 0.0
+            )
+        },
+        family=PolicyFamily.SUFFICIENCY,
+    )
+    return float(clamped.get("evidence_sufficiency_threshold_delta", 0.0))
+
+
+_REASONING_LEVEL_MAP = ("minimal", "low", "medium", "high")
+
+
+def reasoning_effort_from_policy(policy: dict[str, Any] | None) -> str | None:
+    """Map bounded integer level 0-2 to provider effort string, or None for default."""
+    if not policy:
+        return None
+    clamped = clamp_payload(
+        {"reasoning_effort_level": policy.get("reasoning_effort_level", 0)},
+        family=PolicyFamily.REASONING,
+    )
+    level = int(clamped.get("reasoning_effort_level", 0))
+    if level <= 0:
+        return None
+    index = min(level, len(_REASONING_LEVEL_MAP) - 1)
+    return _REASONING_LEVEL_MAP[index]
+
+
+def cost_quality_tradeoff(policy: dict[str, Any] | None) -> float:
+    if not policy:
+        return 0.0
+    clamped = clamp_payload(
+        {"cost_quality_tradeoff": policy.get("cost_quality_tradeoff", 0.0)},
+        family=PolicyFamily.COST_LATENCY,
+    )
+    return float(clamped.get("cost_quality_tradeoff", 0.0))
+
+
 def risk_for_family(family: PolicyFamily) -> PolicyRiskLevel:
     from deepscout_evaluation.learning.policy_families import FAMILY_RISK
 

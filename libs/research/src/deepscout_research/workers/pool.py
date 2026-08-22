@@ -199,9 +199,24 @@ class ResearchWorkerPool:
 
                 row = store.get_run_row(run_id)
                 contract = contract_from_snapshot(row.config_snapshot if row else None)
+                query_params = {
+                    "search_variant_count_delta": 0,
+                    "zero_yield_reformulation_bonus": 0,
+                }
+                if row is not None:
+                    from deepscout_evaluation.learning.policy_runtime import (
+                        effective_query_strategy_params,
+                        policy_from_run_snapshot,
+                    )
+
+                    effective = policy_from_run_snapshot(row.config_snapshot)
+                    query_params = effective_query_strategy_params(effective)
                 if task.task_key == "entity-office-holder" and contract is not None:
                     variants = office_holder_queries(contract)
-                    query = variants[0] if variants else query
+                    variant_delta = int(query_params.get("search_variant_count_delta", 0))
+                    if variants:
+                        idx = min(len(variants) - 1, max(0, variant_delta))
+                        query = variants[idx]
                 query = enrich_search_query_with_policy(query, contract)
                 graph_state = run_worker_graph(
                     run_id=run_id,
@@ -231,6 +246,25 @@ class ResearchWorkerPool:
                     SearchResult.model_validate(item)
                     for item in graph_state.get("search_results", [])
                 ]
+                if not results and int(query_params.get("zero_yield_reformulation_bonus", 0)) > 0:
+                    reformulated = f"{query} official authoritative source"[:500]
+                    if reformulated != query:
+                        query = reformulated
+                        graph_state = run_worker_graph(
+                            run_id=run_id,
+                            task_id=task.id,
+                            worker_id=worker_id,
+                            objective=query,
+                            search_provider=RunScopedSearchProvider(self._search, store, run_id),
+                            resume=True,
+                            database_url=self._settings.database_url,
+                            durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,
+                            cancelled=run is not None and run.status.value == "cancelled",
+                        )
+                        results = [
+                            SearchResult.model_validate(item)
+                            for item in graph_state.get("search_results", [])
+                        ]
             except BudgetExhaustedError as exc:
                 store.update_task_status(
                     task.id,

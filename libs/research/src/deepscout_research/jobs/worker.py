@@ -47,6 +47,17 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
             logger.exception("Monitor dispatch failed")
         job = jobs.claim_next(owner)
         if job is None:
+            try:
+                from deepscout_evaluation.learning.experiment_jobs import (
+                    process_learning_experiment_jobs,
+                )
+
+                processed = process_learning_experiment_jobs(store, owner, limit=2)
+                if processed:
+                    store.commit()
+            except Exception:
+                session.rollback()
+                logger.exception("Learning experiment dispatch failed")
             session.close()
             if once:
                 return

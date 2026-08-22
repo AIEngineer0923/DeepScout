@@ -30,7 +30,7 @@ LAST_DIAGNOSTICS: dict = {}
 
 
 def apply_validator_output(
-    base: PlannerOutput, validated: DependencyValidatorOutput
+    base: PlannerOutput, validated: DependencyValidatorOutput, *, max_validator_tasks: int = 8
 ) -> PlannerOutput:
     """Merge validator DAG onto planner output. Structural repair still runs after this."""
     try:
@@ -41,7 +41,7 @@ def apply_validator_output(
         decomposition = PlanDecomposition.CHAIN if len(validated.tasks) >= 2 else decomposition
     by_key = {task.task_key: task for task in base.tasks}
     merged: list[PlannerTask] = []
-    for index, item in enumerate(validated.tasks[:MAX_VALIDATOR_TASKS], start=1):
+    for index, item in enumerate(validated.tasks[:max_validator_tasks], start=1):
         key = (
             "".join(ch for ch in item.task_key.lower() if ch.isalnum() or ch in "_-") or f"t{index}"
         )
@@ -122,6 +122,10 @@ def validate_semantic_dependencies(
     try:
         if invoke is None:
             router = ModelRouter(settings)
+            if store is not None:
+                from deepscout_research.runtime.learning_context import model_router_for_run
+
+                router = model_router_for_run(settings, store, run_id)
             model, selection = router.build_chat_model(AgentRole.PLANNER_VALIDATOR)
             structured = model.with_structured_output(DependencyValidatorOutput, include_raw=True)
             context = ContextAssembly(
@@ -168,7 +172,18 @@ def validate_semantic_dependencies(
             parsed = invoke(payload)
         if not isinstance(parsed, DependencyValidatorOutput):
             parsed = DependencyValidatorOutput.model_validate(parsed)
-        corrected = apply_validator_output(output, parsed)
+        max_validator_tasks = MAX_VALIDATOR_TASKS
+        if store is not None:
+            from deepscout_evaluation.learning.policy_runtime import (
+                effective_planner_params,
+                policy_from_run_snapshot,
+            )
+
+            row = store.get_run_row(run_id)
+            effective = policy_from_run_snapshot(row.config_snapshot if row else None)
+            bonus = int(effective_planner_params(effective).get("max_tasks_bonus", 0))
+            max_validator_tasks = min(10, MAX_VALIDATOR_TASKS + max(0, bonus))
+        corrected = apply_validator_output(output, parsed, max_validator_tasks=max_validator_tasks)
         diagnostics.update(
             {
                 "validator_applied": True,

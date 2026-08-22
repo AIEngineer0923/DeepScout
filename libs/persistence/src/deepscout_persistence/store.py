@@ -83,6 +83,9 @@ from deepscout_persistence.models import (
     ImprovementCandidateRow,
     LearningAuditEventRow,
     LearningCaseRow,
+    LearningExperienceSampleRow,
+    LearningExperimentJobRow,
+    LearningPolicyMonitoringRow,
     LearningPolicyVersionRow,
     ReportEvidenceRow,
     ReportRow,
@@ -719,6 +722,11 @@ class ResearchStore:
             for row in rows
         ]
 
+    def get_improvement_candidate_row(self, candidate_id: uuid.UUID) -> ImprovementCandidateRow | None:
+        if not self._learning_tables_available():
+            return None
+        return self._session.get(ImprovementCandidateRow, candidate_id)
+
     def update_improvement_candidate_status(
         self,
         candidate_id: uuid.UUID,
@@ -800,6 +808,17 @@ class ResearchStore:
             reason=promotion_reason,
             details=evidence,
         )
+        if self._learning_monitoring_available():
+            from datetime import timedelta
+
+            self.start_learning_policy_monitoring(
+                policy_version_id=row.id,
+                policy_key=policy_key,
+                policy_family=policy_family or "corrective_research",
+                owner_principal_id=owner_principal_id,
+                baseline_metrics=(evidence or {}).get("baseline_metrics", {"quality": 0.8}),
+                window_end=datetime.now(UTC) + timedelta(hours=72),
+            )
         return row.id
 
     def get_active_learning_policy(
@@ -1044,6 +1063,237 @@ class ResearchStore:
             "policy_promoted",
             "policy_rolled_back",
         ]
+
+    def _learning_experience_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("learning_experience_samples")
+        except Exception:
+            return False
+
+    def record_learning_experience_sample(
+        self,
+        *,
+        owner_principal_id: uuid.UUID | None,
+        strategy_key: str,
+        quality: float,
+        cost: float,
+        research_run_id: uuid.UUID,
+    ) -> uuid.UUID | None:
+        if not self._learning_experience_available():
+            return None
+        row = LearningExperienceSampleRow(
+            owner_principal_id=owner_principal_id,
+            strategy_key=strategy_key,
+            quality=quality,
+            cost=cost,
+            research_run_id=research_run_id,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return row.id
+
+    def aggregate_learning_experience(
+        self,
+        *,
+        owner_principal_id: uuid.UUID | None,
+        strategy_key: str,
+        limit: int = 50,
+    ) -> dict[str, float] | None:
+        if not self._learning_experience_available():
+            return None
+        stmt = select(LearningExperienceSampleRow).where(
+            LearningExperienceSampleRow.strategy_key == strategy_key
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id.is_(None))
+        rows = list(self._session.scalars(stmt.order_by(LearningExperienceSampleRow.created_at.desc()).limit(limit)))
+        if not rows:
+            return None
+        return {
+            "avg_quality": sum(r.quality for r in rows) / len(rows),
+            "avg_cost": sum(r.cost for r in rows) / len(rows),
+            "sample_count": len(rows),
+        }
+
+    def _learning_monitoring_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("learning_policy_monitoring")
+        except Exception:
+            return False
+
+    def start_learning_policy_monitoring(
+        self,
+        *,
+        policy_version_id: uuid.UUID,
+        policy_key: str,
+        policy_family: str,
+        owner_principal_id: uuid.UUID | None,
+        baseline_metrics: dict,
+        window_end: datetime,
+    ) -> uuid.UUID | None:
+        if not self._learning_monitoring_available():
+            return None
+        row = LearningPolicyMonitoringRow(
+            policy_version_id=policy_version_id,
+            policy_key=policy_key,
+            policy_family=policy_family,
+            owner_principal_id=owner_principal_id,
+            baseline_metrics=dict(baseline_metrics),
+            window_end=window_end,
+        )
+        self._session.add(row)
+        self._session.flush()
+        self._record_learning_audit(
+            event_type="policy_monitoring_started",
+            policy_key=policy_key,
+            policy_family=policy_family,
+            owner_principal_id=owner_principal_id,
+            policy_version_id=policy_version_id,
+            details={"baseline_metrics": baseline_metrics},
+        )
+        return row.id
+
+    def list_active_policy_monitoring(self) -> list[dict]:
+        if not self._learning_monitoring_available():
+            return []
+        now = datetime.now(UTC)
+        rows = self._session.scalars(
+            select(LearningPolicyMonitoringRow).where(
+                LearningPolicyMonitoringRow.status == "active",
+                LearningPolicyMonitoringRow.window_end >= now,
+            )
+        ).all()
+        return [
+            {
+                "id": row.id,
+                "policy_version_id": row.policy_version_id,
+                "policy_key": row.policy_key,
+                "policy_family": row.policy_family,
+                "owner_principal_id": row.owner_principal_id,
+                "baseline_metrics": dict(row.baseline_metrics or {}),
+                "observed_metrics": dict(row.observed_metrics or {}),
+                "observed_samples": row.observed_samples,
+            }
+            for row in rows
+        ]
+
+    def record_policy_monitoring_observation(
+        self,
+        *,
+        policy_key: str,
+        owner_principal_id: uuid.UUID | None,
+        metrics: dict,
+    ) -> None:
+        if not self._learning_monitoring_available():
+            return
+        stmt = select(LearningPolicyMonitoringRow).where(
+            LearningPolicyMonitoringRow.policy_key == policy_key,
+            LearningPolicyMonitoringRow.status == "active",
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningPolicyMonitoringRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningPolicyMonitoringRow.owner_principal_id.is_(None))
+        row = self._session.scalar(stmt.order_by(LearningPolicyMonitoringRow.created_at.desc()))
+        if row is None:
+            return
+        observed = dict(row.observed_metrics or {})
+        count = int(row.observed_samples or 0) + 1
+        for key, value in metrics.items():
+            prior = float(observed.get(f"avg_{key}", observed.get(key, value)))
+            observed[f"avg_{key}"] = prior + (float(value) - prior) / count
+        row.observed_metrics = observed
+        row.observed_samples = count
+
+    def complete_policy_monitoring(self, monitoring_id: uuid.UUID, *, status: str) -> None:
+        if not self._learning_monitoring_available():
+            return
+        row = self._session.get(LearningPolicyMonitoringRow, monitoring_id)
+        if row is None:
+            return
+        row.status = status
+
+    def _learning_experiment_jobs_available(self) -> bool:
+        try:
+            return inspect(self._session.get_bind()).has_table("learning_experiment_jobs")
+        except Exception:
+            return False
+
+    def enqueue_learning_experiment(
+        self,
+        *,
+        candidate_id: uuid.UUID,
+        owner_principal_id: uuid.UUID | None,
+        payload: dict,
+    ) -> uuid.UUID | None:
+        if not self._learning_experiment_jobs_available():
+            return None
+        row = LearningExperimentJobRow(
+            candidate_id=candidate_id,
+            owner_principal_id=owner_principal_id,
+            payload=dict(payload),
+            status="pending",
+        )
+        self._session.add(row)
+        self._session.flush()
+        self._record_learning_audit(
+            event_type="experiment_queued",
+            owner_principal_id=owner_principal_id,
+            candidate_id=candidate_id,
+            details={"job_id": str(row.id)},
+        )
+        return row.id
+
+    def claim_learning_experiment_job(self, owner: str, *, lease_seconds: int = 120) -> LearningExperimentJobRow | None:
+        if not self._learning_experiment_jobs_available():
+            return None
+        now = datetime.now(UTC)
+        stmt = (
+            select(LearningExperimentJobRow)
+            .where(
+                LearningExperimentJobRow.status == "pending",
+                (LearningExperimentJobRow.lease_until.is_(None))
+                | (LearningExperimentJobRow.lease_until < now),
+            )
+            .order_by(LearningExperimentJobRow.created_at)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        row = self._session.scalar(stmt)
+        if row is None:
+            return None
+        row.status = "running"
+        row.lease_owner = owner
+        row.lease_until = now + timedelta(seconds=lease_seconds)
+        row.updated_at = now
+        return row
+
+    def complete_learning_experiment_job(
+        self,
+        job_id: uuid.UUID,
+        *,
+        result: dict,
+        owner: str,
+    ) -> bool:
+        if not self._learning_experiment_jobs_available():
+            return False
+        row = self._session.get(LearningExperimentJobRow, job_id)
+        if row is None or row.lease_owner != owner:
+            return False
+        row.status = "completed"
+        row.result = dict(result)
+        row.lease_owner = None
+        row.lease_until = None
+        row.updated_at = datetime.now(UTC)
+        self._record_learning_audit(
+            event_type="experiment_completed",
+            owner_principal_id=row.owner_principal_id,
+            candidate_id=row.candidate_id,
+            details={"job_id": str(job_id), "outcome": result.get("outcome")},
+        )
+        return True
 
     def list_jobs_for_run(self, run_id: uuid.UUID) -> list[ResearchJobRow]:
         self._require_run(run_id)

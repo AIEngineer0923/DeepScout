@@ -333,4 +333,23 @@ def create_feedback(
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    row = store.get_run_row(run_id)
+    if row is not None and body.note:
+        from deepscout_evaluation.learning.experience_store import persist_learning_case
+        from deepscout_evaluation.learning.feedback_learning import (
+            learning_case_from_human_feedback,
+        )
+
+        case = learning_case_from_human_feedback(
+            feedback_id=feedback_id,
+            research_run_id=run_id,
+            owner_principal_id=row.owner_principal_id,
+            target_type=body.target_type.value if hasattr(body.target_type, "value") else str(body.target_type),
+            rating=None,
+            comment=body.note,
+            labels=list((body.scores or {}).keys()),
+        )
+        if case is not None:
+            persist_learning_case(store, case)
+            store.commit()
     return {"id": str(feedback_id), "namespace": "evaluation"}

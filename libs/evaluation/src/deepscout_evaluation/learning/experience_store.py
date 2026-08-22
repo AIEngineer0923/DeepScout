@@ -35,7 +35,7 @@ def promote_policy_version(store: ResearchStore, policy: PolicyVersion) -> UUID:
 
 
 def observe_and_persist_terminal_run(store: ResearchStore, run_id: UUID) -> UUID | None:
-    """Observe a terminal run and persist a learning case when evaluators fail."""
+    """Observe a terminal run and persist learning cases when signals exist."""
     from deepscout_evaluation.learning.observation import observe_from_evaluations
     from deepscout_evaluation.regression_origins import RegressionOrigin
 
@@ -56,14 +56,53 @@ def observe_and_persist_terminal_run(store: ResearchStore, run_id: UUID) -> UUID
         origin=RegressionOrigin.PRODUCTION_CANDIDATE,
         is_public_demo=bool(row.public_slug),
     )
-    if case is None:
-        return None
-    existing = store.get_learning_case_by_key(
-        case.case_id, owner_principal_id=row.owner_principal_id
+    case_id: UUID | None = None
+    if case is not None:
+        existing = store.get_learning_case_by_key(
+            case.case_id, owner_principal_id=row.owner_principal_id
+        )
+        if existing is not None:
+            case_id = existing
+        else:
+            case_id = persist_learning_case(store, case)
+
+    from deepscout_evaluation.learning.monitoring import (
+        evaluate_monitoring_rollback,
+        record_monitoring_observation,
+        run_metrics_from_evaluations,
     )
-    if existing is not None:
-        return existing
-    return persist_learning_case(store, case)
+    from deepscout_evaluation.learning.positive_experience import (
+        observe_positive_experience_from_run,
+        persist_positive_opportunity,
+    )
+
+    consumption = store.get_consumption(run_id)
+    metrics = run_metrics_from_evaluations(
+        evaluation_rows,
+        consumption={
+            "tool_calls": consumption.tool_calls,
+            "llm_calls": getattr(consumption, "llm_calls", 0),
+        }
+        if consumption
+        else None,
+    )
+    snapshot = row.config_snapshot or {}
+    policy_block = snapshot.get("learning_policies") or {}
+    for version in policy_block.get("learning_policy_versions") or []:
+        if isinstance(version, dict) and version.get("policy_key"):
+            record_monitoring_observation(
+                store,
+                policy_key=str(version["policy_key"]),
+                owner_principal_id=row.owner_principal_id,
+                metrics=metrics,
+            )
+    evaluate_monitoring_rollback(store)
+
+    opportunity = observe_positive_experience_from_run(store, run_id)
+    if opportunity is not None:
+        persist_positive_opportunity(store, opportunity)
+
+    return case_id
 
 
 def list_learning_cases_for_owner(

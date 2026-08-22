@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any
 
 from deepscout_core.domain.enums import AgentRole
 from deepscout_core.settings import Settings
@@ -16,6 +17,9 @@ from deepscout_research.routing.provider_health import (
     ProviderHealthRegistry,
 )
 from langchain_core.language_models.chat_models import BaseChatModel
+
+if TYPE_CHECKING:
+    from deepscout_evaluation.learning.policy_families import EffectiveRuntimePolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,10 +57,26 @@ class ModelRouter:
         policies: list[AgentModelPolicy] | None = None,
         *,
         health: ProviderHealthRegistry | None = None,
+        effective_policy: EffectiveRuntimePolicy | Any | None = None,
     ) -> None:
         self._settings = settings
         self._policies = {policy.role: policy for policy in (policies or [])}
         self._health = health or DEFAULT_PROVIDER_HEALTH
+        self._effective_policy = effective_policy
+
+    def _learning_reasoning(self) -> str | None:
+        if self._effective_policy is None:
+            return None
+        from deepscout_evaluation.learning.policy_runtime import effective_reasoning_effort
+
+        return effective_reasoning_effort(self._effective_policy)
+
+    def _prefer_lower_cost(self) -> bool:
+        if self._effective_policy is None:
+            return False
+        from deepscout_evaluation.learning.policy import prefer_lower_cost_strategy
+
+        return prefer_lower_cost_strategy(self._effective_policy.cost_latency)
 
     def resolve(
         self,
@@ -75,13 +95,16 @@ class ModelRouter:
             raise IncompatibleFallbackError(
                 f"primary {provider.value}:{model} lacks required capabilities"
             )
+        reasoning = policy.reasoning_level if policy else None
+        if reasoning is None:
+            reasoning = self._learning_reasoning()
         return ModelSelection(
             provider=provider,
             model=model,
             agent_role=role,
             fallback_provider=policy.fallback_provider if policy else None,
             fallback_model=policy.fallback_model if policy else None,
-            reasoning_level=policy.reasoning_level if policy else None,
+            reasoning_level=reasoning,
         )
 
     def select_with_fallback(
@@ -146,12 +169,16 @@ class ModelRouter:
         fallback_reason: str | None = None,
     ) -> tuple[BaseChatModel, ModelSelection]:
         build_options = options or options_from_settings(self._settings)
+        learning_effort = self._learning_reasoning()
+        if learning_effort and not build_options.reasoning_effort:
+            build_options = replace(build_options, reasoning_effort=learning_effort)
+        cost_prefer = self._prefer_lower_cost() and not prefer_fallback
         if requirements is not None and requirements.fallback_allowed:
             selection = self.select_with_fallback(
                 role,
                 requirements=requirements,
-                prefer_fallback=prefer_fallback,
-                fallback_reason=fallback_reason,
+                prefer_fallback=prefer_fallback or cost_prefer,
+                fallback_reason=fallback_reason or ("prefer_lower_cost" if cost_prefer else None),
             )
         else:
             selection = self.resolve(role, requirements=requirements)
