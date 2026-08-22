@@ -40,7 +40,8 @@ The public deployment splits **Vercel** (Next.js frontend) and a **persistent AP
 8. **Quality** — Contradiction detection; deterministic quality checks on the run.
 9. **Report** — Markdown report with citations rendered in the UI (not raw `**` / pipe tables).
 10. **Evaluations** — 48 evaluator slots per run; deterministic results persisted; honest unavailable/skipped states.
-11. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, optional LangSmith tracing.
+11. **Continuous learning** — Observes terminal runs and may promote **versioned runtime policies** (nine bounded families) after diagnosis, experiment, and optional HITL. Post-promotion monitoring measures whether future runs improve; rollback when regressions are detected. DeepScout does not autonomously mutate code or train models.
+12. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, `/learning` operator UI, optional LangSmith tracing.
 
 Not included as production backends today: SPLADE, Neo4j GraphRAG, community GraphRAG, paid LLM rerankers (cross-encoder optional), or online RAGAS. Production hybrid retrieval uses **BM25 + Postgres FTS + dense pgvector** fused with RRF. See [AI & retrieval architecture](docs/architecture-overview.md) and [ADR-013](docs/architecture/adr/ADR-013-retrieval-upgrade.md).
 
@@ -128,6 +129,7 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | [docs/public-instance.md](docs/public-instance.md) | Hosted app, demo, BYOK |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems |
 | [docs/evaluations.md](docs/evaluations.md) | Evaluator registry, statuses, retrieval quality benchmark |
+| [docs/architecture/CONTINUOUS_LEARNING.md](docs/architecture/CONTINUOUS_LEARNING.md) | Adaptive policies, monitoring, rollback |
 | [docs/architecture-overview.md](docs/architecture-overview.md) | System flow, AI/retrieval, deployment roles |
 | [docs/agent-runtime.md](docs/agent-runtime.md) | Orchestrator, planner, workers, LangChain/LangGraph roles |
 | [docs/repository-map.md](docs/repository-map.md) | Where code lives (for humans and coding agents) |

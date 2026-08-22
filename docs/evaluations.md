@@ -204,6 +204,9 @@ System-wide controlled self-improvement extends evaluation — **not** autonomou
 flowchart LR
   A[Terminal run] --> B[Observe eval signals]
   B --> C[Learning case]
+  PE[Positive experience] --> C
+  UF[User feedback<br/>untrusted] -.-> C
+  HITL[HITL review<br/>authoritative] -.-> C
   C --> D[Diagnose root cause]
   D --> E[Improvement candidate]
   E --> F[Deterministic experiment]
@@ -211,18 +214,22 @@ flowchart LR
   G -->|safe| H[Versioned policy]
   G -->|review| I[HITL / operator]
   G -->|reject| J[No change]
-  H --> K[Bounded runtime hook]
-  K --> L[Monitor + rollback]
-  D --> M[Retrieval regression ingest]
-  M --> C
+  H --> ERP[Effective runtime policy<br/>frozen in config_snapshot]
+  ERP --> K[Future runs]
+  K --> M[Monitoring window]
+  M --> N{Keep / rollback}
+  D --> RF[Retrieval regression ingest]
+  RF --> C
 ```
 
 | Layer | Command / path | CI | Provider spend |
 |-------|----------------|----|----------------|
 | Deterministic learning loop | `scripts/learning_loop_gate.py` | Yes | None |
+| Learning effectiveness analytics | `scripts/learning_effectiveness_gate.py` | Yes | None |
 | Retrieval regression | `scripts/retrieval_regression_gate.py` | Yes | None |
 | Live benchmark | `scripts/retrieval_quality_benchmark.py --live` | No | Manual |
-| Experience store | `learning_cases`, `improvement_candidates`, `learning_policy_versions` (migration `014`) | N/A | None |
+| Experience store | migrations `014`–`016` (`learning_cases`, `improvement_candidates`, `learning_policy_versions`, monitoring, audit) | N/A | None |
+| Operator UI | `/learning` (hosted, owner-scoped) | N/A | None |
 
 ### Trust levels
 
@@ -239,9 +246,11 @@ flowchart LR
 - Public demos **never** create learning cases
 - `production_candidate` never auto-promotes to CI or global policy
 - Promotion default: **NO CHANGE** when inconclusive
-- Runtime hook today: `gap_queries_per_round_bonus` capped at +1 for corrective research only
+- Nine adaptive policy families are runtime-wired; values clamped by `HARD_BOUNDS`
+- Learning ≠ promotion: improvement requires post-promotion measurement (monitoring, cohort comparison, rollback)
+- User feedback is an untrusted signal; HITL review events are authoritative — neither overrides security invariants
 
-See [ADR-018](../architecture/adr/ADR-018-continuous-learning.md).
+See [ADR-018](../architecture/adr/ADR-018-continuous-learning.md) and [CONTINUOUS_LEARNING.md](../architecture/CONTINUOUS_LEARNING.md).
 
 Legacy scripts still useful for focused checks:
 

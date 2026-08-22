@@ -955,7 +955,12 @@ class ResearchStore:
         )
 
     def list_learning_policy_versions(
-        self, *, policy_key: str | None = None, owner_principal_id: uuid.UUID | None = None, limit: int = 50
+        self,
+        *,
+        policy_key: str | None = None,
+        owner_principal_id: uuid.UUID | None = None,
+        limit: int = 50,
+        active_only: bool = False,
     ) -> list[dict[str, object]]:
         if not self._learning_tables_available():
             return []
@@ -966,6 +971,8 @@ class ResearchStore:
             stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
         else:
             stmt = stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+        if active_only:
+            stmt = stmt.where(LearningPolicyVersionRow.active.is_(True))
         stmt = stmt.order_by(LearningPolicyVersionRow.created_at.desc()).limit(limit)
         return [
             {
@@ -976,6 +983,7 @@ class ResearchStore:
                 "version_label": row.version_label,
                 "active": row.active,
                 "promotion_reason": row.promotion_reason,
+                "payload": dict(row.payload or {}),
                 "created_at": row.created_at,
                 "activated_at": row.activated_at,
             }
@@ -1034,6 +1042,153 @@ class ResearchStore:
                 1 for c in candidates if c.status == "requires_human_review"
             ),
             "active_policy_versions": len(active_policies),
+        }
+
+    def get_learning_production_counts(
+        self, *, owner_principal_id: uuid.UUID | None = None
+    ) -> dict[str, int]:
+        metrics = self.get_learning_metrics(owner_principal_id=owner_principal_id)
+        counts = dict(metrics)
+        if self._learning_experience_available():
+            stmt = select(LearningExperienceSampleRow)
+            if owner_principal_id is not None:
+                stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id == owner_principal_id)
+            counts["experience_samples"] = len(list(self._session.scalars(stmt).all()))
+        else:
+            counts["experience_samples"] = 0
+        if self._learning_monitoring_available():
+            mon_stmt = select(LearningPolicyMonitoringRow).where(
+                LearningPolicyMonitoringRow.status == "active"
+            )
+            if owner_principal_id is not None:
+                mon_stmt = mon_stmt.where(
+                    LearningPolicyMonitoringRow.owner_principal_id == owner_principal_id
+                )
+            counts["monitoring_active"] = len(list(self._session.scalars(mon_stmt).all()))
+        else:
+            counts["monitoring_active"] = 0
+        if self._learning_experiment_jobs_available():
+            job_stmt = select(LearningExperimentJobRow).where(
+                LearningExperimentJobRow.status.in_(("pending", "running"))
+            )
+            if owner_principal_id is not None:
+                job_stmt = job_stmt.where(
+                    LearningExperimentJobRow.owner_principal_id == owner_principal_id
+                )
+            counts["experiments_pending"] = len(list(self._session.scalars(job_stmt).all()))
+        else:
+            counts["experiments_pending"] = 0
+        if self._learning_tables_available():
+            case_stmt = select(LearningCaseRow)
+            if owner_principal_id is not None:
+                case_stmt = case_stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
+            cases = list(self._session.scalars(case_stmt).all())
+            counts["opportunity_cases"] = sum(1 for c in cases if c.failure_class == "opportunity")
+            counts["user_feedback_cases"] = sum(
+                1 for c in cases if str(c.case_key).startswith("feedback-")
+            )
+            counts["hitl_learning_cases"] = sum(
+                1 for c in cases if str(c.case_key).startswith("hitl-")
+            )
+        terminal_stmt = select(ResearchRunRow).where(
+            ResearchRunRow.status.in_(
+                (
+                    ResearchRunStatus.COMPLETED,
+                    ResearchRunStatus.FAILED,
+                    ResearchRunStatus.BUDGET_EXHAUSTED,
+                    ResearchRunStatus.CANCELLED,
+                )
+            ),
+            ResearchRunRow.public_slug.is_(None),
+            ResearchRunRow.completed_at.is_not(None),
+        )
+        if owner_principal_id is not None:
+            terminal_stmt = terminal_stmt.where(
+                ResearchRunRow.owner_principal_id == owner_principal_id
+            )
+        counts["terminal_runs"] = len(list(self._session.scalars(terminal_stmt).all()))
+        return counts
+
+    def list_learning_analytics_runs(
+        self,
+        *,
+        owner_principal_id: uuid.UUID | None = None,
+        limit: int = 400,
+    ) -> list[dict[str, object]]:
+        stmt = (
+            select(ResearchRunRow)
+            .where(
+                ResearchRunRow.status.in_(
+                    (
+                        ResearchRunStatus.COMPLETED,
+                        ResearchRunStatus.FAILED,
+                        ResearchRunStatus.BUDGET_EXHAUSTED,
+                        ResearchRunStatus.CANCELLED,
+                    )
+                ),
+                ResearchRunRow.public_slug.is_(None),
+                ResearchRunRow.completed_at.is_not(None),
+            )
+            .order_by(ResearchRunRow.completed_at.desc())
+            .limit(limit)
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(ResearchRunRow.owner_principal_id == owner_principal_id)
+        rows = list(self._session.scalars(stmt).all())
+        if not rows:
+            return []
+        run_ids = [row.id for row in rows]
+        eval_rows = list(
+            self._session.scalars(
+                select(EvaluationResultRow).where(EvaluationResultRow.research_run_id.in_(run_ids))
+            ).all()
+        )
+        eval_by_run: dict[uuid.UUID, list[dict[str, object]]] = {}
+        for ev in eval_rows:
+            eval_by_run.setdefault(ev.research_run_id, []).append(
+                {"evaluator_id": ev.evaluator_id, "status": ev.status}
+            )
+        out: list[dict[str, object]] = []
+        for row in rows:
+            evals = eval_by_run.get(row.id, [])
+            passed = sum(1 for e in evals if str(e.get("status")) == "passed")
+            total = len(evals) or 1
+            critical = sum(1 for e in evals if str(e.get("status")) in {"failed", "error"})
+            out.append(
+                {
+                    "id": row.id,
+                    "research_mode": row.research_mode,
+                    "output_language": row.output_language,
+                    "completed_at": row.completed_at,
+                    "consumed_tool_calls": row.consumed_tool_calls,
+                    "consumed_wall_time_seconds": row.consumed_wall_time_seconds,
+                    "config_snapshot": row.config_snapshot,
+                    "quality": passed / total if evals else None,
+                    "had_critical_failure": critical > 0,
+                }
+            )
+        return out
+
+    def get_policy_monitoring_for_key(
+        self, *, policy_key: str, owner_principal_id: uuid.UUID | None
+    ) -> dict[str, object] | None:
+        if not self._learning_monitoring_available():
+            return None
+        stmt = select(LearningPolicyMonitoringRow).where(
+            LearningPolicyMonitoringRow.policy_key == policy_key,
+            LearningPolicyMonitoringRow.status == "active",
+        )
+        if owner_principal_id is not None:
+            stmt = stmt.where(LearningPolicyMonitoringRow.owner_principal_id == owner_principal_id)
+        else:
+            stmt = stmt.where(LearningPolicyMonitoringRow.owner_principal_id.is_(None))
+        row = self._session.scalar(stmt.order_by(LearningPolicyMonitoringRow.created_at.desc()))
+        if row is None:
+            return None
+        return {
+            "observed_samples": row.observed_samples,
+            "observed_metrics": dict(row.observed_metrics or {}),
+            "baseline_metrics": dict(row.baseline_metrics or {}),
         }
 
     def promotion_cooldown_active(
@@ -1178,6 +1333,20 @@ class ResearchStore:
             }
             for row in rows
         ]
+
+    def close_expired_monitoring_windows(self) -> int:
+        if not self._learning_monitoring_available():
+            return 0
+        now = datetime.now(UTC)
+        rows = self._session.scalars(
+            select(LearningPolicyMonitoringRow).where(
+                LearningPolicyMonitoringRow.status == "active",
+                LearningPolicyMonitoringRow.window_end < now,
+            )
+        ).all()
+        for row in rows:
+            row.status = "completed"
+        return len(rows)
 
     def record_policy_monitoring_observation(
         self,

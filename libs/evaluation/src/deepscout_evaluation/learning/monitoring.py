@@ -48,6 +48,11 @@ def record_monitoring_observation(
     )
 
 
+def close_expired_monitoring_windows(store: ResearchStore) -> int:
+    """Mark monitoring windows past window_end as completed."""
+    return store.close_expired_monitoring_windows()
+
+
 def evaluate_monitoring_rollback(store: ResearchStore) -> list[dict[str, Any]]:
     """Auto-rollback LOW_RISK policies when critical regression detected."""
     actions: list[dict[str, Any]] = []

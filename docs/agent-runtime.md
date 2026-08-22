@@ -456,7 +456,23 @@ At finalization: `persist_research_evaluations()` → `evaluation_results` table
 
 LangSmith experiments (`scripts/langsmith_*`) are **operator observability** — separate from product evaluation rows.
 
-See [evaluations.md](evaluations.md).
+See [evaluations.md](evaluations.md) and [architecture/CONTINUOUS_LEARNING.md](architecture/CONTINUOUS_LEARNING.md).
+
+### Effective runtime policy
+
+At run creation the API resolves promoted policies per family (`policy_resolver.py`) and freezes them in `config_snapshot["learning_policies"]`. Workers read the **snapshot**, not live DB rows.
+
+Precedence:
+
+```text
+1. HARD_BOUNDS + hook-site caps (always win)
+2. Run / user constraints (budget, contract, tool allowlists)
+3. Active promoted policy (global, scoped, or tenant-local)
+4. FAMILY_BASELINES defaults
+→ EffectiveRuntimePolicy
+```
+
+Adaptive knobs (retrieval, planner, synthesis, etc.) cannot override auth, tenant isolation, SSRF, evidence provenance, HITL authority, or absolute budget ceilings.
 
 ---
 

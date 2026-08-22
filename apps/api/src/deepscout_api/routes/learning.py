@@ -8,6 +8,10 @@ from uuid import UUID
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.learning.candidates import generate_improvement_candidate
 from deepscout_evaluation.learning.diagnosis import diagnose_learning_case
+from deepscout_evaluation.learning.effectiveness import (
+    compute_learning_effectiveness,
+    effectiveness_to_dict,
+)
 from deepscout_evaluation.learning.experience_store import (
     list_improvement_candidates_for_owner,
     list_learning_cases_for_owner,
@@ -146,6 +150,19 @@ def learning_metrics(
     principal = require_user(access)
     _require_learning(store)
     return LearningMetricsRead(**store.get_learning_metrics(owner_principal_id=principal.id))
+
+
+@router.get("/api/v1/learning/effectiveness")
+def learning_effectiveness(
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    access = load_access(request, store._session, settings)
+    principal = require_user(access)
+    _require_learning(store)
+    report = compute_learning_effectiveness(store, owner_principal_id=principal.id)
+    return effectiveness_to_dict(report)
 
 
 @router.get("/api/v1/learning/policies", response_model=list[PolicyVersionRead])

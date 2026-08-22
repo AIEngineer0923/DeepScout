@@ -22,6 +22,7 @@ Hosted production adds OAuth sessions and encrypted BYOK credentials on the API/
 ```text
 Goal submitted
   → Research run created (budget, mode, language)
+  → Effective runtime policy resolved + frozen in config_snapshot
   → Worker: PLAN (semantic planner → task DAG)
   → RESEARCH (agents + web search + fetch)
   → COLLECT / INDEX (chunks + embeddings per run)
@@ -31,9 +32,10 @@ Goal submitted
   → CRITIC / SYNTHESIS
   → REPORT (cited Markdown)
   → Finalize → persist evaluation_results (deterministic evaluators)
+  → Observe → learning cases / experience samples (non-demo runs only)
 ```
 
-Phases are owned by `libs/research/src/deepscout_research/orchestrator.py`. Each phase can invoke LangChain agents with an allowlisted tool set.
+Phases are owned by `libs/research/src/deepscout_research/orchestrator.py`. Each phase can invoke LangChain agents with an allowlisted tool set. Promoted adaptive policies influence hooks (retrieval, planner, synthesis, etc.) via the frozen `learning_policies` snapshot — see [CONTINUOUS_LEARNING.md](architecture/CONTINUOUS_LEARNING.md).
 
 ## Retrieval path (hybrid)
 
@@ -122,6 +124,7 @@ For detailed design on orchestration, LangChain/LangGraph boundaries, prompts, a
 
 - [RAG_PIPELINE.md](architecture/RAG_PIPELINE.md) — indexing and hybrid retrieval detail
 - [RESEARCH_LIFECYCLE.md](architecture/RESEARCH_LIFECYCLE.md) — phase definitions
+- [CONTINUOUS_LEARNING.md](architecture/CONTINUOUS_LEARNING.md) — adaptive policy layer, monitoring, rollback
 - [PROVIDER_ARCHITECTURE.md](architecture/PROVIDER_ARCHITECTURE.md) — LLM factory
 - [011-mode-b-hosted.md](adr/011-mode-b-hosted.md) — hosted auth and BYOK
 - [evaluations.md](evaluations.md) — evaluator semantics

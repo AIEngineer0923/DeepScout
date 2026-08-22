@@ -40,7 +40,12 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
         from deepscout_research.monitors.service import dispatch_due_monitors
 
         try:
+            from deepscout_evaluation.learning.monitoring import close_expired_monitoring_windows
+
             dispatch_due_monitors(store, settings, owner=owner)
+            closed = close_expired_monitoring_windows(store)
+            if closed:
+                logger.info("Closed expired policy monitoring windows", extra={"count": closed})
             store.commit()
         except Exception:
             session.rollback()

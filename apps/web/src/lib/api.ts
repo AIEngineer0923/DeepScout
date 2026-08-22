@@ -331,6 +331,41 @@ export const api = {
       candidates_requires_review: number;
       active_policy_versions: number;
     }>(apiFetch(`${apiUrl}/api/v1/learning/metrics`, { cache: "no-store" })),
+  getLearningEffectiveness: () =>
+    parse<{
+      health: string;
+      health_reason: string;
+      production_counts: Record<string, number>;
+      policy_win_rate: number | null;
+      rollback_rate: number | null;
+      experience_sample_count: number;
+      opportunity_cases: number;
+      user_feedback_cases: number;
+      hitl_learning_cases: number;
+      policy_drift_flags: string[];
+      debt: {
+        unresolved_cases: number;
+        unevaluated_candidates: number;
+        stale_experiments: number;
+        pending_hitl_reviews: number;
+        incomplete_monitoring: number;
+        policies_insufficient_evidence: number;
+      } | null;
+      families: Array<{
+        policy_family: string;
+        policy_key: string;
+        version_label: string;
+        verdict: string;
+        attribution: string;
+        quality_delta: number | null;
+        cost_delta: number | null;
+        failure_recurrence_rate: number | null;
+        monitoring_samples: number;
+        rolled_back: boolean;
+        before: { sample_count: number; quality_mean: number | null; cost_mean: number | null };
+        after: { sample_count: number; quality_mean: number | null; cost_mean: number | null };
+      }>;
+    }>(apiFetch(`${apiUrl}/api/v1/learning/effectiveness`, { cache: "no-store" })),
   listLearningPolicies: () =>
     parse<
       Array<{

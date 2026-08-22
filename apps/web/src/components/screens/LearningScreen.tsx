@@ -14,6 +14,10 @@ import {
   presentPromotionVerdict,
   presentReviewState,
   presentRiskLevel,
+  presentLearningHealth,
+  presentPolicyVerdict,
+  presentAttribution,
+  formatDelta,
   riskForCandidateType,
 } from "@/presentation/learning";
 
@@ -73,6 +77,41 @@ type LearningMetrics = {
   active_policy_versions: number;
 };
 
+type LearningEffectiveness = {
+  health: string;
+  health_reason: string;
+  production_counts: Record<string, number>;
+  policy_win_rate: number | null;
+  rollback_rate: number | null;
+  experience_sample_count: number;
+  opportunity_cases: number;
+  user_feedback_cases: number;
+  hitl_learning_cases: number;
+  policy_drift_flags: string[];
+  debt: {
+    unresolved_cases: number;
+    unevaluated_candidates: number;
+    stale_experiments: number;
+    pending_hitl_reviews: number;
+    incomplete_monitoring: number;
+    policies_insufficient_evidence: number;
+  } | null;
+  families: Array<{
+    policy_family: string;
+    policy_key: string;
+    version_label: string;
+    verdict: string;
+    attribution: string;
+    quality_delta: number | null;
+    cost_delta: number | null;
+    failure_recurrence_rate: number | null;
+    monitoring_samples: number;
+    rolled_back: boolean;
+    before: { sample_count: number; quality_mean: number | null; cost_mean: number | null };
+    after: { sample_count: number; quality_mean: number | null; cost_mean: number | null };
+  }>;
+};
+
 const EMPTY_METRICS: LearningMetrics = {
   cases_total: 0,
   cases_open: 0,
@@ -100,6 +139,7 @@ export function LearningScreen() {
   const [policies, setPolicies] = useState<LearningPolicy[]>([]);
   const [audit, setAudit] = useState<LearningAuditEvent[]>([]);
   const [metrics, setMetrics] = useState<LearningMetrics>(EMPTY_METRICS);
+  const [effectiveness, setEffectiveness] = useState<LearningEffectiveness | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
@@ -110,13 +150,15 @@ export function LearningScreen() {
       api.listLearningCases(),
       api.listLearningCandidates(),
       api.getLearningMetrics(),
+      api.getLearningEffectiveness(),
       api.listLearningPolicies(),
       api.listLearningAudit(),
     ])
-      .then(([caseRows, candidateRows, metricRows, policyRows, auditRows]) => {
+      .then(([caseRows, candidateRows, metricRows, effectivenessRows, policyRows, auditRows]) => {
         setCases(caseRows);
         setCandidates(candidateRows);
         setMetrics(metricRows);
+        setEffectiveness(effectivenessRows);
         setPolicies(policyRows);
         setAudit(auditRows);
       })
@@ -191,6 +233,102 @@ export function LearningScreen() {
         <p className="error" role="alert">
           {error}
         </p>
+      ) : null}
+
+      {effectiveness ? (
+        <section className="card" style={{ marginTop: 16 }}>
+          <div className="row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <h2>{t("learning.effectiveness.title")}</h2>
+            <span className="badge run">{presentLearningHealth(effectiveness.health, locale)}</span>
+          </div>
+          <p className="muted wrap-text">{effectiveness.health_reason}</p>
+          <div className="grid cols-metrics-4" style={{ marginTop: 12 }}>
+            <article className="card metric">
+              <div className="k">{t("learning.effectiveness.experienceSamples")}</div>
+              <div className="v">{effectiveness.experience_sample_count}</div>
+            </article>
+            <article className="card metric">
+              <div className="k">{t("learning.effectiveness.terminalRuns")}</div>
+              <div className="v">{effectiveness.production_counts.terminal_runs ?? 0}</div>
+            </article>
+            <article className="card metric">
+              <div className="k">{t("learning.effectiveness.winRate")}</div>
+              <div className="v">
+                {effectiveness.policy_win_rate != null
+                  ? `${Math.round(effectiveness.policy_win_rate * 100)}%`
+                  : "—"}
+              </div>
+            </article>
+            <article className="card metric">
+              <div className="k">{t("learning.effectiveness.rollbackRate")}</div>
+              <div className="v">
+                {effectiveness.rollback_rate != null
+                  ? `${Math.round(effectiveness.rollback_rate * 100)}%`
+                  : "—"}
+              </div>
+            </article>
+          </div>
+          {effectiveness.debt ? (
+            <dl className="kv-list compact" style={{ marginTop: 12 }}>
+              <div className="kv-row">
+                <dt>{t("learning.effectiveness.debt.unresolved")}</dt>
+                <dd>{effectiveness.debt.unresolved_cases}</dd>
+              </div>
+              <div className="kv-row">
+                <dt>{t("learning.effectiveness.debt.unevaluated")}</dt>
+                <dd>{effectiveness.debt.unevaluated_candidates}</dd>
+              </div>
+              <div className="kv-row">
+                <dt>{t("learning.effectiveness.debt.monitoring")}</dt>
+                <dd>{effectiveness.debt.incomplete_monitoring}</dd>
+              </div>
+              <div className="kv-row">
+                <dt>{t("learning.effectiveness.debt.insufficientEvidence")}</dt>
+                <dd>{effectiveness.debt.policies_insufficient_evidence}</dd>
+              </div>
+            </dl>
+          ) : null}
+          {effectiveness.families.length > 0 ? (
+            <div className="stack" style={{ gap: 12, marginTop: 16 }}>
+              {effectiveness.families.map((family) => (
+                <article key={`${family.policy_key}-${family.version_label}`} className="card" style={{ padding: 12 }}>
+                  <div className="row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <strong>
+                      {family.policy_family} · {family.version_label}
+                    </strong>
+                    <span className="badge">{presentPolicyVerdict(family.verdict, locale)}</span>
+                  </div>
+                  <p className="muted">{family.policy_key}</p>
+                  <dl className="kv-list compact">
+                    <div className="kv-row">
+                      <dt>{t("learning.effectiveness.beforeAfter")}</dt>
+                      <dd>
+                        {family.before.sample_count} → {family.after.sample_count}{" "}
+                        {t("learning.effectiveness.samples")}
+                      </dd>
+                    </div>
+                    <div className="kv-row">
+                      <dt>{t("learning.effectiveness.qualityDelta")}</dt>
+                      <dd>{formatDelta(family.quality_delta, locale)}</dd>
+                    </div>
+                    <div className="kv-row">
+                      <dt>{t("learning.effectiveness.costDelta")}</dt>
+                      <dd>{formatDelta(family.cost_delta, locale)}</dd>
+                    </div>
+                    <div className="kv-row">
+                      <dt>{t("learning.effectiveness.evidence")}</dt>
+                      <dd>{presentAttribution(family.attribution, locale)}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty" style={{ marginTop: 12 }}>
+              {t("learning.effectiveness.noPolicies")}
+            </p>
+          )}
+        </section>
       ) : null}
 
       <section aria-labelledby="learning-metrics-heading">

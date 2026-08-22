@@ -83,6 +83,37 @@ const PROMOTION_VERDICT: Record<string, Record<Locale, string>> = {
 const AUDIT_EVENT: Record<string, Record<Locale, string>> = {
   policy_promoted: { en: "Policy promoted", it: "Policy promossa" },
   policy_rolled_back: { en: "Policy rolled back", it: "Policy ripristinata" },
+  policy_auto_rollback: { en: "Policy auto-rolled back", it: "Policy ripristinata automaticamente" },
+};
+
+const HEALTH_STATE: Record<string, Record<Locale, string>> = {
+  healthy: { en: "Healthy", it: "Sano" },
+  observing: { en: "Observing", it: "In osservazione" },
+  insufficient_data: { en: "Insufficient data", it: "Dati insufficienti" },
+  regression_detected: { en: "Regression detected", it: "Regressione rilevata" },
+  rollback_recommended: { en: "Rollback recommended", it: "Rollback consigliato" },
+  human_review_required: { en: "Human review required", it: "Revisione umana richiesta" },
+};
+
+const POLICY_VERDICT: Record<string, Record<Locale, string>> = {
+  improved: { en: "Improved", it: "Migliorato" },
+  neutral: { en: "Neutral", it: "Neutro" },
+  regressed: { en: "Regressed", it: "Peggiorato" },
+  inconclusive: { en: "Inconclusive", it: "Inconcluso" },
+  insufficient_data: { en: "Insufficient data", it: "Dati insufficienti" },
+};
+
+const ATTRIBUTION: Record<string, Record<Locale, string>> = {
+  observed_association: { en: "Observed association", it: "Associazione osservata" },
+  controlled_experiment_support: {
+    en: "Controlled experiment",
+    it: "Esperimento controllato",
+  },
+  strong_regression_evidence: {
+    en: "Strong regression evidence",
+    it: "Evidenza forte di regressione",
+  },
+  inconclusive: { en: "Inconclusive", it: "Inconcluso" },
 };
 
 const CANDIDATE_TYPE_RISK: Record<string, string> = {
@@ -136,6 +167,26 @@ export function presentPromotionVerdict(value: string | null | undefined, locale
 
 export function presentAuditEventType(value: string | null | undefined, locale: Locale): string {
   return lookup(AUDIT_EVENT, value, locale);
+}
+
+export function presentLearningHealth(value: string | null | undefined, locale: Locale): string {
+  return lookup(HEALTH_STATE, value, locale);
+}
+
+export function presentPolicyVerdict(value: string | null | undefined, locale: Locale): string {
+  return lookup(POLICY_VERDICT, value, locale);
+}
+
+export function presentAttribution(value: string | null | undefined, locale: Locale): string {
+  return lookup(ATTRIBUTION, value, locale);
+}
+
+export function formatDelta(value: number | null | undefined, locale: Locale): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toLocaleString(locale === "it" ? "it-IT" : "en-US", {
+    maximumFractionDigits: 3,
+  })}`;
 }
 
 export function riskForCandidateType(candidateType: string | null | undefined): string {
