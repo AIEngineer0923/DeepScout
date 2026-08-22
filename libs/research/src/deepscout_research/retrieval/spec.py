@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 from deepscout_core.types import ProviderKind
 
-CHUNKING_VERSION = "v1-recursive-1800-280"
-EMBEDDING_CONFIG_VERSION = "v1-dim768-instruction-prefix"
+CHUNKING_VERSION = "v2-contextual-1800-280"
+EMBEDDING_CONFIG_VERSION = "v2-dim768-contextual-prefix"
 DEFAULT_EMBEDDING_DIMENSIONS = 768
 DEFAULT_RETRIEVAL_TOP_K = 8
 DEFAULT_CANDIDATE_K = 20

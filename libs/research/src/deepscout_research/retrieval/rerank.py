@@ -52,8 +52,10 @@ def _reason(item: RetrievedChunk, query_tokens: set[str]) -> str:
     parts = []
     if item.dense_rank is not None:
         parts.append(f"dense@{item.dense_rank}")
+    if item.bm25_rank is not None:
+        parts.append(f"bm25@{item.bm25_rank}")
     if item.lexical_rank is not None:
-        parts.append(f"lexical@{item.lexical_rank}")
+        parts.append(f"fts@{item.lexical_rank}")
     if any(token in item.text.lower() for token in query_tokens):
         parts.append("exact-token")
     return ",".join(parts) or "fused"

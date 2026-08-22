@@ -411,7 +411,7 @@ task objective
   → source admission (contract + PIN/EXCLUDE/ONLY + SSRF fetch guard)
   → SourceSnapshot (HTML→text, content_hash)
   → chunk + embed (INDEX phase)
-  → hybrid retrieval (dense pgvector + FTS → RRF → deterministic rerank)
+  → hybrid retrieval (BM25 + Postgres FTS + dense pgvector → 3-way RRF → deterministic rerank)
   → EXTRACT: Claim + Evidence (quote)
   → VERIFY: verification_status on claims
   → REPORT: citations resolve to evidence IDs

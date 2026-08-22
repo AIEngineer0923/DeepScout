@@ -7,6 +7,7 @@ import uuid
 from deepscout_core.domain.enums import AgentRole
 from deepscout_core.settings import Settings
 from deepscout_core.types import ProviderKind
+from deepscout_research.retrieval.bm25 import BM25Index
 from deepscout_research.retrieval.chunking import chunk_snapshot_text
 from deepscout_research.retrieval.fusion import reciprocal_rank_fusion
 from deepscout_research.retrieval.grader import grade_retrieval
@@ -87,3 +88,48 @@ def test_injection_marker_detected() -> None:
 def test_untrusted_wrapper_present() -> None:
     wrapped = wrap_as_untrusted_data("external quote")
     assert wrapped.startswith("<UNTRUSTED_RETRIEVED_DATA>")
+
+
+def test_bm25_prefers_exact_token_match() -> None:
+    a, b = uuid.uuid4(), uuid.uuid4()
+    index = BM25Index()
+    index.add(a, "CVE-2024-1234 affected legacy BMS firmware")
+    index.add(b, "Solid-state batteries improve energy density")
+    hits = index.search("CVE-2024-1234", limit=2)
+    assert hits[0][0] == a
+
+
+def test_bm25_three_way_rrf_with_dense_and_fts_ranks() -> None:
+    a, b, c = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    fused = reciprocal_rank_fusion([[a, b], [b, c], [c, a]])
+    assert fused[b] >= fused[a]
+    assert fused[b] >= fused[c]
+
+
+def test_router_identifier_intent() -> None:
+    from deepscout_research.retrieval.router import classify_intent, route_retrieval
+
+    settings = Settings(_env_file=None, LLM_PROVIDER=ProviderKind.GOOGLE)
+    plan = plan_retrieval_query(
+        query="CVE-2024-1234",
+        run_id=uuid.uuid4(),
+        settings=settings,
+        document_token_estimate=5000,
+    )
+    assert classify_intent(plan).value == "identifier"
+    route = route_retrieval(plan, research_mode="standard")
+    assert route.use_bm25 is True
+    assert route.skip_retrieval is False
+
+
+def test_contextual_prefix_includes_section() -> None:
+    from deepscout_research.retrieval.contextual import build_context_text
+
+    text = build_context_text(
+        chunk_text="Energy density improved.",
+        document_title="Battery report",
+        section_title="Solid-state",
+    )
+    assert "Battery report" in text
+    assert "Solid-state" in text
+    assert "Energy density" in text

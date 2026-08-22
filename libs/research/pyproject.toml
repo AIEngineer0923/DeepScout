@@ -19,6 +19,9 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.optional-dependencies]
+rerank = ["sentence-transformers>=3.0"]
+
 [project.scripts]
 deepscout-worker = "deepscout_research.jobs.worker:main"
 

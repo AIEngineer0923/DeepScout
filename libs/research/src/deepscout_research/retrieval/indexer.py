@@ -18,6 +18,7 @@ from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
 from deepscout_research.retrieval.chunking import chunk_snapshot_text, estimate_tokens
+from deepscout_research.retrieval.contextual import build_context_text
 from deepscout_research.retrieval.embeddings import build_embedding_client, embed_documents
 from deepscout_research.retrieval.spec import CHUNKING_VERSION, EMBED_BATCH_SIZE, EmbeddingSpec
 from deepscout_research.usage.pricing import DEFAULT_PRICING_CATALOG
@@ -63,24 +64,44 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
     set_indexing_status(session, snapshot.id, IndexingStatus.INDEXING)
     try:
         drafts = chunk_snapshot_text(snapshot.content_text, snapshot_id=str(snapshot.id))
-        rows = replace_chunks(
-            session,
-            run_id=run_id,
-            source_id=snapshot.source_id,
-            snapshot_id=snapshot.id,
-            chunking_version=CHUNKING_VERSION,
-            drafts=[
+        from deepscout_persistence.models import SourceRow
+
+        source = session.get(SourceRow, snapshot.source_id)
+        source_title = (source.title if source else "") or ""
+        source_url = (source.canonical_url if source else "") or ""
+        embed_by_ordinal: dict[int, str] = {}
+        draft_payloads: list[dict] = []
+        for item in drafts:
+            context_text = (
+                build_context_text(
+                    chunk_text=item.text,
+                    document_title=source_title,
+                    section_title=item.section_title,
+                    source_url=source_url,
+                )
+                if settings.contextual_retrieval_enabled
+                else item.text
+            )
+            embed_by_ordinal[item.ordinal] = context_text
+            draft_payloads.append(
                 {
                     "ordinal": item.ordinal,
                     "text": item.text,
+                    "context_text": context_text if settings.contextual_retrieval_enabled else None,
                     "start_offset": item.start_offset,
                     "end_offset": item.end_offset,
                     "token_count": item.token_count,
                     "content_hash": item.content_hash,
                     "section_title": item.section_title,
                 }
-                for item in drafts
-            ],
+            )
+        rows = replace_chunks(
+            session,
+            run_id=run_id,
+            source_id=snapshot.source_id,
+            snapshot_id=snapshot.id,
+            chunking_version=CHUNKING_VERSION,
+            drafts=draft_payloads,
         )
         already = existing_embedding_ids(
             session,
@@ -95,7 +116,8 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
         token_total = 0
         for offset in range(0, len(pending), EMBED_BATCH_SIZE):
             batch = pending[offset : offset + EMBED_BATCH_SIZE]
-            vectors = embed_documents(client, [row.text for row in batch])
+            texts = [embed_by_ordinal.get(row.ordinal, row.text) for row in batch]
+            vectors = embed_documents(client, texts)
             if len(vectors) != len(batch):
                 raise RuntimeError("embedding batch size mismatch")
             persist_embeddings(

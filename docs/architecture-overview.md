@@ -41,10 +41,15 @@ Phases are owned by `libs/research/src/deepscout_research/orchestrator.py`. Each
 |------------|--------|-------|
 | LangChain agents per phase | **Implemented** | `create_agent`, structured outputs |
 | LangGraph | **Implemented** | Checkpoints, correction subgraphs — not the main planner DAG |
-| Hybrid retrieval (dense + lexical) | **Implemented** | pgvector + Postgres `tsvector`; RRF fusion |
-| BM25 / SPLADE | **Not implemented** | Lexical leg is Postgres FTS, not BM25 |
-| Cross-encoder / LLM rerank | **Not implemented** | Deterministic post-fusion rerank only |
-| GraphRAG | **Not implemented** | Demo topics may compare architectures; runtime does not build a graph index |
+| Hybrid retrieval (dense + lexical) | **Implemented** | pgvector + **BM25** + Postgres FTS → 3-way RRF; deterministic rerank |
+| BM25 | **Implemented** | Okapi BM25 in `retrieval/bm25.py`; separate from Postgres FTS |
+| SPLADE | **Not implemented** | Rejected after evaluation — BM25+dense sufficient for run-scoped corpora |
+| Cross-encoder rerank | **Optional** | `RERANKER_MODE=cross_encoder` + `deepscout-research[rerank]`; default deterministic |
+| Adaptive retrieval router | **Implemented** | `retrieval/router.py` — intent-based retriever mix |
+| Contextual retrieval | **Implemented** | `context_text` for embeddings; evidence `text` unchanged |
+| GraphRAG (communities) | **Not implemented** | Local `knowledge_relations` graph search only |
+| Graph retrieval (local) | **Implemented** | Entity match + 1-hop over `knowledge_relations` |
+| LLMWiki in retrieval | **Implemented** | `corpus=compiled|both` merges wiki statements (not evidence) |
 | Long-context model window | **Uses provider context** | Not a separate retrieval mode in code |
 | Compiled knowledge (LLM Wiki) | **Implemented** | Run-scoped knowledge pages/statements |
 | RAGAS metrics | **Offline optional** | `ragas_eval.py` imports optionally; registry marks offline-only |

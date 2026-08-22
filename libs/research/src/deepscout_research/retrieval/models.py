@@ -16,7 +16,10 @@ class RetrievalQuery(BaseModel):
     top_k: int = Field(default=8, ge=1, le=32)
     candidate_k: int = Field(default=20, ge=1, le=64)
     mode: Literal["dense", "lexical", "hybrid"] = "hybrid"
+    corpus: Literal["raw", "compiled", "both"] = "raw"
     apply_rerank: bool = True
+    use_router: bool = True
+    research_mode: Literal["quick", "standard", "deep"] = "standard"
     source_ids: list[UUID] = Field(default_factory=list, max_length=50)
     fresher_than: datetime | None = None
 
@@ -41,10 +44,16 @@ class RetrievedChunk(BaseModel):
     end_offset: int
     dense_score: float | None = None
     lexical_score: float | None = None
+    bm25_score: float | None = None
     fused_score: float = 0.0
     rerank_score: float | None = None
     dense_rank: int | None = None
     lexical_rank: int | None = None
+    bm25_rank: int | None = None
     retrieval_reason: str = ""
+    strategy_trace: str = ""
+    provenance_kind: Literal["chunk", "compiled"] = "chunk"
+    statement_id: UUID | None = None
+    claim_id: UUID | None = None
     retrieved_at: datetime | None = None
     section_title: str | None = None

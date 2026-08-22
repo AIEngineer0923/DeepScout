@@ -77,6 +77,7 @@ def replace_chunks(
             source_snapshot_id=snapshot_id,
             ordinal=draft["ordinal"],
             text=draft["text"],
+            context_text=draft.get("context_text"),
             start_offset=draft["start_offset"],
             end_offset=draft["end_offset"],
             token_count=draft["token_count"],
@@ -212,6 +213,21 @@ def load_chunks(session: Session, chunk_ids: list[uuid.UUID]) -> dict[uuid.UUID,
         return {}
     rows = session.scalars(select(DocumentChunkRow).where(DocumentChunkRow.id.in_(chunk_ids))).all()
     return {row.id: row for row in rows}
+
+
+def list_chunks_for_run(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    source_ids: list[uuid.UUID] | None = None,
+    chunking_version: str | None = None,
+) -> list[DocumentChunkRow]:
+    stmt = select(DocumentChunkRow).where(DocumentChunkRow.research_run_id == run_id)
+    if source_ids:
+        stmt = stmt.where(DocumentChunkRow.source_id.in_(source_ids))
+    if chunking_version:
+        stmt = stmt.where(DocumentChunkRow.chunking_version == chunking_version)
+    return list(session.scalars(stmt).all())
 
 
 def snapshot_run_id(session: Session, snapshot_id: uuid.UUID) -> uuid.UUID | None:

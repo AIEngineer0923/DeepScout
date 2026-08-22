@@ -243,6 +243,47 @@ def query_compiled_statements(
     return [row for _, row in scored[:limit]]
 
 
+def _maybe_link_claim_relation(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    claim: ClaimRow,
+    evidence: EvidenceRow,
+) -> None:
+    """Link new statement to prior statements from the same source (bounded graph)."""
+    if claim.source_id is None:
+        return
+    new_stmt = session.scalar(
+        select(WikiStatementRow).where(
+            WikiStatementRow.research_run_id == run_id,
+            WikiStatementRow.claim_id == claim.id,
+        )
+    )
+    if new_stmt is None:
+        return
+    peers = session.scalars(
+        select(WikiStatementRow)
+        .join(ClaimRow, ClaimRow.id == WikiStatementRow.claim_id)
+        .where(
+            WikiStatementRow.research_run_id == run_id,
+            ClaimRow.source_id == claim.source_id,
+            WikiStatementRow.id != new_stmt.id,
+        )
+        .limit(5)
+    ).all()
+    for peer in peers:
+        add_relation(
+            session,
+            run_id=run_id,
+            relation_type=KnowledgeRelationType.RELATED_TO,
+            provenance_kind=KnowledgeProvenanceKind.DETERMINISTIC,
+            from_statement_id=peer.id,
+            to_statement_id=new_stmt.id,
+            claim_a_id=peer.claim_id,
+            claim_b_id=claim.id,
+        )
+
+
 def rebuild_wiki_from_claims(session: Session, run_id: uuid.UUID) -> dict[str, int]:
     """Deterministic Knowledge Compiler — CREATE/CONFIRM from claims with evidence."""
     findings = create_page(
@@ -303,6 +344,7 @@ def rebuild_wiki_from_claims(session: Session, run_id: uuid.UUID) -> dict[str, i
             evidence_id=evidence.id,
         )
         created += 1
+        _maybe_link_claim_relation(session, run_id=run_id, claim=claim, evidence=evidence)
         bullet = f"- {claim.statement[:240]}"
         if bullet not in findings.body_markdown:
             revise_page(

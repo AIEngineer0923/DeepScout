@@ -163,6 +163,11 @@ def extract_claims_for_run(
                 fresher_than=resolved.fresher_than,
             )
             if not plan.skip_retrieval:
+                mode = (
+                    row.research_mode
+                    if row and row.research_mode in {"quick", "standard", "deep"}
+                    else "standard"
+                )
                 hits = retriever.retrieve(
                     RetrievalQuery(
                         query=plan.semantic_query,
@@ -171,12 +176,21 @@ def extract_claims_for_run(
                         top_k=plan.top_k,
                         candidate_k=plan.candidate_k,
                         mode=plan.mode,
+                        corpus=plan.corpus,
                         fresher_than=plan.fresher_than,
+                        research_mode=mode,  # type: ignore[arg-type]
                     )
                 )
                 if hits:
+                    from deepscout_research.retrieval.context import assemble_context
+
+                    packed = assemble_context(
+                        [item for item in hits if item.provenance_kind == "chunk"]
+                    )
+                    if not packed:
+                        packed = hits
                     retrieved_used += 1
-                    search_text = "\n".join(item.text for item in hits)
+                    search_text = "\n".join(item.text for item in packed)
 
         statement = _select_snapshot_sentence(
             search_text,

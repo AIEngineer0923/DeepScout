@@ -64,6 +64,7 @@ def test_hybrid_retrieval_overlaps_embedding_with_lexical(monkeypatch: pytest.Mo
     monkeypatch.setattr("deepscout_research.retrieval.service.embed_query", slow_embed)
     monkeypatch.setattr("deepscout_research.retrieval.service.lexical_search", slow_lexical)
     monkeypatch.setattr("deepscout_research.retrieval.service.dense_search", lambda *a, **k: [])
+    monkeypatch.setattr("deepscout_research.retrieval.service.list_chunks_for_run", lambda *a, **k: [])
     started = time.perf_counter()
     result = service._search_once(
         RetrievalQuery(query="battery chemistry", run_id=uuid.uuid4(), apply_rerank=False)

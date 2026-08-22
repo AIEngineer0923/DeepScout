@@ -68,6 +68,13 @@ See `.env.example` for budget limits: `RESEARCH_MAX_ITERATIONS`, `RESEARCH_MAX_C
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RETRIEVAL_MODE` | `hybrid` | `lexical`, `dense`, or `hybrid` |
+| `RETRIEVAL_TOP_K` | `8` | Final chunks returned |
+| `RETRIEVAL_CANDIDATE_K` | `20` | Pre-fusion candidate pool |
+| `RETRIEVAL_ROUTER_ENABLED` | `true` | Adaptive intent-based retriever mix |
+| `CONTEXTUAL_RETRIEVAL_ENABLED` | `true` | Prefix document/section context for embeddings |
+| `RERANKER_MODE` | `deterministic` | `cross_encoder` requires `deepscout-research[rerank]` |
+
+Lexical hybrid uses **BM25** (`retrieval/bm25.py`) and **Postgres FTS** as separate RRF legs — not the same algorithm.
 
 ## LangSmith (optional)
 

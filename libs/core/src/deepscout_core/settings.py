@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     retrieval_mode: str = Field(default="hybrid", alias="RETRIEVAL_MODE")
     retrieval_top_k: int = Field(default=8, alias="RETRIEVAL_TOP_K")
     retrieval_candidate_k: int = Field(default=20, alias="RETRIEVAL_CANDIDATE_K")
+    retrieval_router_enabled: bool = Field(default=True, alias="RETRIEVAL_ROUTER_ENABLED")
+    contextual_retrieval_enabled: bool = Field(default=True, alias="CONTEXTUAL_RETRIEVAL_ENABLED")
+    reranker_mode: str = Field(default="deterministic", alias="RERANKER_MODE")
 
     google_api_key: SecretStr | None = Field(default=None, alias="GOOGLE_API_KEY")
     openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")

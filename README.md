@@ -42,7 +42,7 @@ The public deployment splits **Vercel** (Next.js frontend) and a **persistent AP
 10. **Evaluations** — 48 evaluator slots per run; deterministic results persisted; honest unavailable/skipped states.
 11. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, optional LangSmith tracing.
 
-Not included as production backends today: GraphRAG, SPLADE, BM25 library, paid LLM rerankers, or online RAGAS. Some demos *study* those topics; the runtime uses hybrid dense+FTS retrieval. See [AI & retrieval architecture](docs/architecture-overview.md).
+Not included as production backends today: SPLADE, Neo4j GraphRAG, community GraphRAG, paid LLM rerankers (cross-encoder optional), or online RAGAS. Production hybrid retrieval uses **BM25 + Postgres FTS + dense pgvector** fused with RRF. See [AI & retrieval architecture](docs/architecture-overview.md) and [ADR-013](docs/architecture/adr/ADR-013-retrieval-upgrade.md).
 
 ## Screenshots
 
@@ -72,7 +72,7 @@ Not included as production backends today: GraphRAG, SPLADE, BM25 library, paid 
 | Worker | Same image as API; `DEEPSCOUT_PROCESS_ROLE=worker` |
 | Orchestration | Custom Python orchestrator + LangChain agents + LangGraph (checkpoints, correction graphs) |
 | Database | PostgreSQL 16 + pgvector; Alembic migrations |
-| Retrieval | Dense embeddings + Postgres FTS → RRF → deterministic rerank |
+| Retrieval | BM25 + Postgres FTS + dense pgvector → 3-way RRF → deterministic rerank |
 | Auth (hosted) | GitHub/Google OAuth, session cookies, AES-GCM BYOK vault |
 | Search | Tavily adapter (pluggable interface) |
 | LLMs | Google Gemini, OpenAI, Anthropic via provider factory |
