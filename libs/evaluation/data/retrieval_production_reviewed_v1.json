@@ -1,0 +1,9 @@
+{
+  "version": "retrieval-production-reviewed-v1",
+  "corpus_type": "production_reviewed",
+  "description": "Human-reviewed, sanitized production-derived regression cases. Empty until first case is promoted.",
+  "baseline_version": "retrieval-regression-baseline-v2",
+  "documents": [],
+  "cases": [],
+  "router_boundary_cases": []
+}

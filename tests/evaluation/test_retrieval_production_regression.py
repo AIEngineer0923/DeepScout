@@ -11,8 +11,8 @@ from deepscout_evaluation.retrieval_diagnostics import (
 )
 from deepscout_evaluation.retrieval_regression import (
     apply_regression_policy,
-    load_production_regressions,
     load_regression_baseline,
+    load_synthetic_regressions,
     run_deterministic_gate,
     validate_regression_fixture,
 )
@@ -30,16 +30,16 @@ def settings() -> Settings:
 
 
 def test_production_regression_fixture_validates() -> None:
-    fixture = load_production_regressions()
+    fixture = load_synthetic_regressions()
     errors = validate_regression_fixture(fixture)
     assert errors == []
     assert len(fixture["cases"]) >= 10
 
 
 def test_baseline_matches_corpus() -> None:
-    fixture = load_production_regressions()
+    fixture = load_synthetic_regressions()
     baseline = load_regression_baseline()
-    assert baseline["corpus_version"] == fixture["version"]
+    assert baseline["corpora"]["synthetic"] == fixture["version"]
     critical = baseline["critical_cases"]
     fixture_ids = {case["case_id"] for case in fixture["cases"] if case.get("critical")}
     assert fixture_ids.issubset(set(critical.keys()))

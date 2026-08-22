@@ -19,9 +19,16 @@ from deepscout_research.retrieval.router import classify_intent, route_retrieval
 from deepscout_research.retrieval.security import looks_like_injection
 from deepscout_research.retrieval.spec import CHUNKING_VERSION
 
+from deepscout_evaluation.regression_origins import validate_case_origins
 from deepscout_evaluation.retrieval_diagnostics import (
     RetrievalDiagnosticTrace,
     infer_retrieval_failure_class,
+)
+from deepscout_evaluation.retrieval_pipeline_gate import (
+    PipelineGateReport,
+    format_pipeline_report,
+    load_pipeline_fixture,
+    run_pipeline_gate,
 )
 from deepscout_evaluation.retrieval_quality import (
     AblationMode,
@@ -33,11 +40,22 @@ from deepscout_evaluation.retrieval_quality import (
 )
 from deepscout_evaluation.retrieval_sanitizer import validate_fixture_privacy
 
-PRODUCTION_REGRESSIONS_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "retrieval_production_regressions_v1.json"
+SYNTHETIC_REGRESSIONS_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "retrieval_synthetic_regressions_v1.json"
 )
+PRODUCTION_REVIEWED_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "retrieval_production_reviewed_v1.json"
+)
+PIPELINE_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "retrieval_pipeline_deterministic_v1.json"
+)
+CORPUS_MANIFEST_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "retrieval_corpus_manifest_v1.json"
+)
+# Backward-compatible alias (deprecated name)
+PRODUCTION_REGRESSIONS_PATH = SYNTHETIC_REGRESSIONS_PATH
 REGRESSION_BASELINE_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "retrieval_regression_baseline_v1.json"
+    Path(__file__).resolve().parents[2] / "data" / "retrieval_regression_baseline_v2.json"
 )
 
 REQUIRED_CASE_FIELDS = ("case_id", "query", "origin", "language", "domain")
@@ -75,10 +93,22 @@ class RegressionGateReport:
     case_results: list[RegressionCaseResult] = field(default_factory=list)
     policy_violations: list[str] = field(default_factory=list)
     privacy_violations: list[str] = field(default_factory=list)
+    pipeline: PipelineGateReport | None = None
+    production_reviewed_cases: int = 0
 
 
 def load_production_regressions(path: Path | None = None) -> dict[str, Any]:
-    target = path or PRODUCTION_REGRESSIONS_PATH
+    """Deprecated alias — loads synthetic regression corpus."""
+    return load_synthetic_regressions(path)
+
+
+def load_synthetic_regressions(path: Path | None = None) -> dict[str, Any]:
+    target = path or SYNTHETIC_REGRESSIONS_PATH
+    return json.loads(target.read_text())
+
+
+def load_production_reviewed(path: Path | None = None) -> dict[str, Any]:
+    target = path or PRODUCTION_REVIEWED_PATH
     return json.loads(target.read_text())
 
 
@@ -106,6 +136,8 @@ def validate_regression_fixture(fixture: dict[str, Any]) -> list[str]:
         if case_id:
             seen.add(case_id)
     errors.extend(validate_fixture_privacy(fixture))
+    corpus_type = fixture.get("corpus_type", "synthetic_regression")
+    errors.extend(validate_case_origins(fixture.get("cases", []), corpus_type=corpus_type))
     return errors
 
 
@@ -341,9 +373,12 @@ def run_deterministic_gate(
     embedding_spec=None,
 ) -> RegressionGateReport:
     """CI-safe gate: router + BM25 on fixture corpus. No provider spend."""
-    fixture = fixture or load_production_regressions()
+    fixture = fixture or load_synthetic_regressions()
     baseline = baseline or load_regression_baseline()
     privacy_violations = validate_regression_fixture(fixture)
+
+    reviewed = load_production_reviewed()
+    reviewed_errors = validate_regression_fixture(reviewed)
 
     router_eval = evaluate_router_cases(
         _router_cases_from_fixture(fixture),
@@ -398,6 +433,18 @@ def run_deterministic_gate(
     )
     if privacy_violations:
         policy_violations.extend(privacy_violations)
+    if reviewed_errors:
+        policy_violations.extend([f"production_reviewed: {e}" for e in reviewed_errors])
+
+    pipeline_report = run_pipeline_gate(
+        settings=settings,
+        store=store,
+        db_session=db_session,
+        fixture=load_pipeline_fixture(),
+        baseline=baseline,
+    )
+    if not pipeline_report.passed:
+        policy_violations.extend(pipeline_report.policy_violations)
 
     ablation: dict[str, Any] = {}
     if include_ablation and service is not None:
@@ -469,13 +516,16 @@ def run_deterministic_gate(
         case_results=case_results,
         policy_violations=policy_violations,
         privacy_violations=privacy_violations,
+        pipeline=pipeline_report,
+        production_reviewed_cases=len(reviewed.get("cases", [])),
     )
 
 
 def format_regression_report(report: RegressionGateReport) -> str:
     lines = [
         "DeepScout Retrieval Regression Gate",
-        f"Corpus: {report.corpus_version}",
+        f"Synthetic corpus: {report.corpus_version}",
+        f"Production-reviewed cases: {report.production_reviewed_cases}",
         f"Baseline: {report.baseline_version}",
         f"Status: {'PASS' if report.passed else 'FAIL'}",
         "",
@@ -530,6 +580,10 @@ def format_regression_report(report: RegressionGateReport) -> str:
         for item in report.policy_violations:
             lines.append(f"  - {item}")
 
+    if report.pipeline:
+        lines.append("")
+        lines.append(format_pipeline_report(report.pipeline))
+
     failed = [row for row in report.case_results if not row.passed]
     if failed:
         lines.append("")
@@ -558,6 +612,14 @@ def report_to_dict(report: RegressionGateReport) -> dict[str, Any]:
         "failure_classes": report.failure_classes,
         "policy_violations": report.policy_violations,
         "privacy_violations": report.privacy_violations,
+        "production_reviewed_cases": report.production_reviewed_cases,
+        "pipeline": {
+            "version": report.pipeline.version,
+            "passed": report.pipeline.passed,
+            "policy_violations": report.pipeline.policy_violations,
+        }
+        if report.pipeline
+        else None,
         "cases": [
             {
                 "case_id": row.case_id,

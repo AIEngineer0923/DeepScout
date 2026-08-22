@@ -1,0 +1,236 @@
+{
+  "version": "retrieval-pipeline-deterministic-v1",
+  "corpus_type": "pipeline_deterministic",
+  "description": "Frozen deterministic pipeline tests. Tests application logic (fusion/rerank/selection), NOT provider embedding quality.",
+  "baseline_version": "retrieval-regression-baseline-v2",
+  "rrf_cases": [
+    {
+      "case_id": "rrf-bm25-dense-agree",
+      "bm25_ranked": ["chunk-a", "chunk-b", "chunk-c"],
+      "fts_ranked": ["chunk-a", "chunk-c"],
+      "dense_ranked": ["chunk-a", "chunk-b"],
+      "expected_top": "chunk-a",
+      "critical": true,
+      "failure_class": "fusion_failure"
+    },
+    {
+      "case_id": "rrf-identifier-bm25-over-dense",
+      "bm25_ranked": ["chunk-id", "chunk-para"],
+      "dense_ranked": ["chunk-para", "chunk-id"],
+      "expected_top": "chunk-id",
+      "critical": true,
+      "failure_class": "fusion_failure"
+    },
+    {
+      "case_id": "rrf-dense-paraphrase-only",
+      "bm25_ranked": [],
+      "dense_ranked": ["chunk-para", "chunk-irrelevant"],
+      "expected_top": "chunk-para",
+      "critical": true,
+      "failure_class": "dense_retrieval_failure"
+    },
+    {
+      "case_id": "rrf-multi-list-boost",
+      "bm25_ranked": ["chunk-x", "chunk-y"],
+      "fts_ranked": ["chunk-y", "chunk-x"],
+      "dense_ranked": ["chunk-z", "chunk-x"],
+      "expected_top": "chunk-x",
+      "critical": true,
+      "failure_class": "fusion_failure"
+    },
+    {
+      "case_id": "rrf-single-list-high-rank-not-enough",
+      "bm25_ranked": ["chunk-solo-top"],
+      "fts_ranked": ["chunk-consensus-a", "chunk-consensus-b"],
+      "dense_ranked": ["chunk-consensus-a", "chunk-consensus-b"],
+      "expected_top": "chunk-consensus-a",
+      "critical": true,
+      "failure_class": "fusion_failure"
+    },
+    {
+      "case_id": "rrf-no-answer-no-winner",
+      "bm25_ranked": [],
+      "fts_ranked": [],
+      "dense_ranked": [],
+      "expected_top": null,
+      "critical": true,
+      "failure_class": "no_answer_false_positive"
+    }
+  ],
+  "rerank_cases": [
+    {
+      "case_id": "rerank-exact-token-boost",
+      "query": "OpenSSL firmware advisory",
+      "candidates": [
+        {"key": "low-exact", "text": "general security overview", "fused_score": 0.55, "source": "src-a"},
+        {"key": "high-exact", "text": "OpenSSL firmware advisory patch notes", "fused_score": 0.50, "source": "src-b"}
+      ],
+      "expected_top": "high-exact",
+      "critical": true,
+      "failure_class": "rerank_failure"
+    },
+    {
+      "case_id": "rerank-source-diversity",
+      "query": "battery thermal stability",
+      "max_per_source": 1,
+      "candidates": [
+        {"key": "a1", "text": "battery thermal stability in LFP", "fused_score": 0.6, "source": "src-a"},
+        {"key": "a2", "text": "battery thermal stability in NMC", "fused_score": 0.58, "source": "src-a"},
+        {"key": "b1", "text": "battery thermal management overview", "fused_score": 0.52, "source": "src-b"}
+      ],
+      "expected_top": "a1",
+      "expected_second": "b1",
+      "critical": true,
+      "failure_class": "rerank_failure"
+    },
+    {
+      "case_id": "rerank-unchanged-order",
+      "query": "unrelated topic",
+      "candidates": [
+        {"key": "first", "text": "alpha document content", "fused_score": 0.7, "source": "src-a"},
+        {"key": "second", "text": "beta document content", "fused_score": 0.4, "source": "src-b"}
+      ],
+      "expected_top": "first",
+      "critical": false
+    },
+    {
+      "case_id": "rerank-identifier-case",
+      "query": "CVE-2024-PIPE-99",
+      "candidates": [
+        {"key": "noise", "text": "market outlook for batteries", "fused_score": 0.51, "source": "src-a"},
+        {"key": "cve", "text": "Advisory references CVE-2024-PIPE-99 in telemetry", "fused_score": 0.50, "source": "src-b"}
+      ],
+      "expected_top": "cve",
+      "critical": true,
+      "failure_class": "rerank_failure"
+    }
+  ],
+  "pipeline_cases": [
+    {
+      "case_id": "pipe-hybrid-cve-wins",
+      "query": "CVE-2024-PIPE-01",
+      "expected_intent": "identifier",
+      "documents": [
+        {"id": "doc-cve", "title": "Advisory", "text": "Security advisory CVE-2024-PIPE-01 requires firmware 2.1.", "dense_seed": 1.0},
+        {"id": "doc-noise", "title": "Blog", "text": "Unrelated lithium market commentary without identifiers.", "dense_seed": 0.05}
+      ],
+      "expected_top_doc": "doc-cve",
+      "apply_rerank": true,
+      "critical": true,
+      "failure_class": "fusion_failure"
+    },
+    {
+      "case_id": "pipe-dense-paraphrase",
+      "query": "well-to-wheel carbon dioxide comparison battery electric versus diesel vans",
+      "expected_intent": "entity_relation",
+      "documents": [
+        {"id": "doc-match", "title": "Fleet study", "text": "Battery electric vans achieved lower well-to-wheel CO2 than diesel.", "dense_seed": 1.0},
+        {"id": "doc-miss", "title": "Retail", "text": "Food division revenue grew year over year.", "dense_seed": 0.1}
+      ],
+      "expected_top_doc": "doc-match",
+      "apply_rerank": true,
+      "critical": true,
+      "failure_class": "dense_retrieval_failure"
+    },
+    {
+      "case_id": "pipe-no-answer",
+      "query": "quantum qubit error rates in corpus",
+      "expected_intent": "semantic",
+      "documents": [
+        {"id": "doc-a", "title": "Battery", "text": "LFP thermal stability notes.", "dense_seed": 0.2}
+      ],
+      "expected_top_doc": null,
+      "should_retrieve": false,
+      "apply_rerank": true,
+      "critical": true,
+      "failure_class": "no_answer_false_positive"
+    },
+    {
+      "case_id": "pipe-rrf-without-rerank",
+      "query": "CVE-2024-PIPE-02",
+      "documents": [
+        {"id": "doc-cve2", "title": "Patch", "text": "CVE-2024-PIPE-02 patch available.", "dense_seed": 1.0},
+        {"id": "doc-other", "title": "Other", "text": "Unrelated content.", "dense_seed": 0.1}
+      ],
+      "expected_top_doc": "doc-cve2",
+      "apply_rerank": false,
+      "critical": true,
+      "failure_class": "fusion_failure"
+    }
+  ],
+  "contextual_contract_cases": [
+    {
+      "case_id": "ctx-text-immutable",
+      "chunk_text": "Cycle time per cell is 14 minutes.",
+      "document_title": "Operations Manual",
+      "section_title": "Battery Line",
+      "source_url": "https://example.invalid/manual",
+      "expect_context_contains": ["Document: Operations Manual", "Section: Battery Line"],
+      "expect_chunk_unchanged": true
+    },
+    {
+      "case_id": "ctx-legacy-fallback",
+      "chunk_text": "Legacy chunk without contextual prefix.",
+      "document_title": "",
+      "section_title": null,
+      "source_url": "",
+      "expect_context_equals_chunk": true
+    }
+  ],
+  "compiled_fixture": {
+    "documents": [
+      {"id": "doc-compiled-src", "title": "Energy Brief", "text": "NMC cells reach higher energy density than LFP in lab tests."}
+    ],
+    "claims": [
+      {
+        "doc_id": "doc-compiled-src",
+        "statement": "NMC has higher energy density than LFP",
+        "quote": "NMC cells reach higher energy density than LFP"
+      }
+    ],
+    "queries": [
+      {
+        "case_id": "compiled-thematic-hit",
+        "id": "compiled-thematic-hit",
+        "query": "what have we learned about energy density",
+        "corpus": "compiled",
+        "expect_compiled_hit": true,
+        "critical": true
+      },
+      {
+        "case_id": "compiled-not-quote-authority",
+        "id": "compiled-not-quote-authority",
+        "query": "NMC energy density",
+        "corpus": "raw",
+        "expect_compiled_hit": false,
+        "expect_provenance_kind": "chunk",
+        "critical": true
+      }
+    ]
+  },
+  "graph_fixture": {
+    "statements": [
+      {"key": "alpha", "text": "AlphaCells supplies SS-CELL-900X cells."},
+      {"key": "beta", "text": "FleetOperator Beta sources cells from AlphaCells."}
+    ],
+    "relations": [
+      {"from": "alpha", "to": "beta"}
+    ],
+    "queries": [
+      {
+        "case_id": "graph-direct-relation",
+        "id": "graph-direct-relation",
+        "query": "relationship AlphaCells FleetOperator Beta",
+        "expect_graph_hit": true,
+        "critical": true
+      },
+      {
+        "case_id": "graph-absent-relation",
+        "id": "graph-absent-relation",
+        "query": "relationship between QuantumCorp and MarsBase",
+        "expect_graph_hit": false,
+        "critical": true
+      }
+    ]
+  }
+}

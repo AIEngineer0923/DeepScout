@@ -82,79 +82,106 @@ Dataset: `libs/evaluation/data/retrieval_quality_benchmark_v2.json` (determinist
 
 ### Benchmark v2 audit (August 2026)
 
-| Dimension | v2 corpus | Production regression v1 |
-|-----------|-----------|---------------------------|
-| Origin | 100% synthetic fixture docs | Sanitized development/production-style patterns |
-| Size | 5 docs, 12 router cases, 7 retrieval cases | 12 docs, 15 regression cases, 4 router boundaries |
-| Identifier bias | High (CVE, product codes) | Moderate (CVE + semantic/engineering mix) |
-| Multilingual | Minimal | IT + EN paired identifier/semantic cases |
-| No-answer | 1 failure fixture | Explicit quantum + injection cases |
-| Compiled / graph | Dedicated sub-fixtures | Flags on entity-relation / mixed cases |
-| Contextual | 2-case comparison | 1 contextual disambiguation case |
-| Authority vs relevance | Limited | `reg-en-authority-not-relevance` |
-| Contradiction | Via mixed intent | `reg-en-conflicting-sources` |
+| Dimension | v2 corpus | Synthetic regression v1 |
+|-----------|-----------|-------------------------|
+| Origin | 100% synthetic fixture docs | `development_synthetic` only |
+| Size | 5 docs, 12 router cases, 7 retrieval cases | 12 docs, 15 cases, 4 router boundaries |
+| CI role | Optional live benchmark | Router + BM25 lexical gate |
 
-v2 remains the **initial deterministic benchmark** — do not delete. Production regression v1 grows from real failures over time.
+v2 remains the **initial deterministic benchmark** — do not delete.
 
-## Production retrieval regression (CI gate)
+## Retrieval regression corpora (CI gate)
 
-Versioned corpus for **real failure patterns** (sanitized before commit). Separate from v2 synthetic benchmark and from optional live evaluation.
+Corpus semantics are explicit — see `libs/evaluation/data/retrieval_corpus_manifest_v1.json`.
 
-| Artifact | Purpose |
-|----------|---------|
-| `libs/evaluation/data/retrieval_production_regressions_v1.json` | Regression cases + fixture documents |
-| `libs/evaluation/data/retrieval_regression_baseline_v1.json` | Expected pass/fail policy per critical case |
-| `libs/evaluation/src/deepscout_evaluation/retrieval_regression.py` | Gate, reporting, diagnostics |
-| `libs/evaluation/src/deepscout_evaluation/retrieval_diagnostics.py` | Developer-only retrieval trace |
-| `libs/evaluation/src/deepscout_evaluation/retrieval_sanitizer.py` | Privacy/secret stripping |
+| Corpus | File | CI | Provider spend |
+|--------|------|----|----------------|
+| Synthetic regression | `retrieval_synthetic_regressions_v1.json` | Yes | None |
+| Pipeline deterministic | `retrieval_pipeline_deterministic_v1.json` | Yes | None (frozen vectors) |
+| Production reviewed | `retrieval_production_reviewed_v1.json` | Yes (when non-empty) | None |
+| Quality benchmark v2 | `retrieval_quality_benchmark_v2.json` | No | Optional live |
+| Production candidates | `retrieval_production_candidates.local.json` | **No** | N/A (gitignored) |
+
+### Origin taxonomy
+
+| Origin | Meaning | In CI baseline? |
+|--------|---------|-----------------|
+| `development_synthetic` | Engineered fixture | Yes |
+| `benchmark_fixture` | v2 benchmark sub-fixture | Optional |
+| `production_candidate` | Exported from run, pending review | **Never** |
+| `production_reviewed` | Sanitized + human-reviewed | Yes |
+| `historical_regression` | Preserved legacy regression | Yes |
+
+### Deterministic CI gate (full pipeline)
 
 ```bash
-# Deterministic CI gate — Postgres required, zero provider spend
 uv run python scripts/retrieval_regression_gate.py
-
-# Validate fixture schema/privacy only
 uv run python scripts/retrieval_regression_gate.py --validate-only
-
-# Machine-readable output
 uv run python scripts/retrieval_regression_gate.py --json
 ```
 
-### Adding a regression from a failed run
+The gate runs **without provider API calls**:
 
-Operator workflow (never auto-commits):
+1. **Synthetic corpus** — router + BM25 lexical retrieval
+2. **Pipeline fixture** — RRF, rerank, frozen-vector hybrid retrieval, FTS, compiled, graph, contextual contract
+3. **Production-reviewed corpus** — empty until first promoted case
+
+Frozen dense vectors test **application logic** (fusion → rerank → selection), not embedding provider quality. Live semantic quality remains in `scripts/retrieval_quality_benchmark.py --live`.
+
+Baseline policy: `retrieval_regression_baseline_v2.json` (case-level critical gates, not aggregate score thresholds).
+
+| Artifact | Purpose |
+|----------|---------|
+| `retrieval_synthetic_regressions_v1.json` | Synthetic pattern regressions |
+| `retrieval_pipeline_deterministic_v1.json` | RRF/rerank/frozen-dense/compiled/graph gates |
+| `retrieval_production_reviewed_v1.json` | Reviewed production-derived cases (currently empty) |
+| `retrieval_regression_baseline_v2.json` | Critical case policy + changelog |
+| `retrieval_regression.py` / `retrieval_pipeline_gate.py` | Gate runners |
+| `retrieval_diagnostics.py` | Developer-only trace |
+| `retrieval_sanitizer.py` / `regression_origins.py` | Privacy + origin validation |
+
+### Promotion workflow (no auto-learning)
+
+```mermaid
+flowchart LR
+  A[Production observation] --> B[Ingest preview]
+  B --> C[Sanitizer]
+  C --> D[Human review]
+  D --> E[Ground truth annotation]
+  E --> F[retrieval_production_reviewed_v1.json]
+  F --> G[Baseline update + changelog]
+  G --> H[Deterministic CI gate]
+  H --> I{Optional live benchmark}
+  I --> J[Engineering decision]
+```
 
 ```bash
-uv run python scripts/retrieval_regression_ingest.py \
-  --run-id <uuid> \
-  --query "..." \
-  --failure-class routing_failure \
-  --notes "sanitized summary"
+# Preview only (production DB via railway run when needed)
+railway run uv run python scripts/retrieval_regression_ingest.py \
+  --run-id <uuid> --query "..." --notes "sanitized summary"
 
-# Preview only by default; explicit write requires confirmation
+# Write to local candidates file (gitignored) — NOT the CI corpus
 uv run python scripts/retrieval_regression_ingest.py \
   --run-id <uuid> --query "..." --write --confirm
 ```
 
-Requirements:
-
-1. Sanitize tenant/user/secrets/private URLs before commit
-2. Human review of `relevant_doc_ids` / phrases
-3. Tool refuses export when secrets cannot be stripped
-4. No automatic learning — fixtures enter Git only after review
-
-### Failure taxonomy
-
-Uses `RetrievalFailureClass` in `libs/core/src/deepscout_core/domain/contracts.py` (extended for routing, fusion, rerank, graph, compiled, provenance, no-answer classes). `infer_retrieval_failure_class()` in `retrieval_diagnostics.py` provides stage hints from trace + metrics.
+After review, manually promote to `retrieval_production_reviewed_v1.json` with `origin: production_reviewed`.
 
 ### Three evaluation modes (do not mix results)
 
 | Mode | Command | Cost |
 |------|---------|------|
-| **Deterministic CI** | `scripts/retrieval_regression_gate.py` | BM25 + router on fixtures |
-| **Synthetic benchmark v2** | `scripts/retrieval_quality_benchmark.py --router-only` / `--live` | Router free; live uses embeddings |
-| **Production regression corpus** | Same gate script | Grows with sanitized failures |
+| **Deterministic CI** | `scripts/retrieval_regression_gate.py` | Zero provider spend |
+| **Live benchmark** | `scripts/retrieval_quality_benchmark.py --live` | Embeddings (manual/scheduled) |
+| **Production-reviewed** | Part of CI gate when cases exist | Zero |
 
-### Evaluation loop
+**Scheduled live benchmark:** Not enabled in CI by default. Use manual `workflow_dispatch` or local runs only — avoids daily provider spend. Requires secrets + test DB; does not mutate production.
+
+### Failure taxonomy
+
+Uses `RetrievalFailureClass` in contracts + `infer_retrieval_failure_class()` for stage hints (routing vs lexical vs dense vs fusion vs rerank vs graph vs compiled vs provenance).
+
+### Evaluation loop (unchanged intent)
 
 ```mermaid
 flowchart LR

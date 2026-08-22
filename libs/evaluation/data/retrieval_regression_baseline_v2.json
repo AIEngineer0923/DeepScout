@@ -1,0 +1,49 @@
+{
+  "version": "retrieval-regression-baseline-v2",
+  "description": "Case-level regression policy. Update only with documented reason, before/after, and expected behavior change.",
+  "corpora": {
+    "synthetic": "retrieval-synthetic-regressions-v1",
+    "pipeline": "retrieval-pipeline-deterministic-v1",
+    "production_reviewed": "retrieval-production-reviewed-v1"
+  },
+  "router_accuracy_min": 0.94,
+  "critical_cases": {
+    "reg-en-institutional-primary": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-authority-not-relevance": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-it-regulatory-timeline": {"router_pass": true, "skip_deterministic_retrieval": true},
+    "reg-en-bev-ice-quant": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-lfp-nmc-tradeoff": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-cve-identifier": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-en-conflicting-sources": {"router_pass": true, "bm25_hit_at_3_min": 0.0},
+    "reg-en-no-answer-quantum": {"router_pass": true, "bm25_hit_at_3_max": 0.0},
+    "reg-en-injection-query": {"router_pass": true},
+    "reg-boundary-identifier-vs-semantic": {"router_pass": true},
+    "reg-boundary-semantic-vs-global": {"router_pass": true},
+    "reg-en-office-holder": {"router_pass": true, "bm25_hit_at_3_min": 1.0},
+    "reg-it-identifier-cve": {"router_pass": true, "bm25_hit_at_3_min": 1.0}
+  },
+  "pipeline_critical_cases": {
+    "rrf-bm25-dense-agree": {"must_pass": true, "stage": "rrf"},
+    "rrf-identifier-bm25-over-dense": {"must_pass": true, "stage": "rrf"},
+    "rrf-dense-paraphrase-only": {"must_pass": true, "stage": "rrf"},
+    "rrf-multi-list-boost": {"must_pass": true, "stage": "rrf"},
+    "rerank-exact-token-boost": {"must_pass": true, "stage": "rerank"},
+    "rerank-source-diversity": {"must_pass": true, "stage": "rerank"},
+    "rerank-identifier-case": {"must_pass": true, "stage": "rerank"},
+    "pipe-hybrid-cve-wins": {"must_pass": true, "stage": "pipeline"},
+    "pipe-dense-paraphrase": {"must_pass": true, "stage": "pipeline"},
+    "pipe-no-answer": {"must_pass": true, "stage": "pipeline"},
+    "compiled-thematic-hit": {"must_pass": true, "stage": "compiled"},
+    "compiled-not-quote-authority": {"must_pass": true, "stage": "compiled"},
+    "graph-direct-relation": {"must_pass": true, "stage": "graph"},
+    "graph-absent-relation": {"must_pass": true, "stage": "graph"},
+    "ctx-text-immutable": {"must_pass": true, "stage": "contextual_contract"}
+  },
+  "changelog": [
+    {
+      "date": "2026-08-22",
+      "version": "v2",
+      "reason": "Closure: split synthetic vs production-reviewed; add full-pipeline deterministic gate."
+    }
+  ]
+}

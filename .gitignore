@@ -1,4 +1,7 @@
-# Secrets and local environment
+# Evaluation operator artifacts (never commit)
+libs/evaluation/data/retrieval_production_candidates.local.json
+libs/evaluation/data/final_report_quality_live_results.json
+
 .env
 .env.*
 !.env.example

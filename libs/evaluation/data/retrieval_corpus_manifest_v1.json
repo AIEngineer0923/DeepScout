@@ -1,0 +1,56 @@
+{
+  "version": "retrieval-corpus-manifest-v1",
+  "description": "Index of retrieval regression corpora — semantics, CI inclusion, and promotion workflow.",
+  "corpora": [
+    {
+      "id": "retrieval-quality-benchmark-v2",
+      "path": "libs/evaluation/data/retrieval_quality_benchmark_v2.json",
+      "corpus_type": "benchmark_fixture",
+      "ci_included": false,
+      "provider_spend": "optional_live",
+      "description": "Initial synthetic benchmark for router/ablation/contextual/compiled/graph."
+    },
+    {
+      "id": "retrieval-synthetic-regressions-v1",
+      "path": "libs/evaluation/data/retrieval_synthetic_regressions_v1.json",
+      "corpus_type": "synthetic_regression",
+      "ci_included": true,
+      "provider_spend": "none",
+      "description": "Synthetic pattern regressions (router + BM25 lexical gate)."
+    },
+    {
+      "id": "retrieval-pipeline-deterministic-v1",
+      "path": "libs/evaluation/data/retrieval_pipeline_deterministic_v1.json",
+      "corpus_type": "pipeline_deterministic",
+      "ci_included": true,
+      "provider_spend": "none",
+      "description": "Frozen-vector pipeline gate: RRF, rerank, FTS, compiled, graph, contextual contract."
+    },
+    {
+      "id": "retrieval-production-reviewed-v1",
+      "path": "libs/evaluation/data/retrieval_production_reviewed_v1.json",
+      "corpus_type": "production_reviewed",
+      "ci_included": true,
+      "provider_spend": "none",
+      "description": "Human-reviewed production-derived regressions only. Empty until first safe case is promoted."
+    }
+  ],
+  "origin_taxonomy": {
+    "development_synthetic": "Engineered fixture; no production data.",
+    "benchmark_fixture": "Part of quality benchmark v2.",
+    "production_candidate": "Exported from a run; NOT CI-safe until reviewed.",
+    "production_reviewed": "Sanitized + human-reviewed; safe to commit.",
+    "historical_regression": "Preserved regression from prior benchmark generation."
+  },
+  "promotion_workflow": [
+    "production observation",
+    "candidate export (ingest preview)",
+    "sanitizer",
+    "privacy validation",
+    "human review",
+    "ground truth annotation",
+    "promote to retrieval_production_reviewed_v1.json",
+    "baseline update with documented reason",
+    "CI gate"
+  ]
+}

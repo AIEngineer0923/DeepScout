@@ -162,10 +162,21 @@ def main() -> int:
         print("Refused: --write requires --confirm", file=sys.stderr)
         return 1
 
-    from deepscout_evaluation.retrieval_regression import PRODUCTION_REGRESSIONS_PATH
 
-    target = args.fixture or PRODUCTION_REGRESSIONS_PATH
-    fixture = json.loads(target.read_text())
+    default_candidate_path = (
+        Path(__file__).resolve().parents[1]
+        / "libs/evaluation/data/retrieval_production_candidates.local.json"
+    )
+    target = args.fixture or default_candidate_path
+    if not target.exists():
+        fixture = {
+            "version": "retrieval-production-candidates-local",
+            "corpus_type": "production_candidate",
+            "description": "Local operator candidates — NOT for CI. Gitignored.",
+            "cases": [],
+        }
+    else:
+        fixture = json.loads(target.read_text())
     existing = {case["case_id"] for case in fixture.get("cases", [])}
     if sanitized["case_id"] in existing:
         print(f"Refused: case_id already exists: {sanitized['case_id']}", file=sys.stderr)

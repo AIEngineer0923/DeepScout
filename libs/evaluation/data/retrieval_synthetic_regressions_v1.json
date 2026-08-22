@@ -1,7 +1,8 @@
 {
-  "version": "retrieval-production-regressions-v1",
-  "description": "Sanitized production-style regression corpus. Synthetic documents model real failure patterns; no private production data.",
-  "baseline_version": "retrieval-regression-baseline-v1",
+  "version": "retrieval-synthetic-regressions-v1",
+  "corpus_type": "synthetic_regression",
+  "description": "Synthetic regression fixtures modeling real failure patterns. NOT production-derived. Safe for CI.",
+  "baseline_version": "retrieval-regression-baseline-v2",
   "documents": [
     {
       "id": "doc-primary-institutional",
