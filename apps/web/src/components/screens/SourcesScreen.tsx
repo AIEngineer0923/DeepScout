@@ -7,11 +7,20 @@ import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ExternalLink } from "@/components/ExternalLink";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useT, useI18n } from "@/i18n/context";
+import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
+import {
+  presentPreference,
+  presentSourceType,
+  presentTaskKey,
+  presentWorkerIndex,
+} from "@/presentation/fields";
 
 export function SourcesScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const { locale } = useI18n();
+  const demoReadOnly = useDemoReadOnly();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<string | null>(null);
@@ -103,8 +112,8 @@ export function SourcesScreen() {
                       <div className="muted">{item.domain}</div>
                     </td>
                     <td><StatusBadge status={item.fetch_state} /></td>
-                    <td>{item.preference ?? "normal"}</td>
-                    <td>{item.worker_index ? `W${String(item.worker_index).padStart(2, "0")}` : "—"}</td>
+                    <td>{presentPreference(item.preference, locale)}</td>
+                    <td>{presentWorkerIndex(workspace, item.worker_index, locale)}</td>
                     <td>{item.claim_count}</td>
                     <td>{item.evidence_count}</td>
                   </tr>
@@ -120,18 +129,38 @@ export function SourcesScreen() {
               <StatusBadge status={source.fetch_state} />
               <p><ExternalLink href={source.url}><span className="wrap-text">{source.url}</span></ExternalLink></p>
               <p>
-                {t("sources.type")}: {source.source_type}
+                {t("sources.type")}: {presentSourceType(source.source_type, locale)}
               </p>
-              <p>{t("nav.snapshot")}: {source.snapshot_available ? t("sources.snapshotAvailable") : t("sources.snapshotMissing")}</p>
-              <p>{t("sources.pref")}: {source.preference ?? "normal"}</p>
-              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                <button className="btn" data-testid="pin-source" type="button" onClick={() => void setPreference("pin")}>{t("sources.pin")}</button>
-                <button className="btn" data-testid="exclude-source" type="button" onClick={() => void setPreference("exclude")}>{t("sources.exclude")}</button>
-                <button className="btn" data-testid="undo-source-pref" type="button" onClick={() => void undoPreference()}>{t("sources.undo")}</button>
-              </div>
+              <p>
+                {t("nav.snapshot")}: {source.snapshot_available ? t("sources.snapshotAvailable") : t("sources.snapshotMissing")}
+              </p>
+              <p>
+                {t("sources.pref")}: {presentPreference(source.preference, locale)}
+              </p>
+              {!demoReadOnly ? (
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <button className="btn" data-testid="pin-source" type="button" onClick={() => void setPreference("pin")}>
+                    {t("sources.pin")}
+                  </button>
+                  <button className="btn" data-testid="exclude-source" type="button" onClick={() => void setPreference("exclude")}>
+                    {t("sources.exclude")}
+                  </button>
+                  <button className="btn" data-testid="undo-source-pref" type="button" onClick={() => void undoPreference()}>
+                    {t("sources.undo")}
+                  </button>
+                </div>
+              ) : null}
               {prefError ? <p className="empty">{prefError}</p> : null}
-              {source.task_id ? <p>{t("table.task")}: {source.task_key}</p> : null}
-              {source.worker_index ? <Link href={`/research/${workspace.run_id}/workers`}>{t("action.open")} W{String(source.worker_index).padStart(2, "0")}</Link> : null}
+              {source.task_key ? (
+                <p>
+                  {t("sources.analyzedFor")}: {presentTaskKey(workspace, source.task_key)}
+                </p>
+              ) : null}
+              {source.worker_index ? (
+                <p>
+                  {t("table.worker")}: {presentWorkerIndex(workspace, source.worker_index, locale)}
+                </p>
+              ) : null}
               {source.snapshot_id ? (
                 <Link className="btn" href={`/research/${workspace.run_id}/snapshots/${source.snapshot_id}`}>{t("sources.viewSnapshot")}</Link>
               ) : null}

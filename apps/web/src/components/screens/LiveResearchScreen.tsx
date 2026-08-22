@@ -5,6 +5,7 @@ import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { workerProgress } from "@/lib/visual";
+import { formatResearchMode } from "@/lib/format";
 import { useI18n } from "@/i18n/context";
 import { MobileRunScreen } from "@/components/screens/MobileRunScreen";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
@@ -14,6 +15,8 @@ import {
   displayWorkerName,
   displayWorkerTask,
 } from "@/presentation/demo";
+import { displayGoal } from "@/presentation/demo";
+import { presentOutputLanguage, presentResearchCost } from "@/presentation/fields";
 import { vocab } from "@/presentation/vocabulary";
 
 export function LiveResearchScreen() {
@@ -93,12 +96,18 @@ export function LiveResearchScreen() {
           <dl className="kv-list">
             <div className="kv-row">
               <dt>{t("new.step2")}</dt>
-              <dd>{workspace.research_mode ?? "—"}</dd>
+              <dd>{workspace.research_mode ? formatResearchMode(workspace.research_mode, t) : "—"}</dd>
             </div>
             <div className="kv-row">
               <dt>{t("new.outputLanguage")}</dt>
-              <dd>{workspace.output_language ?? "—"}</dd>
+              <dd>{presentOutputLanguage(workspace.output_language, locale)}</dd>
             </div>
+            {workspace.usage.cost_usd != null ? (
+              <div className="kv-row">
+                <dt>{t("demo.researchCost")}</dt>
+                <dd>{presentResearchCost(workspace.usage.cost_usd, locale)}</dd>
+              </div>
+            ) : null}
           </dl>
           <div className="panel-section">
             <h3>{completed ? t("demo.resultsSummary") : t("live.progress")}</h3>

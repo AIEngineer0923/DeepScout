@@ -7,13 +7,15 @@ import { ExpandableText } from "@/components/ExpandableText";
 import { useRun } from "@/components/run/RunProvider";
 import { RunHeader } from "@/components/run/RunHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useT } from "@/i18n/context";
+import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayClaimStatement } from "@/presentation/demo";
+import { presentTaskKey, presentWorkerIndex } from "@/presentation/fields";
 
 export function ClaimsScreen() {
   const { workspace } = useRun();
   const t = useT();
+  const { locale } = useI18n();
   const demoReadOnly = useDemoReadOnly();
   const params = useSearchParams();
   const [query, setQuery] = useState("");
@@ -44,8 +46,8 @@ export function ClaimsScreen() {
           </article>
         ))}
       </div>
-      <div className="grid cols-2" style={{ marginTop: 16 }}>
-        <section className="card">
+      <div className="claims-layout">
+        <section className="card claims-list-card">
           <input className="input" placeholder={t("claims.search")} value={query} onChange={(e) => setQuery(e.target.value)} />
           <div className="table-wrap" style={{ marginTop: 12 }}>
             <table className="data">
@@ -60,28 +62,29 @@ export function ClaimsScreen() {
               <tbody>
                 {filtered.map((item, index) => (
                   <tr key={item.id} className={claim?.id === item.id ? "selected" : ""} onClick={() => setSelected(item.id)}>
-                    <td className="wrap-text">
-                      <strong>C-{String(index + 1).padStart(2, "0")}</strong> {item.statement}
+                    <td className="wrap-text claims-statement">
+                      <strong>C-{String(index + 1).padStart(2, "0")}</strong>{" "}
+                      {displayClaimStatement(workspace, item.id, item.statement)}
                     </td>
                     <td>
                       <StatusBadge status={item.verification_status} />
                     </td>
                     <td>{item.independent_source_count}</td>
-                    <td>{item.task_key ?? "—"}</td>
+                    <td>{presentTaskKey(workspace, item.task_key)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </section>
-        <aside className="drawer">
+        <aside className="drawer claims-detail-drawer">
           {claim ? (
             <>
               <h2>{t("claims.selected")}</h2>
               <StatusBadge status={claim.verification_status} />
               <p className="wrap-text">{displayClaimStatement(workspace, claim.id, claim.statement)}</p>
               <p>
-                {t("table.worker")}: {claim.worker_index ? `W${String(claim.worker_index).padStart(2, "0")}` : "—"}
+                {t("table.worker")}: {presentWorkerIndex(workspace, claim.worker_index, locale)}
               </p>
               <h3>{t("claims.evidence")}</h3>
               {evidence.map((item) => (

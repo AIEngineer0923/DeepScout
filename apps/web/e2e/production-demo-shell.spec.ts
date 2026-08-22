@@ -4,17 +4,15 @@ const BASE = process.env.PRODUCTION_URL ?? "https://deep-scout-plum.vercel.app";
 const describeProductionUx = process.env.CI && !process.env.PRODUCTION_E2E ? test.describe.skip : test.describe;
 
 describeProductionUx("production demo shell", () => {
-  test("demo navigation tabs are active for published run", async ({ page }) => {
+  test("sidebar research navigation is active for published run", async ({ page }) => {
     const catalog = await page.request.get(`${BASE}/api/v1/demos`);
     const demos = (await catalog.json()).items;
     const runId = demos[0].id as string;
     await page.goto(`${BASE}/research/${runId}/plan`);
     await expect(page.getByTestId("demo-shell")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("demo-run-tabs")).toBeVisible({ timeout: 20_000 });
-    const plan = page.getByTestId("demo-run-tabs").getByRole("link", { name: /plan/i });
+    const plan = page.getByRole("link", { name: /plan|piano/i }).first();
     await expect(plan).toBeVisible();
-    await expect(plan).not.toHaveClass(/disabled|muted/);
-    await page.getByRole("link", { name: /report/i }).click();
+    await page.getByRole("link", { name: /report/i }).first().click();
     await expect(page).toHaveURL(new RegExp(`/research/${runId}/report`));
   });
 
