@@ -92,10 +92,16 @@ def _topic_anchors(text: str) -> set[str]:
 
 
 def _explicit_identifiers(text: str) -> set[str]:
-    identifiers = re.findall(
-        r"\b(?:[A-Z][A-Z0-9]{2,}|[A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]*)+)\b",
-        text,
-    )
+    identifiers: list[str] = []
+    for token in re.findall(r"\b[A-Za-z0-9]{3,128}\b", text):
+        is_acronym = token[0].isupper() and token.isupper()
+        is_camel_case = (
+            token[0].isupper()
+            and any(character.islower() for character in token)
+            and sum(character.isupper() for character in token) >= 2
+        )
+        if is_acronym or is_camel_case:
+            identifiers.append(token)
     return set().union(*(_tokens(item) for item in identifiers)) if identifiers else set()
 
 

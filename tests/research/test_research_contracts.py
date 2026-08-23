@@ -26,6 +26,7 @@ from deepscout_core.domain.schemas import (
 )
 from deepscout_research.contracts.coverage import evaluate_coverage, gap_search_queries
 from deepscout_research.contracts.evidence_relevance import (
+    _explicit_identifiers,
     claim_specificity_allowed,
     is_evidence_relevant,
     is_search_result_relevant,
@@ -152,6 +153,14 @@ def test_evidence_relevance_rejects_noise() -> None:
         query="GPAI obligations",
         goal=goal,
     )
+
+
+def test_explicit_identifier_detection_is_linear_and_bounded() -> None:
+    assert _explicit_identifiers("Compare GraphRAG with LFP and ordinary words") == {
+        "graphrag",
+        "lfp",
+    }
+    assert _explicit_identifiers("A" * 100_000) == set()
 
 
 def test_search_result_relevance_rejects_unrelated_authoritative_result() -> None:
