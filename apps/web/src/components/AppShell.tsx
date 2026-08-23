@@ -135,7 +135,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             isAuthenticated={isAuthenticated}
             isHosted={isHosted}
           />
-          <div className="version-tag">v0.1.0</div>
+          <div className="version-tag">
+            v{process.env.NEXT_PUBLIC_DEEPSCOUT_VERSION ?? "development"}
+          </div>
         </div>
       </aside>
       <div className="main-wrap">

@@ -21,6 +21,32 @@ It never silently becomes MODE A.
 
 Do not bind `0.0.0.0` unless you understand that MODE A has no login.
 
+### MODE A from released GHCR images
+
+The versioned release stack is the supported no-build container path. It uses two public images:
+
+- `ghcr.io/francescoveryra-dot/deepscout-api:0.1.0` for the migration, API, and worker roles;
+- `ghcr.io/francescoveryra-dot/deepscout-web:0.1.0` for the Next.js frontend.
+
+PostgreSQL/pgvector and Redis remain separate upstream services. From a checkout of the matching
+release tag:
+
+```bash
+cp .env.example .env
+docker compose -f infra/docker/docker-compose.release.yml pull
+docker compose -f infra/docker/docker-compose.release.yml up -d
+curl --fail http://127.0.0.1:8000/ready
+curl --fail http://127.0.0.1:3000
+```
+
+The one-shot `migrate` service applies Alembic head `016` before API/worker startup. The local
+database credentials and loopback-only ports in this compose file are for a trusted workstation,
+not an Internet-facing deployment. Research calls remain unavailable until the operator adds their
+own provider credentials to `.env`.
+
+Use `docker-compose.yml` instead when developing changes and rebuilding images from source. The two
+paths intentionally coexist.
+
 ## MODE B — self-host hosted mode
 
 Another operator configures **their** OAuth apps, database, session secret, and encryption key.
@@ -67,6 +93,12 @@ Suggested process topology:
 - no extra scheduler service
 
 Migrations run **once** per release (`uv run alembic upgrade head` from `libs/persistence`), not on every worker.
+
+The public GHCR images are infrastructure-neutral. The API image accepts the same environment
+contract on a Docker host, Kubernetes, Railway, or another persistent container platform. The web
+image included in the release stack is built to proxy same-origin API requests to `http://api:8000`;
+other network topologies can rebuild `Dockerfile.web` with `API_REWRITE_ORIGIN` or deploy the
+frontend separately.
 
 Disable idle sleep / keep a minimum replica. Transaction poolers must not be used for LISTEN.
 

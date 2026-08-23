@@ -1,4 +1,15 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a
+
+ARG VERSION=development
+ARG REVISION=unknown
+ARG SOURCE=https://github.com/francescoveryra-dot/deepscout
+
+LABEL org.opencontainers.image.title="DeepScout API" \
+    org.opencontainers.image.description="DeepScout API, research worker, and database migration runtime" \
+    org.opencontainers.image.source="$SOURCE" \
+    org.opencontainers.image.version="$VERSION" \
+    org.opencontainers.image.revision="$REVISION" \
+    org.opencontainers.image.licenses="Apache-2.0"
 
 WORKDIR /app
 
@@ -20,6 +31,8 @@ COPY libs/core/src libs/core/src
 COPY libs/providers/src libs/providers/src
 COPY libs/research/src libs/research/src
 COPY libs/persistence/src libs/persistence/src
+COPY libs/persistence/alembic.ini libs/persistence/alembic.ini
+COPY libs/persistence/alembic libs/persistence/alembic
 COPY libs/evaluation/src libs/evaluation/src
 COPY apps/api/src apps/api/src
 COPY infra/docker/entrypoint.sh /entrypoint.sh
@@ -30,8 +43,13 @@ RUN uv sync --all-packages --no-dev \
 
 USER deepscout
 EXPOSE 8000
-ENV APP_ENV=production APP_DEBUG=false API_HOST=0.0.0.0 RATE_LIMIT_ENABLED=true
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    API_HOST=0.0.0.0 \
+    RATE_LIMIT_ENABLED=true \
+    DEEPSCOUT_VERSION="$VERSION" \
+    GIT_SHA="$REVISION"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
-  CMD python -c "import os,urllib.request; raise SystemExit(0) if os.environ.get('DEEPSCOUT_PROCESS_ROLE')=='worker' else urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT','8000'), timeout=4)"
+  CMD python -c "import os,sys,urllib.request; sys.exit(0) if os.environ.get('DEEPSCOUT_PROCESS_ROLE')=='worker' else urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT','8000'), timeout=4).close()"
 
 ENTRYPOINT ["/entrypoint.sh"]

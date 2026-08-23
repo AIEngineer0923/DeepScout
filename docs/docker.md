@@ -1,76 +1,144 @@
 # Docker
 
-Local and containerized deployment using files in `infra/docker/`.
+DeepScout has two container paths with different purposes:
 
-## Compose stack (development)
+- **development from source** builds the current checkout;
+- **self-hosting from a release** pulls immutable public images from GHCR.
+
+Both paths run in MODE A by default. MODE A has no authentication and must stay on a trusted
+machine or private network.
+
+## Prerequisites
+
+- Docker Engine or Docker Desktop with Compose v2
+- Git for checking out the matching release configuration
+- A copied `.env.example` file; provider keys are only needed to execute research
+
+## Self-host from released images
+
+Check out the release whose compose file you intend to run:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d
+git clone --branch v0.1.0 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+cd deepscout
+cp .env.example .env
+```
+
+The default v0.1.0 images are:
+
+```text
+ghcr.io/francescoveryra-dot/deepscout-api:0.1.0
+ghcr.io/francescoveryra-dot/deepscout-web:0.1.0
+```
+
+They are public and support `linux/amd64` and `linux/arm64`. The API image is deliberately reused
+for three process roles: one-shot database migration, FastAPI, and the research worker. Publishing a
+separate worker image would duplicate the same filesystem and dependency graph.
+
+Pull and start the stack:
+
+```bash
+docker compose -f infra/docker/docker-compose.release.yml pull
+docker compose -f infra/docker/docker-compose.release.yml up -d
+docker compose -f infra/docker/docker-compose.release.yml ps
+```
+
+The `migrate` service applies Alembic head `016` and exits successfully before the API and worker
+start. PostgreSQL/pgvector and Redis run as separate services. The web image sends same-origin API
+requests through its built-in rewrite to the Compose service `api:8000`.
+
+Verify a no-provider-key installation:
+
+```bash
+curl --fail http://127.0.0.1:8000/health
+curl --fail http://127.0.0.1:8000/ready
+curl --fail http://127.0.0.1:3000
+docker compose -f infra/docker/docker-compose.release.yml logs migrate
+```
+
+Open <http://localhost:3000>. Research execution remains unavailable until `.env` contains a
+supported model-provider key and `TAVILY_API_KEY`. No maintainer credentials are present in the
+images.
+
+Stop the stack without deleting its database volume:
+
+```bash
+docker compose -f infra/docker/docker-compose.release.yml down
+```
+
+Use `down --volumes` only when you intentionally want to erase the local database.
+
+### Pin or override an image
+
+The compose file defaults to the exact release version. Advanced users can point at an immutable
+SHA tag or an internal mirror without editing the file:
+
+```bash
+export DEEPSCOUT_API_IMAGE=ghcr.io/francescoveryra-dot/deepscout-api:sha-<short-sha>
+export DEEPSCOUT_WEB_IMAGE=ghcr.io/francescoveryra-dot/deepscout-web:sha-<short-sha>
+docker compose -f infra/docker/docker-compose.release.yml pull
+```
+
+`latest` follows the newest published GitHub Release. Production operators should prefer an exact
+version or digest.
+
+## Develop from source
+
+```bash
+cp .env.example .env
+docker compose -f infra/docker/docker-compose.yml up -d --build
 ```
 
 | Service | Image | Host port | Purpose |
 |---------|-------|-----------|---------|
 | `postgres` | `pgvector/pgvector:pg16` | `127.0.0.1:5432` | Primary database |
-| `redis` | `redis:7-alpine` | `127.0.0.1:6379` | Cache / optional queue |
+| `redis` | `redis:7-alpine` | `127.0.0.1:6379` | Optional cache/wake channel |
 | `api` | built from `Dockerfile.api` | `127.0.0.1:8000` | FastAPI |
 | `web` | built from `Dockerfile.web` | `127.0.0.1:3000` | Next.js |
 
-Compose uses a **lab-only** Postgres password (`deepscout`/`deepscout`). Do not expose these ports publicly without changing credentials.
-
-### Migrations inside compose
-
-After Postgres is healthy:
+Apply migrations from the host after Postgres is healthy:
 
 ```bash
 cd libs/persistence
-DATABASE_URL=postgresql+psycopg://deepscout:deepscout@127.0.0.1:5432/deepscout uv run alembic upgrade head
+DATABASE_URL=postgresql+psycopg://deepscout:deepscout@127.0.0.1:5432/deepscout \
+  uv run alembic upgrade head
 ```
 
-Or exec into the `api` container if you run the full stack.
+Run the worker from source when testing background execution:
 
-## API image
+```bash
+DEEPSCOUT_PROCESS_ROLE=worker uv run python -m deepscout_research.jobs.worker
+```
 
-`infra/docker/Dockerfile.api`:
+## Image roles and health
 
-- Multi-stage build with `uv sync --all-packages`
-- Exposes port 8000
-- Healthcheck: `GET /health`
-- Entrypoint: `infra/docker/entrypoint.sh`
-  - `DEEPSCOUT_PROCESS_ROLE=worker` → `python -m deepscout_research.jobs.worker`
-  - default → `deepscout-api`
+`infra/docker/Dockerfile.api` installs the locked production Python workspace and runs as the
+non-root `deepscout` user:
 
-Used by Railway for production API and worker services.
+| `DEEPSCOUT_PROCESS_ROLE` | Process |
+|--------------------------|---------|
+| `api` or unset | `deepscout-api` |
+| `worker` | `deepscout_research.jobs.worker` |
+| `migrate` | `deepscout-migrate` → Alembic head |
 
-## Web image
-
-`infra/docker/Dockerfile.web`:
-
-- Next.js `standalone` output
-- Exposes port 3000
-
-Production frontend is usually deployed on Vercel instead of this image.
-
-## Environment
-
-Pass env via `.env` file referenced in compose or `-e` flags. Required for research:
-
-- `DATABASE_URL`
-- LLM + Tavily keys
-
-See [configuration.md](configuration.md).
-
-## Health checks
+`infra/docker/Dockerfile.web` builds Next.js standalone output and also runs as `deepscout`.
 
 | Endpoint | Meaning |
 |----------|---------|
-| `GET /health` | Process alive |
-| `GET /ready` | Postgres reachable; hosted also checks schema revision + `evaluation_results` |
+| `GET /health` or `/live` | API process is alive |
+| `GET /ready` | PostgreSQL reachable; hosted mode also checks schema and auth configuration |
 
-## Production differences
+## Runtime configuration and security
 
-- Bind `API_HOST=0.0.0.0`, set `PORT` from platform
-- Use managed Postgres with TLS (`sslmode=require`)
-- Separate migration admin role from app role
-- Do not publish Postgres/Redis to the public internet
+- `.dockerignore` excludes `.env*`, `.git`, virtual environments, Node modules, build output,
+  tests, local transcripts, and editor state.
+- Both application images run as an unprivileged user.
+- Provider, OAuth, database, Railway, Vercel, and Supabase credentials are runtime configuration;
+  none are build arguments or image content.
+- Production containers use `uv.lock` and `package-lock.json`.
+- Release manifests include OCI source/version/revision/license labels plus SBOM and provenance
+  attestations in GHCR.
+- Local compose ports bind to `127.0.0.1`. Do not publish MODE A directly to the Internet.
 
-Full deployment: [DEPLOYMENT.md](DEPLOYMENT.md).
+For hosted OAuth/BYOK requirements and generic infrastructure topology, see
+[DEPLOYMENT.md](DEPLOYMENT.md). For all variables, see [configuration.md](configuration.md).

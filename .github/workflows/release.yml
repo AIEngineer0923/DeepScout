@@ -1,0 +1,227 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  validate:
+    name: Validate tagged revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: deepscout
+          POSTGRES_PASSWORD: deepscout
+          POSTGRES_DB: deepscout
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deepscout -d deepscout"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://deepscout:deepscout@localhost:5432/deepscout
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Verify version and release notes
+        id: version
+        run: |
+          set -euo pipefail
+          python scripts/check_release_version.py --tag "$GITHUB_REF_NAME"
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify main CI and CodeQL passed for this revision
+        run: |
+          set -euo pipefail
+          for workflow in ci.yml codeql.yml; do
+            conclusion="$(gh api \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$GITHUB_SHA&event=push&status=completed&per_page=20" \
+              --jq '.workflow_runs | map(select(.head_branch == "main")) | first | .conclusion // "missing"')"
+            echo "$workflow: $conclusion"
+            test "$conclusion" = "success"
+          done
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Repository, Python, and migration gates
+        run: |
+          bash scripts/scan-secrets.sh
+          uv run ruff check .
+          cd libs/persistence
+          uv run alembic upgrade head
+          cd ../..
+          uv run pytest -m "not integration"
+          uv run python scripts/retrieval_regression_gate.py
+          uv run python scripts/research_completeness_gate.py
+          uv run python scripts/learning_loop_gate.py
+          uv run python scripts/learning_effectiveness_gate.py
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Frontend gates
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm test
+          npm run build
+
+  publish:
+    name: Publish ${{ matrix.name }} image
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            image: deepscout-api
+            dockerfile: infra/docker/Dockerfile.api
+            title: DeepScout API
+            description: DeepScout API, research worker, and database migration runtime
+          - name: web
+            image: deepscout-web
+            dockerfile: infra/docker/Dockerfile.web
+            title: DeepScout Web
+            description: DeepScout Next.js web application for self-hosted deployments
+    steps:
+      - name: Checkout exact tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Build and publish multi-architecture image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.validate.outputs.version }}
+            REVISION=${{ github.sha }}
+            SOURCE=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          provenance: mode=max
+          sbom: true
+
+  release:
+    name: Publish GitHub Release
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Make repository packages public
+        run: |
+          set -euo pipefail
+          for package in deepscout-api deepscout-web; do
+            gh api --method PATCH \
+              "users/$GITHUB_REPOSITORY_OWNER/packages/container/$package" \
+              -f visibility=public >/dev/null
+            visibility="$(gh api \
+              "users/$GITHUB_REPOSITORY_OWNER/packages/container/$package" \
+              --jq .visibility)"
+            echo "$package: $visibility"
+            test "$visibility" = "public"
+          done
+
+      - name: Create or update release
+        run: |
+          set -euo pipefail
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          title="DeepScout $GITHUB_REF_NAME"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --notes-file "$notes" --latest
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --title "$title" --notes-file "$notes" --latest
+          fi
