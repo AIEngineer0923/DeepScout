@@ -9,6 +9,7 @@ import { useT } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayGoal, displayTaskObjective, dependsOnLabels } from "@/presentation/demo";
 import { useI18n } from "@/i18n/context";
+import { GoalPreview } from "@/components/research/GoalPreview";
 
 export function PlanScreen() {
   const { workspace } = useRun();
@@ -55,7 +56,7 @@ export function PlanScreen() {
           <div className="dag-canvas">
             <div className="dag-goal">
               <strong>{t("plan.goal")}</strong>
-              <div className="wrap-text">{displayGoal(workspace, locale)}</div>
+              <GoalPreview lines={3}>{displayGoal(workspace, locale)}</GoalPreview>
             </div>
             <div className="dag">
               <div className="dag-row">

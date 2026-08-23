@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { DemoCatalogItem } from "@/lib/types";
 import { useI18n } from "@/i18n/context";
 import { relativeTime } from "@/lib/format";
+import { GoalPreview } from "@/components/research/GoalPreview";
 
 function categoryLabel(t: (key: string) => string, category?: string | null) {
   if (!category) return t("demo.category.general");
@@ -53,7 +54,9 @@ export default function DemoPage() {
                   </span>
                 ) : null}
               </div>
-              <h2>{item.demo_title || item.goal}</h2>
+              <h2>
+                <GoalPreview>{item.demo_title || item.goal}</GoalPreview>
+              </h2>
               {item.demo_summary ? <p className="muted">{item.demo_summary}</p> : null}
               {item.demo_why ? <p style={{ fontSize: 14, lineHeight: 1.5 }}>{item.demo_why}</p> : null}
               <div className="chip-row" style={{ marginTop: 12 }}>

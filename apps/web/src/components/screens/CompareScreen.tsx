@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { GoalPreview } from "@/components/research/GoalPreview";
 
 export function CompareScreen() {
   const t = useT();
@@ -42,8 +43,12 @@ export function CompareScreen() {
         <div className="grid cols-2">
           <article className="card">
             <h2>{t("compare.summary")}</h2>
-            <p>{t("compare.left")}: {String((diff.left as { goal?: string })?.goal)}</p>
-            <p>{t("compare.right")}: {String((diff.right as { goal?: string })?.goal)}</p>
+            <p>
+              {t("compare.left")}: <GoalPreview lines={3}>{String((diff.left as { goal?: string })?.goal)}</GoalPreview>
+            </p>
+            <p>
+              {t("compare.right")}: <GoalPreview lines={3}>{String((diff.right as { goal?: string })?.goal)}</GoalPreview>
+            </p>
             <p>{t("nav.plan")}: {JSON.stringify((diff.plan as { left?: { task_count?: number }; right?: { task_count?: number } }) ?? {})}</p>
           </article>
           <article className="card">

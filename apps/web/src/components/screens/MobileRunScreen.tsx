@@ -8,12 +8,14 @@ import { PhaseStepper } from "@/components/run/PhaseStepper";
 import { api } from "@/lib/api";
 import { formatCost, formatTokens } from "@/lib/format";
 import { workerProgress } from "@/lib/visual";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
 import { ExpandableText } from "@/components/ExpandableText";
+import { ResearchGoalHeading } from "@/components/research/ResearchGoalHeading";
 
 export function MobileRunScreen() {
   const { workspace, reload } = useRun();
   const t = useT();
+  const { locale } = useI18n();
   if (!workspace) return <p className="empty">{t("live.loading")}</p>;
   const worker = workspace.workers.find((item) => item.state === "running") ?? workspace.workers[0];
   const running = ["running", "pending"].includes(workspace.status);
@@ -23,9 +25,7 @@ export function MobileRunScreen() {
     <div className="grid live-mobile">
       <section className="card compact mobile-run-head">
         <StatusBadge status={workspace.status} />
-        <h2 className="wrap-text" style={{ margin: "8px 0 0", fontSize: 18 }}>
-          {workspace.goal}
-        </h2>
+        <ResearchGoalHeading workspace={workspace} locale={locale} level={2} className="mobile-research-title" />
         <PhaseStepper completed={workspace.completed_phases} status={workspace.status} />
       </section>
       {worker ? (

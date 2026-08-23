@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useI18n, useT } from "@/i18n/context";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ExpandableText } from "@/components/ExpandableText";
 import {
   formatMonitorTimestamp,
   presentMonitorStatus,
@@ -26,7 +27,7 @@ export function MonitorDetailScreen() {
   return (
     <div>
       <h1 className="page-title">{String(data.name)}</h1>
-      <p className="muted wrap-text">{String(data.goal)}</p>
+      <ExpandableText text={String(data.goal)} className="muted monitor-goal" />
       <p>
         {t("table.status")}: <StatusBadge status={String(data.status)} /> · {String(data.timezone)} ·{" "}
         {presentScheduleKind(String(data.schedule_kind), locale)}

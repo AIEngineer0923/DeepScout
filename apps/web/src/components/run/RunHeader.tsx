@@ -10,8 +10,8 @@ import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { DemoNotice } from "@/components/demo/DemoNotice";
 import { TechnicalDetails } from "@/components/demo/TechnicalDetails";
-import { displayGoal } from "@/presentation/demo";
 import { presentOutputLanguage } from "@/presentation/fields";
+import { ResearchGoalHeading } from "@/components/research/ResearchGoalHeading";
 
 export function RunHeader({ workspace }: { workspace: Workspace }) {
   const router = useRouter();
@@ -20,7 +20,6 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
   const demoReadOnly = useDemoReadOnly();
   const running = ["running", "pending"].includes(workspace.status);
   const completed = ["completed", "failed", "cancelled"].includes(workspace.status);
-  const title = displayGoal(workspace, locale);
 
   async function cancel() {
     const { api } = await import("@/lib/api");
@@ -38,7 +37,7 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
           {demoReadOnly ? (
             <span className="demo-readonly-pill inline research-demo-pill">{t("demo.readOnlyPill")}</span>
           ) : null}
-          <h1 className="research-title">{title}</h1>
+          <ResearchGoalHeading workspace={workspace} locale={locale} />
           <div className="research-meta">
             <StatusBadge status={workspace.status} />
             <span className="meta-dot" aria-hidden="true">

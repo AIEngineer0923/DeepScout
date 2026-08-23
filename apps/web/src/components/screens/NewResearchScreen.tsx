@@ -7,6 +7,7 @@ import { COUNTRY_OPTIONS, countryLabel } from "@/lib/countries";
 import { rememberRunId } from "@/lib/current-run";
 import { useI18n, useT } from "@/i18n/context";
 import { IconBolt, IconCheck, IconLayers, IconSpark } from "@/components/Icons";
+import { GoalPreview } from "@/components/research/GoalPreview";
 
 type Template = {
   id: string;
@@ -457,7 +458,9 @@ export function NewResearchScreen() {
       <aside>
         <section className="card">
           <h2>{t("new.summary")}</h2>
-          <p className="wrap-text muted">{goal || t("new.summaryEmpty")}</p>
+          <p className="muted">
+            <GoalPreview lines={3}>{goal || t("new.summaryEmpty")}</GoalPreview>
+          </p>
           <dl className="kv-list" style={{ marginTop: 12 }}>
             <div className="kv-row">
               <dt>{t("new.step2")}</dt>
@@ -518,7 +521,7 @@ export function NewResearchScreen() {
                 <li key={item.id} className="kv-row" style={{ alignItems: "flex-start", gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong className="wrap-text">{item.name}</strong>
-                    <div className="muted wrap-text">{item.goal}</div>
+                    <GoalPreview className="muted">{item.goal}</GoalPreview>
                     <div className="muted">{item.research_mode}</div>
                   </div>
                   <div className="row">
