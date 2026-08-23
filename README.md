@@ -6,15 +6,40 @@
 
 **Version 0.1.0** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
 
-DeepScout is an open-source agentic research system. You give it a research goal; it plans work as a DAG, runs research agents with web search and secure fetching, builds an evidence graph (claims linked to captured sources), checks contradictions, writes a cited report, and records deterministic evaluations.
+DeepScout is an open-source system for structured, evidence-based research. It turns a research goal into an explicit workflow: requirements, a task plan, source collection, evidence extraction, coverage checks, a cited report, and persisted evaluations.
 
-I built it in my spare time as a personal project. Some parts are solid (planning, retrieval, evidence, hosted auth); others are still evolving. I plan to keep improving it when I can.
-
-This is real, cloneable software — not a landing-page showcase repo.
+Its focus is narrower than that of a general-purpose AI assistant such as ChatGPT. DeepScout is not intended to replace one or to claim better answers in general; it is built to make a research process inspectable and its conclusions traceable to captured evidence.
 
 <p align="center">
   <img src="docs/assets/screenshots/overview.png" alt="DeepScout overview: research goal input, Quick/Standard/Deep modes, and run statistics" width="92%">
 </p>
+
+## Research as an inspectable process
+
+A chat assistant can take a question and return an answer, with or without web search. DeepScout instead persists the intermediate research artifacts so that the path from the original request to the final report can be inspected:
+
+```text
+Question → ResearchContract → task DAG → source discovery and retrieval
+         → claims ↔ evidence quotes ↔ source snapshots
+         → requirement coverage → bounded corrective research
+         → synthesis → cited report + final critic → evaluations
+```
+
+Language models assist planning, synthesis, and report writing. Application code remains responsible for budgets, phase order, task dependencies, tool authorization, persistence, evidence checks, HITL decisions, and terminal status.
+
+Finding relevant pages is not treated as proof that the question has been answered. A coverage map relates material requirements to attributed claims and evidence. Its states include `supported`, `partial`, `conflicting`, `unsupported`, `searched_no_evidence`, and `not_researched`. If a central requirement remains unresolved and the selected mode, policy, and budget allow it, DeepScout adds focused gap-research tasks. The final critic checks unresolved requirements and report structure before a run can be marked complete.
+
+The evidence path is more specific than a bibliography appended to generated text:
+
+```text
+Research requirement → Claim → Evidence quote → immutable SourceSnapshot → Source
+```
+
+The runtime is designed for research across different domains; the AI, regulation, EV, and RAG demos are examples rather than a fixed subject list. This is a design scope, not a claim that every topic works equally well.
+
+DeepScout also does not guarantee that every question has a verifiable answer. Results depend on the availability, accessibility, quality, and freshness of sources, the chosen research budget, and provider/model limits. When the collected evidence is insufficient, the intended output is an explicit gap or uncertainty, not invented certainty.
+
+DeepScout is maintained as a personal open-source project. Planning, retrieval, evidence persistence, hosted authentication, and the control loop are implemented; research quality still depends on the problem and available evidence.
 
 ## Try it
 
@@ -28,9 +53,9 @@ This is real, cloneable software — not a landing-page showcase repo.
 
 The public deployment splits **Vercel** (Next.js frontend) and a **persistent API + worker** (Railway in the reference setup) plus **PostgreSQL + pgvector**. One-click Vercel-only deploy is not supported — the worker and database are required.
 
-## What it does
+## Implemented workflow
 
-1. **Research goal** — Quick, Standard, or Deep mode; output language; optional model/region/freshness hints.
+1. **Research goal** — Quick, Standard, or Deep mode; output language; optional model/region/freshness hints. The modes share the same evidence and material-coverage rules: Quick uses smaller bounds, Standard is the balanced default, and Deep allows more tasks, sources, corrective rounds, and report rewrites.
 2. **Planning** — Semantic planner produces a task DAG with dependencies.
 3. **Orchestration** — Python state machine runs phases under a hard `ResearchBudget`.
 4. **Research workers** — bounded LangGraph search workers under the application-owned orchestrator; structured LLM calls assist planner, synthesis, and report phases.
@@ -39,8 +64,8 @@ The public deployment splits **Vercel** (Next.js frontend) and a **persistent AP
 7. **Claims & evidence** — Claims linked to snapshot quotes; provenance chain to sources.
 8. **Quality** — Evidence-backed material requirement coverage, bounded corrective research, contradiction detection, and a contract-aware final critic.
 9. **Report** — Markdown report with citations rendered in the UI (not raw `**` / pipe tables).
-10. **Evaluations** — 53 evaluator slots per run; deterministic results persisted; honest unavailable/skipped states.
-11. **Continuous learning** — Observes terminal runs and may promote **versioned runtime policies** (nine bounded families) after diagnosis, experiment, and optional HITL. Post-promotion monitoring measures whether future runs improve; rollback when regressions are detected. DeepScout does not autonomously mutate code or train models.
+10. **Evaluations** — The registry exposes 53 evaluator slots per run; deterministic results are persisted alongside explicit unavailable/skipped states.
+11. **Continuous learning** — Non-demo terminal runs can create sanitized learning cases. Candidate policy changes pass through diagnosis, bounded experiments, risk-based promotion, optional HITL, versioning, monitoring, and rollback. Web content and user feedback are not operational authority. DeepScout does not autonomously modify its source code or train models. See [Continuous learning architecture](docs/architecture/CONTINUOUS_LEARNING.md).
 12. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, `/learning` operator UI, optional LangSmith tracing.
 
 Not included as production backends today: SPLADE, Neo4j GraphRAG, community GraphRAG, paid LLM rerankers (cross-encoder optional), or online RAGAS. Production hybrid retrieval uses **BM25 + Postgres FTS + dense pgvector** fused with RRF. See [AI & retrieval architecture](docs/architecture-overview.md) and [ADR-013](docs/architecture/adr/ADR-013-retrieval-upgrade.md).
