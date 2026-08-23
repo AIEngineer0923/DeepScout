@@ -18,7 +18,10 @@ _SECRET_PATTERNS = (
     re.compile(r"postgresql(\+[^:]+)?://[^\s]+", re.I),
     re.compile(r"mongodb(\+srv)?://[^\s]+", re.I),
 )
-_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+# RFC 5321 bounds the local part to 64 characters and the domain to 255.
+# Keeping every repetition bounded also prevents polynomial backtracking when
+# this sanitizer receives adversarial, email-like user input.
+_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-zA-Z]{2,63}")
 _UUID = re.compile(
     r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
     re.I,
