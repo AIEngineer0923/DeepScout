@@ -71,17 +71,21 @@ class ResearchWorkerPool:
     ) -> list[WorkerResult]:
         if not tasks or self._max_workers <= 0:
             return []
-        capped = tasks[: self._max_workers]
         if self._inline_store is not None:
             return [
                 self._execute_one(run_id, task, iteration=iteration, store=self._inline_store)
-                for task in capped
+                for task in tasks
             ]
         results: list[WorkerResult] = []
-        with ThreadPoolExecutor(max_workers=min(self._max_workers, len(capped))) as executor:
+        # max_workers is a concurrency bound, not a per-batch task limit. Queue
+        # every ready task so a wide independent plan does not burn one research
+        # iteration for each concurrency-sized slice. The executor still runs at
+        # most max_workers tasks simultaneously, while the per-run tool/source
+        # ledgers enforce their independent hard limits atomically.
+        with ThreadPoolExecutor(max_workers=min(self._max_workers, len(tasks))) as executor:
             futures = {
                 executor.submit(self._execute_one, run_id, task, iteration=iteration): task
-                for task in capped
+                for task in tasks
             }
             for future in as_completed(futures):
                 results.append(future.result())
