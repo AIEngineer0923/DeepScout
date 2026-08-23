@@ -108,9 +108,10 @@ def extract_temporal_claims(text: str, *, source_url: str = "") -> list[Temporal
                 token in lowered for token in ("applic", "obligation", "provider", "gpai", "vigore")
             ):
                 relation = TemporalRelation.APPLIES_FROM
-            elif any(token in lowered for token in ("applic", "vigore", "deadline", "enforce", "transitional")):
-                relation = TemporalRelation.APPLIES_FROM
             else:
+                # A bare year next to the word "applications" is not a legal
+                # commencement date. Without an explicit relation phrase there
+                # is nothing to assert, so the sentence is skipped.
                 continue
         date_text = _extract_date(sentence)
         if not date_text:
