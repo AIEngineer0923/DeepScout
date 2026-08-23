@@ -173,9 +173,11 @@ Separate from **critic loop** (`_max_correction_rounds = 1`) used in finalize.
 
 `CONTRADICTION → CRITIC (deterministic) → SYNTHESIS (LLM) → REPORT (LLM + final critic rewrites) → COMPILE_KNOWLEDGE (non-blocking)`
 
-The terminal status and reason are persisted first. `persist_research_evaluations()` then observes
-the real terminal state; the completion evaluators cannot fail merely because evaluation ran too
-early.
+The final critic gates terminal success: evidence-blocked, remaining-gap, or rewrite-exhausted
+artifacts terminate as `failed` with a `final_critic_*` reason rather than being mislabeled
+`completed`. The terminal status and reason are persisted first. `persist_research_evaluations()`
+then observes the real terminal state; the completion evaluators cannot fail merely because
+evaluation ran too early.
 
 ### Quick / Standard / Deep
 

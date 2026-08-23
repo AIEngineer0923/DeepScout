@@ -10,16 +10,20 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from deepscout_core.domain.enums import CostReportStatus
+from deepscout_core.domain.enums import CostReportStatus, ResearchRunStatus
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_core.types import ProviderKind
 from deepscout_research.hitl import HumanReviewService
-from deepscout_research.orchestrator import ResearchOrchestrator
+from deepscout_research.orchestrator import (
+    ResearchOrchestrator,
+    _apply_final_critic_terminal_gate,
+)
 from deepscout_research.retrieval.models import RetrievalQuery
 from deepscout_research.retrieval.service import RetrievalService
 from deepscout_research.retrieval.spec import EmbeddingSpec
 from deepscout_research.routing.provider_health import ProviderHealthRegistry
+from deepscout_research.termination import TerminationDecision
 
 from deepscout_api.workspace import assemble_workspace
 
@@ -27,6 +31,23 @@ from deepscout_api.workspace import assemble_workspace
 def test_wiki_compiles_after_report() -> None:
     source = inspect.getsource(ResearchOrchestrator._run_post_research_phases)
     assert source.index("generate_report") < source.index("_compile_knowledge_phase")
+
+
+def test_evidence_blocked_critic_prevents_completed_terminal_status() -> None:
+    store = MagicMock()
+    store.get_run_row.return_value = SimpleNamespace(
+        config_snapshot={"final_critic": {"verdict": "blocked_by_evidence"}}
+    )
+    decision = TerminationDecision(
+        should_stop=True,
+        reason="no_active_tasks",
+        terminal_status=ResearchRunStatus.COMPLETED,
+    )
+
+    gated = _apply_final_critic_terminal_gate(store, uuid.uuid4(), decision)
+
+    assert gated.terminal_status == ResearchRunStatus.FAILED
+    assert gated.reason == "final_critic_blocked_by_evidence"
 
 
 def test_provider_health_is_thread_safe_and_isolates_providers() -> None:

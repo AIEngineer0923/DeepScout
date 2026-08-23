@@ -53,6 +53,26 @@ class OrchestratorResult:
     events: list[ResearchEvent] = field(default_factory=list)
 
 
+def _apply_final_critic_terminal_gate(
+    store: ResearchStore,
+    run_id: uuid.UUID,
+    decision: TerminationDecision,
+) -> TerminationDecision:
+    """Do not label an evidence-blocked final artifact as a completed run."""
+    if decision.terminal_status != ResearchRunStatus.COMPLETED:
+        return decision
+    row = store.get_run_row(run_id)
+    raw = (row.config_snapshot or {}).get("final_critic") if row else None
+    verdict = str(raw.get("verdict", "")) if isinstance(raw, dict) else ""
+    if verdict in {"blocked_by_evidence", "research_gap", "revision_required"}:
+        return TerminationDecision(
+            should_stop=True,
+            reason=f"final_critic_{verdict}",
+            terminal_status=ResearchRunStatus.FAILED,
+        )
+    return decision
+
+
 class ResearchOrchestrator:
     """Global deterministic supervisor — bounded workers execute ready tasks."""
 
@@ -284,10 +304,19 @@ class ResearchOrchestrator:
                 questions=self._store.list_questions(run_id),
                 tasks=self._store.list_tasks(run_id),
             )
-            terminal_status = (
-                final.terminal_status if final.should_stop else ResearchRunStatus.COMPLETED
+            final = _apply_final_critic_terminal_gate(
+                self._store,
+                run_id,
+                final
+                if final.should_stop
+                else TerminationDecision(
+                    should_stop=True,
+                    reason="pipeline_complete",
+                    terminal_status=ResearchRunStatus.COMPLETED,
+                ),
             )
-            reason = final.reason if final.should_stop else "pipeline_complete"
+            terminal_status = final.terminal_status
+            reason = final.reason
             self._store.set_termination_reason(run_id, reason)
             self._store.update_run_status(run_id, terminal_status)
             from deepscout_evaluation.persist import persist_research_evaluations

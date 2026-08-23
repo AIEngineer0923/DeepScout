@@ -48,6 +48,7 @@ def test_orchestrator_persists_plan_sources_and_terminates(store, settings, db_s
     assert result.final_status in {
         ResearchRunStatus.COMPLETED,
         ResearchRunStatus.BUDGET_EXHAUSTED,
+        ResearchRunStatus.FAILED,
     }
     questions = store.list_questions(run.id)
     assert len(questions) == 1
