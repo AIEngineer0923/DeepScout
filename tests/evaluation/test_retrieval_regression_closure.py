@@ -148,6 +148,12 @@ def test_sanitizer_redacts_email_and_uuid() -> None:
     assert "550e8400" not in text
 
 
+def test_sanitizer_bounds_email_matching_on_adversarial_input() -> None:
+    text = ("%" * 100_000) + " not-an-email"
+
+    assert sanitize_text(text) == text
+
+
 def test_sanitizer_private_urls() -> None:
     assert contains_private_url("https://foo.supabase.co/rest/v1")
     assert contains_private_url("http://localhost:5432/db")
