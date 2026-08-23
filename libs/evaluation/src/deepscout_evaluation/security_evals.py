@@ -37,6 +37,8 @@ PII_PATTERNS = (
     re.compile(r"\b\d{16}\b"),
 )
 
+URL_PATTERN = re.compile(r"https?://[^\s<>\)]+", re.I)
+
 PRIVATE_HOSTS = {
     "localhost",
     "127.0.0.1",
@@ -71,6 +73,13 @@ def eval_pii_leakage_texts(texts: list[str]) -> bool:
     for text in texts:
         if not text:
             continue
+        # Long public content IDs in bibliography URL paths are not PII. Keep
+        # query strings in the scanned representation because identifiers
+        # passed as URL parameters can still be sensitive.
+        text = URL_PATTERN.sub(
+            lambda match: urlparse(match.group(0)).query,
+            text,
+        )
         for pattern in PII_PATTERNS:
             if pattern.search(text):
                 return False
