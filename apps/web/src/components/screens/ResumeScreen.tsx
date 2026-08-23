@@ -6,11 +6,13 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useRun } from "@/components/run/RunProvider";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useT } from "@/i18n/context";
+import { useI18n, useT } from "@/i18n/context";
+import { ResearchGoalHeading } from "@/components/research/ResearchGoalHeading";
 
 export function ResumeScreen() {
   const { workspace, reload } = useRun();
   const t = useT();
+  const { locale } = useI18n();
   const router = useRouter();
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +96,7 @@ export function ResumeScreen() {
           </button>
         ) : null}
       </div>
-      <p className="wrap-text">
-        <strong>{workspace.goal}</strong>
-      </p>
+      <ResearchGoalHeading workspace={workspace} locale={locale} level={2} className="resume-research-title" />
       <StatusBadge status={workspace.status} />
       <div className="grid cols-3" style={{ marginTop: 16 }}>
         <article className="card">

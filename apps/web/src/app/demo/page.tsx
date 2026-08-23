@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { DemoCatalogItem } from "@/lib/types";
 import { useI18n } from "@/i18n/context";
 import { relativeTime } from "@/lib/format";
+import { ClampedText } from "@/components/ClampedText";
 
 function categoryLabel(t: (key: string) => string, category?: string | null) {
   if (!category) return t("demo.category.general");
@@ -30,9 +31,7 @@ export default function DemoPage() {
   return (
     <div className="grid" style={{ gap: 22 }}>
       <div className="page-head">
-        <h1 className="page-title" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
-          {t("demo.title")}
-        </h1>
+        <h1 className="page-title">{t("demo.title")}</h1>
         <p className="page-sub">{t("demo.subtitle")}</p>
       </div>
       {loading ? (
@@ -53,7 +52,9 @@ export default function DemoPage() {
                   </span>
                 ) : null}
               </div>
-              <h2>{item.demo_title || item.goal}</h2>
+              <h2>
+                <ClampedText>{item.demo_title || item.goal}</ClampedText>
+              </h2>
               {item.demo_summary ? <p className="muted">{item.demo_summary}</p> : null}
               {item.demo_why ? <p style={{ fontSize: 14, lineHeight: 1.5 }}>{item.demo_why}</p> : null}
               <div className="chip-row" style={{ marginTop: 12 }}>

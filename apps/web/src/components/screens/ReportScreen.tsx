@@ -71,7 +71,7 @@ export function ReportScreen() {
       <div className="grid cols-2">
         <article className="card report-document">
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <h2 className="wrap-text">{reportView.title || t("report.title")}</h2>
+            <h2 className="generated-heading">{reportView.title || t("report.title")}</h2>
             {reportView.body ? (
               <div className="row">
                 <button

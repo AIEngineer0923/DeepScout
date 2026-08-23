@@ -15,6 +15,7 @@ import {
   presentTaskKey,
   presentWorkerIndex,
 } from "@/presentation/fields";
+import { ClampedText } from "@/components/ClampedText";
 
 export function SourcesScreen() {
   const { workspace } = useRun();
@@ -107,8 +108,8 @@ export function SourcesScreen() {
               <tbody>
                 {filtered.map((item) => (
                   <tr key={item.id} className={source?.id === item.id ? "selected" : ""} onClick={() => setSelected(item.id)}>
-                    <td>
-                      <div className="wrap-text"><strong>{item.title}</strong></div>
+                    <td className="source-title-cell">
+                      <div className="generated-list-copy"><strong><ClampedText>{item.title}</ClampedText></strong></div>
                       <div className="muted">{item.domain}</div>
                     </td>
                     <td><StatusBadge status={item.fetch_state} /></td>
@@ -125,7 +126,7 @@ export function SourcesScreen() {
         <aside className="drawer">
           {source ? (
             <>
-              <h2 className="wrap-text">{source.title}</h2>
+              <h2 className="generated-heading">{source.title}</h2>
               <StatusBadge status={source.fetch_state} />
               <p><ExternalLink href={source.url}><span className="wrap-text">{source.url}</span></ExternalLink></p>
               <p>

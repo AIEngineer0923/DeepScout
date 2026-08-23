@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useI18n, useT } from "@/i18n/context";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ClampedText } from "@/components/ClampedText";
 import {
   formatMonitorTimestamp,
   presentMonitorStatus,
@@ -86,7 +87,7 @@ export function MonitorsScreen() {
               <tr key={row.id}>
                 <td>
                   <Link href={`/monitors/${row.id}`}>{row.name}</Link>
-                  <div className="muted wrap-text">{row.goal}</div>
+                  <ClampedText className="muted">{row.goal}</ClampedText>
                 </td>
                 <td>
                   <StatusBadge status={row.status} />

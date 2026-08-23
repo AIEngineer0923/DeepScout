@@ -11,6 +11,7 @@ import {
   presentKnowledgeStatus,
 } from "@/presentation/knowledge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ClampedText } from "@/components/ClampedText";
 
 type Page = { id: string; title: string; slug: string; status: string; page_type: string };
 
@@ -48,7 +49,9 @@ export function KnowledgeRunScreen() {
           <ul>
             {hits.map((hit) => (
               <li key={hit.id}>
-                <Link href={`/knowledge/${runId}/statement/${hit.id}`}>{hit.text}</Link>
+                <Link href={`/knowledge/${runId}/statement/${hit.id}`}>
+                  <ClampedText lines={3}>{hit.text}</ClampedText>
+                </Link>
               </li>
             ))}
           </ul>
@@ -60,7 +63,9 @@ export function KnowledgeRunScreen() {
           <ul>
             {pages.map((page) => (
               <li key={page.id}>
-                <Link href={`/knowledge/${runId}/page/${page.id}`}>{page.title}</Link>
+                <Link href={`/knowledge/${runId}/page/${page.id}`}>
+                  <ClampedText>{page.title}</ClampedText>
+                </Link>
                 <span className="muted">
                   {" "}
                   · {presentKnowledgePageType(page.page_type, locale)} · <StatusBadge status={page.status} />

@@ -9,6 +9,7 @@ import { elapsed, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import type { Overview } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
+import { ClampedText } from "@/components/ClampedText";
 
 const EMPTY: Overview = {
   active: null,
@@ -144,8 +145,10 @@ export function DashboardScreen() {
           <p className="card-eyebrow">{t("dashboard.active")}</p>
           {active ? (
             <>
-              <p className="wrap-text" style={{ margin: "0 0 10px" }}>
-                <strong>{active.goal}</strong>
+              <p style={{ margin: "0 0 10px" }}>
+                <strong>
+                  <ClampedText>{active.goal}</ClampedText>
+                </strong>
               </p>
               <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
                 <StatusBadge status={active.status} />
@@ -233,8 +236,10 @@ export function DashboardScreen() {
                 overview.recent.map((run) => (
                   <tr key={run.id} onClick={() => router.push(`/research/${run.id}`)} style={{ cursor: "pointer" }}>
                     <td>
-                      <Link href={`/research/${run.id}`} className="wrap-text">
-                        <strong>{run.goal}</strong>
+                      <Link href={`/research/${run.id}`}>
+                        <strong>
+                          <ClampedText>{run.goal}</ClampedText>
+                        </strong>
                       </Link>
                     </td>
                     <td>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
+import { ClampedText } from "@/components/ClampedText";
 
 export function KnowledgeHomeScreen() {
   const t = useT();
@@ -21,7 +22,9 @@ export function KnowledgeHomeScreen() {
         <ul>
           {runs.map((run) => (
             <li key={run.run_id}>
-              <Link href={`/knowledge/${run.run_id}`}>{run.goal}</Link>
+              <Link href={`/knowledge/${run.run_id}`}>
+                <ClampedText>{run.goal}</ClampedText>
+              </Link>
               <span className="muted"> · {run.page_count} {t("knowledge.pages")}</span>
             </li>
           ))}

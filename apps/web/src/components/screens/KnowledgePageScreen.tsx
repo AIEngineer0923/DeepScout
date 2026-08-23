@@ -8,6 +8,7 @@ import { useI18n, useT } from "@/i18n/context";
 import { presentKnowledgeStatus } from "@/presentation/knowledge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RichContent } from "@/components/RichContent";
+import { ClampedText } from "@/components/ClampedText";
 
 export function KnowledgePageScreen() {
   const t = useT();
@@ -21,7 +22,7 @@ export function KnowledgePageScreen() {
   const statements = (page.statements as Array<{ id: string; text: string; status: string; claim_id?: string }>) ?? [];
   return (
     <div>
-      <h1 className="page-title wrap-text">{String(page.title)}</h1>
+      <h1 className="page-title generated-page-title">{String(page.title)}</h1>
       <p className="muted">
         {t("knowledge.notEvidence")} · v{String(page.version)} · {presentKnowledgeStatus(String(page.status), locale)}
       </p>
@@ -31,7 +32,9 @@ export function KnowledgePageScreen() {
         <ul>
           {statements.map((item) => (
             <li key={item.id}>
-              <Link href={`/knowledge/${params.runId}/statement/${item.id}`}>{item.text}</Link>
+              <Link href={`/knowledge/${params.runId}/statement/${item.id}`}>
+                <ClampedText lines={3}>{item.text}</ClampedText>
+              </Link>
               <span className="muted"> · <StatusBadge status={item.status} /></span>
             </li>
           ))}
