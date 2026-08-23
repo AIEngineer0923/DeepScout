@@ -6,9 +6,12 @@ from deepscout_core.domain.schemas import (
     PlannerQuestion,
     ResearchRunCreate,
 )
+from deepscout_persistence.session import get_session_factory
+from deepscout_persistence.store import ResearchStore
 from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.planner import planner_output_to_write
 from deepscout_research.workers.pool import ResearchWorkerPool
+from sqlalchemy import text
 
 
 class FakeSearchProvider:
@@ -58,7 +61,11 @@ def test_orchestrator_commits_before_parallel_workers(store, settings) -> None:
 
 
 @pytest.mark.postgres
-def test_threaded_workers_do_not_deadlock_with_orchestrator_session(store, settings) -> None:
+def test_ready_worker_batch_drains_without_database_deadlock(
+    postgres_ready, settings
+) -> None:
+    session = get_session_factory(settings.database_url)()
+    store = ResearchStore(session)
     run = store.create_run(
         ResearchRunCreate(
             goal="Two independent chemistry questions",
@@ -71,24 +78,61 @@ def test_threaded_workers_do_not_deadlock_with_orchestrator_session(store, setti
         success_criteria="Both questions researched",
         questions=[
             PlannerQuestion(text="What is LFP?", priority=1),
-            PlannerQuestion(text="What is NMC?", priority=2),
+            PlannerQuestion(text="What is NMC?", priority=1),
+            PlannerQuestion(text="What is LCO?", priority=1),
+            PlannerQuestion(text="What is LMO?", priority=1),
         ],
     )
     store.save_plan(run.id, planner_output_to_write(fake_plan))
-    graph_state = {
-        "status": "ok",
-        "query": "battery",
-        "search_results": [
-            {"url": "https://example.com/lfp", "title": "LFP", "snippet": "LFP chemistry"},
-        ],
-    }
-    with patch("deepscout_research.workers.pool.run_worker_graph", return_value=graph_state):
-        orchestrator = ResearchOrchestrator(
-            store,
-            settings.model_copy(update={"research_workers_inline": False}),
-            FakeSearchProvider(),
+    store.commit()
+
+    def graph_state(**kwargs):
+        suffix = kwargs["objective"].split()[2].strip("?").casefold()
+        return {
+            "status": "ok",
+            "query": f"battery {suffix}",
+            "search_results": [
+                {
+                    "url": f"https://example.com/{suffix}",
+                    "title": suffix.upper(),
+                    "snippet": f"{suffix.upper()} chemistry",
+                },
+            ],
+        }
+
+    worker_results = []
+    execute_batch = ResearchWorkerPool.execute_batch
+
+    def capture_batch(pool, *args, **kwargs):
+        results = execute_batch(pool, *args, **kwargs)
+        worker_results.extend(results)
+        return results
+
+    try:
+        with (
+            patch("deepscout_research.workers.pool.run_worker_graph", side_effect=graph_state),
+            patch.object(ResearchWorkerPool, "execute_batch", new=capture_batch),
+        ):
+            orchestrator = ResearchOrchestrator(
+                store,
+                settings.model_copy(
+                    update={
+                        "research_workers_inline": False,
+                        "agent_max_total_workers": 4,
+                    }
+                ),
+                FakeSearchProvider(),
+            )
+            result = orchestrator.execute_research_batch(run.id, iteration=1)
+        assert result is not None
+        assert len(worker_results) == 4
+        assert all(item.success for item in worker_results), "\n---\n".join(
+            item.error or "success" for item in worker_results
         )
-        result = orchestrator.execute_research_batch(run.id, iteration=1)
-    assert result is not None
-    statuses = {task.status.value for task in store.list_tasks(run.id)}
-    assert "running" not in statuses
+        statuses = {task.status.value for task in store.list_tasks(run.id)}
+        assert statuses == {"completed"}
+    finally:
+        session.rollback()
+        session.execute(text("DELETE FROM research_runs WHERE id = :run_id"), {"run_id": run.id})
+        session.commit()
+        session.close()

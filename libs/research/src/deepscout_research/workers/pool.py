@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -71,25 +70,21 @@ class ResearchWorkerPool:
     ) -> list[WorkerResult]:
         if not tasks or self._max_workers <= 0:
             return []
-        if self._inline_store is not None:
-            return [
-                self._execute_one(run_id, task, iteration=iteration, store=self._inline_store)
-                for task in tasks
-            ]
-        results: list[WorkerResult] = []
-        # max_workers is a concurrency bound, not a per-batch task limit. Queue
-        # every ready task so a wide independent plan does not burn one research
-        # iteration for each concurrency-sized slice. The executor still runs at
-        # most max_workers tasks simultaneously, while the per-run tool/source
-        # ledgers enforce their independent hard limits atomically.
-        with ThreadPoolExecutor(max_workers=min(self._max_workers, len(tasks))) as executor:
-            futures = {
-                executor.submit(self._execute_one, run_id, task, iteration=iteration): task
-                for task in tasks
-            }
-            for future in as_completed(futures):
-                results.append(future.result())
-        return results
+        # Queue every ready task in this orchestration iteration. A run's workers
+        # deliberately write sequentially: their task, source, event, usage, and
+        # budget rows share a PostgreSQL parent and parallel lock upgrades can
+        # deadlock. Independent runs remain concurrent at the durable-job layer.
+        # max_workers remains the allocation admission bound; it no longer drops
+        # ready work or changes iteration accounting.
+        return [
+            self._execute_one(
+                run_id,
+                task,
+                iteration=iteration,
+                store=self._inline_store,
+            )
+            for task in tasks
+        ]
 
     @traceable(name="worker:research", run_type="chain")
     def _execute_one(
@@ -196,6 +191,10 @@ class ResearchWorkerPool:
             query = task.objective[:500]
             try:
                 budget.reserve_tool_call(run_id, note=f"search:{task.task_key}")
+                # Do not hold the shared run-budget row lock across the remote
+                # search call. The reservation is durable before the call and
+                # other bounded workers may then progress concurrently.
+                self._persist(session, owns_session)
                 from deepscout_research.contracts.extract import contract_from_snapshot
                 from deepscout_research.contracts.query_planning import office_holder_queries
                 from deepscout_research.contracts.source_authority import (
@@ -286,6 +285,12 @@ class ResearchWorkerPool:
                 self._persist(session, owns_session)
                 return WorkerResult(task.id, worker_id, success=False, error=str(exc))
             except Exception as exc:
+                # A database concurrency exception leaves the transaction
+                # unusable. Roll back before persisting the failed execution and
+                # terminal task state, while preserving the already committed
+                # tool-budget reservation.
+                if owns_session:
+                    session.rollback()
                 store.save_tool_execution(
                     run_id,
                     ToolExecutionWrite(
