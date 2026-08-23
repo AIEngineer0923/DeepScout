@@ -44,8 +44,9 @@ sequenceDiagram
   O->>O: evidence pipeline (fetch/index/extract/verify)
   O->>O: corrective research (coverage gaps, bounded)
   O->>O: contradiction → critic → synthesis → report
-  O->>DB: persist_research_evaluations
-  O->>DB: terminal status + RUN_COMPLETED event
+  O->>DB: terminal status + termination reason
+  O->>DB: persist_research_evaluations + learning observation
+  O->>DB: RUN_COMPLETED event
 ```
 
 ---
@@ -91,12 +92,21 @@ Built from planner output + goal. Persisted in `config_snapshot`. Drives:
 - Coverage evaluation for corrective research
 - Report contract alignment
 
+User-authored bullets and material instruction clauses become separate requirements. Requirements
+record central/secondary materiality, kind, comparison subjects, expected source classes, and
+requested evidence types. Planner success criteria remain secondary synthesis guidance; they are not
+a substitute for user requirements.
+
 ### DAG validation (deterministic + model-assisted)
 
 1. LLM → `PlannerStructuredOutput` (`with_structured_output`)
 2. If planner v2: **dependency validator** LLM → `DependencyValidatorOutput`
 3. `repair_plan()`: dedupe objectives, remove invalid deps, break cycles via `TaskGraph.validate_dependencies()`
 4. `contract_research_tasks()` may append contract-driven tasks
+
+Contract-driven tasks are requirement-scoped and bounded by the canonical mode profile. A search
+task uses a focused requirement query; the runtime does not search a long multi-part goal as the only
+query for every requirement.
 
 ### Example DAG (illustrative)
 
@@ -150,9 +160,12 @@ T5: Synthesize findings                    depends_on [T2, T3, T4]
 **File:** `runtime/corrective_research.py`
 
 1. `evaluate_coverage()` against `ResearchContract`
-2. If gaps and rounds < `research_max_coverage_rounds` and budget allows → append gap tasks
-3. Run research batch + incremental evidence pipeline
-4. Record attempt in `config_snapshot` (`coverage_research_rounds`)
+2. Diagnose the earliest visible gap stage (`not_searched`, search failure/no results, admission,
+   fetch, extraction, attribution, numeric/comparison/source-portfolio gap, or budget exhaustion)
+3. If a central gap is actionable, rounds are below the mode/operator cap, and budget allows →
+   append requirement-specific gap tasks
+4. Run research batch + incremental evidence pipeline
+5. Record requirement/query/round trace in `config_snapshot`
 
 Separate from **critic loop** (`_max_correction_rounds = 1`) used in finalize.
 
@@ -160,7 +173,27 @@ Separate from **critic loop** (`_max_correction_rounds = 1`) used in finalize.
 
 `CONTRADICTION → CRITIC (deterministic) → SYNTHESIS (LLM) → REPORT (LLM + final critic rewrites) → COMPILE_KNOWLEDGE (non-blocking)`
 
-Then `persist_research_evaluations()` and terminal status.
+The terminal status and reason are persisted first. `persist_research_evaluations()` then observes
+the real terminal state; the completion evaluators cannot fail merely because evaluation ran too
+early.
+
+### Quick / Standard / Deep
+
+All modes use the same material-completeness semantics. They differ only in bounded depth:
+
+| Mode | Requirement tasks | Results/query | Corrective rounds | Gap queries/round | Report rewrites | Index tokens |
+|------|-------------------|---------------|-------------------|-------------------|-----------------|--------------|
+| Quick | 3 | 2 | 1 | 2 | 1 | 10,000 |
+| Standard | 9 | 5 | 2 | 3 | 2 | 50,000 |
+| Deep | 12 | 8 | 3 | 3 | 3 | 100,000 |
+
+Quick budgets remain capped at 2 iterations / 8 sources / 16 tool calls. Standard uses the run's
+normal budget (defaults: 5 / 40 / 80). Deep floors are 8 iterations / 60 sources / 120 tool calls.
+The initial-task caps reserve iteration capacity for corrective work under the default concurrency of
+three. Initial discovery also reserves source capacity for the mode's corrective rounds. The
+cumulative indexing allowance keeps embedding work from consuming the total run budget; lexical
+chunks remain available when that allowance is exhausted. Operator settings remain hard upper
+bounds for corrective rounds, gap fan-out, and rewrites.
 
 ### HITL pause / resume
 
@@ -452,7 +485,7 @@ Compiled wiki statements are derived; they do not replace snapshot-backed eviden
 
 At finalization: `persist_research_evaluations()` → `evaluation_results` table.
 
-48 registry slots; online deterministic checks + honest `unavailable` for offline/ground-truth evaluators.
+53 registry slots; online deterministic checks + honest `unavailable` for offline/ground-truth evaluators.
 
 LangSmith experiments (`scripts/langsmith_*`) are **operator observability** — separate from product evaluation rows.
 

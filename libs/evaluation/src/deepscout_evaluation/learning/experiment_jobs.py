@@ -49,7 +49,7 @@ def process_learning_experiment_jobs(store: ResearchStore, owner: str, *, limit:
             owner_principal_id=candidate_row.owner_principal_id,
         )
         experiment = run_experiment(
-            case_id=str(candidate.candidate_key),
+            case_id=str(candidate.candidate_id),
             baseline_policy=baseline,
             candidate=candidate,
             fixture=fixture,

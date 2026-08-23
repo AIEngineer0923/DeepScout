@@ -16,6 +16,7 @@ from deepscout_core.domain.enums import (
     ToolExecutionStatus,
 )
 from deepscout_core.domain.events import ResearchEventType
+from deepscout_core.domain.research_profiles import research_profile
 from deepscout_core.domain.schemas import (
     ResearchTaskRead,
     SearchCandidateWrite,
@@ -228,6 +229,9 @@ class ResearchWorkerPool:
                     database_url=self._settings.database_url,
                     durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,
                     cancelled=run is not None and run.status.value == "cancelled",
+                    max_results=research_profile(
+                        run.research_mode if run else None
+                    ).search_results_per_query,
                 )
                 if graph_state.get("status") == "failed":
                     raise RuntimeError(graph_state.get("error") or "worker_graph_failed")
@@ -260,6 +264,9 @@ class ResearchWorkerPool:
                             database_url=self._settings.database_url,
                             durable_checkpoint=self._settings.research_durable_langgraph_checkpoint,
                             cancelled=run is not None and run.status.value == "cancelled",
+                            max_results=research_profile(
+                                run.research_mode if run else None
+                            ).search_results_per_query,
                         )
                         results = [
                             SearchResult.model_validate(item)
@@ -353,7 +360,21 @@ class ResearchWorkerPool:
             if office_holder_task:
                 results = sorted(results, key=_office_holder_rank, reverse=True)
 
+            mode_profile = research_profile(run.research_mode if run else None)
+            corrective_source_reserve = (
+                mode_profile.max_coverage_rounds * mode_profile.gap_queries_per_round
+            )
+            initial_source_cap = max(
+                1,
+                (run.budget.max_sources if run else 0) - corrective_source_reserve,
+            )
+
             for result in results:
+                if (
+                    not task.task_key.startswith("gap_")
+                    and store.get_consumption(run_id).sources >= initial_source_cap
+                ):
+                    break
                 safe_url = public_http_url_or_none(result.url)
                 if safe_url is None:
                     continue
@@ -368,16 +389,25 @@ class ResearchWorkerPool:
                 if not admissible:
                     continue
                 domain = urlparse(safe_url).netloc
-                _, created = store.add_source(
-                    run_id,
-                    SourceWrite(canonical_url=safe_url, title=result.title, domain=domain),
-                )
-                if not created:
-                    continue
                 try:
-                    budget.reserve_source(run_id, note=f"task:{task.task_key}")
+                    # Source admission and its budget reservation are one unit. If
+                    # the cap is reached, the savepoint removes the just-added row
+                    # so persisted source counts cannot exceed budget consumption.
+                    with store._session.begin_nested():  # noqa: SLF001
+                        _, created = store.add_source(
+                            run_id,
+                            SourceWrite(
+                                canonical_url=safe_url,
+                                title=result.title,
+                                domain=domain,
+                            ),
+                        )
+                        if created:
+                            budget.reserve_source(run_id, note=f"task:{task.task_key}")
                 except BudgetExhaustedError:
                     break
+                if not created:
+                    continue
                 sources_added += 1
                 store.append_run_event(
                     run_id,

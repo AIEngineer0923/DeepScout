@@ -12,7 +12,7 @@ Demo browsing reads persisted results only — zero provider spend.
 
 ## Registry
 
-`libs/evaluation/src/deepscout_evaluation/registry.py` defines **48 evaluator slots** per run (version `1` today). Each spec has:
+`libs/evaluation/src/deepscout_evaluation/registry.py` defines **53 evaluator slots** per run (version `1` today). Each spec has:
 
 | Field | Meaning |
 |-------|---------|
@@ -54,6 +54,13 @@ Deterministic evaluators in `run_evals.py` include:
 - Security scans (SSRF URLs, secret/PII patterns, prompt injection heuristics)
 - Trajectory / phase adherence checks
 - Retrieval isolation and duplicate candidate rate
+- Material requirement coverage and requirement-aware source-portfolio adequacy
+- Quantitative coverage and comparison completeness when applicable
+- ReportContract/final-critic compliance
+
+`task_completion` is semantic: a `completed` status alone is insufficient. It also requires material
+coverage and a passing contract-aware final critic. `termination_correctness` applies the same rule to
+`completed`; budget-exhausted/cancelled/failed terminal states retain their explicit semantics.
 
 ## What does **not** run online (honest unavailable)
 
@@ -64,7 +71,7 @@ Examples:
 - LLM-as-judge answer relevance (offline workflow)
 - LangSmith-hosted code evaluators when not configured
 
-Do not expect all 48 rows to show PASS — many correctly show **Unavailable** with a reason string.
+Do not expect all 53 rows to show PASS — many correctly show **Unavailable** with a reason string.
 
 ## Retrieval quality benchmark (offline / live)
 
@@ -227,6 +234,7 @@ flowchart LR
 | Deterministic learning loop | `scripts/learning_loop_gate.py` | Yes | None |
 | Learning effectiveness analytics | `scripts/learning_effectiveness_gate.py` | Yes | None |
 | Retrieval regression | `scripts/retrieval_regression_gate.py` | Yes | None |
+| Research completeness manifest | `scripts/research_completeness_gate.py` | Yes | None |
 | Live benchmark | `scripts/retrieval_quality_benchmark.py --live` | No | Manual |
 | Experience store | migrations `014`–`016` (`learning_cases`, `improvement_candidates`, `learning_policy_versions`, monitoring, audit) | N/A | None |
 | Operator UI | `/learning` (hosted, owner-scoped) | N/A | None |
@@ -244,6 +252,8 @@ flowchart LR
 ### Defaults
 
 - Public demos **never** create learning cases
+- A new failed terminal observation persists a sanitized LearningCase, a draft candidate, and a
+  durable deterministic experiment job. This is observation/experimentation, not promotion.
 - `production_candidate` never auto-promotes to CI or global policy
 - Promotion default: **NO CHANGE** when inconclusive
 - Nine adaptive policy families are runtime-wired; values clamped by `HARD_BOUNDS`

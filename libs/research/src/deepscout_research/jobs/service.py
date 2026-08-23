@@ -38,9 +38,19 @@ class JobService:
     def claim_next(self, owner: str) -> ResearchJobRow | None:
         return self._store.claim_next_job(owner, lease_seconds=self._lease_seconds)
 
-    def heartbeat(self, job_id: uuid.UUID, owner: str, lease_token: str) -> None:
+    def heartbeat(
+        self,
+        job_id: uuid.UUID,
+        owner: str,
+        lease_token: str,
+        *,
+        lease_seconds: int | None = None,
+    ) -> None:
         self._store.renew_job_lease(
-            job_id, owner=owner, lease_token=lease_token, lease_seconds=self._lease_seconds
+            job_id,
+            owner=owner,
+            lease_token=lease_token,
+            lease_seconds=lease_seconds or self._lease_seconds,
         )
 
     def complete(self, job_id: uuid.UUID, owner: str, lease_token: str) -> None:

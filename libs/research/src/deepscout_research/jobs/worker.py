@@ -7,6 +7,7 @@ import socket
 import time
 import uuid
 
+from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_core.settings import get_settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
@@ -19,6 +20,18 @@ logger = logging.getLogger(__name__)
 
 def _owner_id() -> str:
     return f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
+
+
+def _persist_job_completion(
+    jobs: JobService,
+    session,
+    job_id,
+    owner: str,
+    lease_token: str,
+) -> None:
+    """Completion and commit are one ordered operation; closing a session must not roll it back."""
+    jobs.complete(job_id, owner, lease_token)
+    session.commit()
 
 
 def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
@@ -68,23 +81,47 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
                 return
             time.sleep(poll_interval_s)
             continue
+        job_id = job.id
+        run_id = job.research_run_id
+        lease_token = job.lease_token or ""
         try:
             from deepscout_research.credentials.runtime import resolve_run_settings
 
-            run_settings = resolve_run_settings(store, settings, job.research_run_id)
+            run = store.get_run(run_id)
+            if run is None:
+                raise LookupError(f"Research run not found: {run_id}")
+            if run.status in TERMINAL_RESEARCH_RUN_STATUSES:
+                _persist_job_completion(jobs, session, job_id, owner, lease_token)
+                if once:
+                    return
+                continue
+            jobs.heartbeat(
+                job_id,
+                owner,
+                lease_token,
+                lease_seconds=max(120, run.budget.max_wall_time_seconds + 300),
+            )
+            session.commit()
+            run_settings = resolve_run_settings(store, settings, run_id)
             with TavilyWebSearchProvider(run_settings) as search:
                 orchestrator = ResearchOrchestrator(store, run_settings, search)
-                orchestrator.execute(job.research_run_id)
-            session.commit()
-            jobs.complete(job.id, owner, job.lease_token or "")
+                orchestrator.execute(run_id)
+            _persist_job_completion(jobs, session, job_id, owner, lease_token)
         except Exception as exc:
             session.rollback()
-            logger.exception("Job failed", extra={"job_id": str(job.id)})
+            logger.exception("Job failed", extra={"job_id": str(job_id)})
             session = session_factory()
             store = ResearchStore(session)
             jobs = JobService(store)
-            jobs.fail(job.id, owner, job.lease_token or "", str(exc))
-            session.commit()
+            try:
+                jobs.fail(job_id, owner, lease_token, str(exc))
+                session.commit()
+            except LookupError:
+                session.rollback()
+                logger.warning(
+                    "Job lease was lost before failure could be persisted",
+                    extra={"job_id": str(job_id)},
+                )
         finally:
             session.close()
         if once:

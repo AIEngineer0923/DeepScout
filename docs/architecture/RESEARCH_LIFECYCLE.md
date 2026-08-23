@@ -12,9 +12,11 @@ stateDiagram-v2
     EVIDENCE --> VERIFY
     VERIFY --> CONTRADICTIONS
     CONTRADICTIONS --> SUFFICIENCY
-    SUFFICIENCY --> CRITIC: sufficient OR budget exhausted path
+    SUFFICIENCY --> COVERAGE: research batch complete
+    COVERAGE --> RESEARCH: actionable material gap AND budget/round available
+    COVERAGE --> CRITIC: covered OR bounded/blocked
     SUFFICIENCY --> RESEARCH: insufficient AND budget ok
-    CRITIC --> SUFFICIENCY2: critic rejects
+    CRITIC --> SUFFICIENCY2: research gap
     CRITIC --> DECISION: critic approves
     SUFFICIENCY2 --> RESEARCH: budget ok
     SUFFICIENCY2 --> DECISION: budget exhausted (partial)

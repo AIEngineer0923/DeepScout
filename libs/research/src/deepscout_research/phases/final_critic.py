@@ -6,6 +6,7 @@ import re
 import uuid
 
 from deepscout_core.domain.contracts import (
+    CoverageGapCause,
     CoverageMap,
     FinalCriticResult,
     FinalCriticVerdict,
@@ -13,6 +14,7 @@ from deepscout_core.domain.contracts import (
     RequirementCoverageStatus,
     ResearchContract,
 )
+from deepscout_core.domain.research_profiles import research_profile
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.contracts.coverage import evaluate_coverage
@@ -32,6 +34,23 @@ _TASK_LEAK_PATTERNS = (
     re.compile(r"\banswer provided\b", re.I),
     re.compile(r"\bMarkdown final research report\b", re.I),
 )
+_BIBLIOGRAPHY_HEADING = re.compile(
+    r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$"
+)
+_ACTIONABLE_GAPS = {
+    CoverageGapCause.NOT_SEARCHED,
+    CoverageGapCause.SEARCH_EXECUTION_FAILED,
+    CoverageGapCause.SEARCH_NO_RESULTS,
+    CoverageGapCause.SOURCE_FETCH_FAILED,
+    CoverageGapCause.SOURCE_ADMISSION_FAILED,
+    CoverageGapCause.EXTRACTION_FAILED,
+    CoverageGapCause.ATTRIBUTION_FAILED,
+    CoverageGapCause.NUMERIC_EVIDENCE_MISSING,
+    CoverageGapCause.COMPARISON_INCOMPLETE,
+    CoverageGapCause.TIMELINE_INCOMPLETE,
+    CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE,
+    CoverageGapCause.EVIDENCE_NOT_RETRIEVED,
+}
 
 
 def _report_text(store: ResearchStore, run_id: uuid.UUID) -> str:
@@ -71,6 +90,10 @@ def run_final_answer_critic(
             issues.append("Report contains internal planner or debug scaffolding")
             reason_codes.append("INTERNAL_TASK_LEAK")
 
+    if len(_BIBLIOGRAPHY_HEADING.findall(body)) != 1:
+        issues.append("Report must contain exactly one localized bibliography")
+        reason_codes.append("DUPLICATE_OR_MISSING_BIBLIOGRAPHY")
+
     if contract is not None:
         cov = coverage or evaluate_coverage(store, run_id, contract)
         for entry in cov.entries:
@@ -80,28 +103,31 @@ def run_final_answer_critic(
             )
             if req is None or not req.critical:
                 continue
-            if req.requirement_id == "R0":
-                substantive = [
-                    entry
-                    for entry in cov.entries
-                    if entry.requirement_id not in {"R0", "R_success"}
-                    and entry.status == RequirementCoverageStatus.SUPPORTED
-                ]
-                if substantive:
-                    continue
             if entry.status in {
                 RequirementCoverageStatus.NOT_RESEARCHED,
                 RequirementCoverageStatus.SEARCHED,
                 RequirementCoverageStatus.SEARCHED_NO_EVIDENCE,
+                RequirementCoverageStatus.EVIDENCE_FOUND,
+                RequirementCoverageStatus.PARTIAL,
+                RequirementCoverageStatus.CONFLICTING,
                 RequirementCoverageStatus.UNSUPPORTED,
             }:
                 unresolved.append(req.requirement_id)
-                issues.append(f"Critical requirement unresolved: {req.text[:120]}")
-                reason_codes.append("MISSING_REQUIREMENT")
-            elif entry.status == RequirementCoverageStatus.PARTIAL and req.quantification_required:
-                unresolved.append(req.requirement_id)
-                issues.append(f"Quantitative requirement only partially supported: {req.text[:120]}")
-                reason_codes.append("UNSUPPORTED_NUMERIC_CLAIM")
+                if entry.gap_cause == CoverageGapCause.NUMERIC_EVIDENCE_MISSING:
+                    issues.append(f"Quantitative requirement only partially supported: {req.text[:120]}")
+                    reason_codes.append("UNSUPPORTED_NUMERIC_CLAIM")
+                elif entry.gap_cause == CoverageGapCause.COMPARISON_INCOMPLETE:
+                    issues.append(f"Requested comparison is incomplete: {req.text[:120]}")
+                    reason_codes.append("INADEQUATE_COMPARISON")
+                elif entry.gap_cause == CoverageGapCause.TIMELINE_INCOMPLETE:
+                    issues.append(f"Requested timeline is incomplete: {req.text[:120]}")
+                    reason_codes.append("INCOMPLETE_TIMELINE")
+                elif entry.gap_cause == CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE:
+                    issues.append(f"Source portfolio is inadequate: {req.text[:120]}")
+                    reason_codes.append("SOURCE_PORTFOLIO_INADEQUATE")
+                else:
+                    issues.append(f"Critical requirement unresolved: {req.text[:120]}")
+                    reason_codes.append("MISSING_REQUIREMENT")
 
         prefs = store.list_source_preferences(run_id)
         sources = store.list_sources(run_id)
@@ -135,22 +161,66 @@ def run_final_answer_critic(
         if body.count("- [") > 25:
             issues.append("Report bibliography may include non-cited consulted sources")
 
+    if report_spec is not None:
+        aliases = {
+            "Executive Summary": ("Executive Summary", "Sintesi esecutiva"),
+            "Analysis": ("Analysis", "Analisi"),
+            "Timeline and Applicability": ("Timeline and Applicability", "Cronologia e applicabilità"),
+            "Comparison": ("Comparison", "Confronto"),
+            "Quantitative Results": ("Quantitative Results", "Risultati quantitativi"),
+            "Limitations and Uncertainty": ("Limitations and Uncertainty", "Limitazioni e incertezza"),
+            "Sources Cited": ("Sources Cited", "Fonti citate"),
+        }
+        for section in report_spec.sections:
+            if not section.required:
+                continue
+            headings = aliases.get(section.heading, (section.heading,))
+            if not any(re.search(rf"(?im)^#{{1,6}}\s+{re.escape(item)}\s*$", body) for item in headings):
+                issues.append(f"Required report section missing: {section.heading}")
+                reason_codes.append("REPORT_SECTION_MISMATCH")
+
+    if re.search(r"(?i)(?:no|insufficient) evidence (?:exists|is available)", body):
+        actionable = any(
+            entry.requirement_id in unresolved and entry.gap_cause in _ACTIONABLE_GAPS
+            for entry in (cov.entries if contract is not None else [])
+        )
+        if actionable:
+            issues.append("Report overstates a retrieval gap as evidence non-existence")
+            reason_codes.append("FALSE_INSUFFICIENT_EVIDENCE")
+
     reason_codes = list(dict.fromkeys(reason_codes))
-    if issues and unresolved:
+    unresolved = list(dict.fromkeys(unresolved))
+    if unresolved:
+        profile = research_profile(row.research_mode if row else None)
+        run = store.get_run(run_id)
+        budget_available = bool(
+            run
+            and not store.get_consumption(run_id).is_exhausted(run.budget)
+        )
+        rounds_used = int((snapshot or {}).get("coverage_research_rounds") or 0)
+        round_limit = int((snapshot or {}).get("coverage_round_limit") or profile.max_coverage_rounds)
+        entry_by_id = {entry.requirement_id: entry for entry in cov.entries}
+        can_research = budget_available and rounds_used < round_limit and any(
+            entry_by_id[req_id].gap_cause in _ACTIONABLE_GAPS
+            and entry_by_id[req_id].gap_cause != CoverageGapCause.BUDGET_EXHAUSTED
+            and entry_by_id[req_id].corrective_attempts < profile.max_coverage_rounds
+            for req_id in unresolved
+            if req_id in entry_by_id
+        )
+        if can_research:
+            return FinalCriticResult(
+                verdict=FinalCriticVerdict.RESEARCH_GAP,
+                issues=issues[:20],
+                reason_codes=reason_codes[:20],
+                unresolved_requirements=unresolved[:15],
+                revision_notes="Run bounded requirement-specific corrective research before publication",
+            )
         return FinalCriticResult(
             verdict=FinalCriticVerdict.BLOCKED_BY_EVIDENCE,
             issues=issues[:20],
             reason_codes=reason_codes[:20],
             unresolved_requirements=unresolved[:15],
             revision_notes="Publish partial answer with explicit unresolved requirements",
-        )
-    if unresolved:
-        return FinalCriticResult(
-            verdict=FinalCriticVerdict.RESEARCH_GAP,
-            issues=issues[:20],
-            reason_codes=reason_codes[:20],
-            unresolved_requirements=unresolved[:15],
-            revision_notes="Material research gaps remain after bounded attempts",
         )
     if issues:
         return FinalCriticResult(

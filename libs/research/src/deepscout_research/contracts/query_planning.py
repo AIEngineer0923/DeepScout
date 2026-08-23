@@ -6,10 +6,14 @@ import hashlib
 import re
 
 from deepscout_core.domain.contracts import (
+    AnswerRequirement,
+    EvidenceType,
     RequirementKind,
     ResearchContract,
+    SourceClass,
     SourceConstraintMode,
 )
+from deepscout_core.domain.research_profiles import research_profile
 from deepscout_core.domain.schemas import PlannerTask
 
 # Official EU institutional namespaces (verified host aliases, not lookalikes).
@@ -132,10 +136,122 @@ def query_fingerprint(query: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 
 
-def contract_research_tasks(contract: ResearchContract) -> list[PlannerTask]:
-    """Supplement planner tasks for entity lookup and regulatory temporal research."""
+_SOURCE_QUERY_TERMS: dict[SourceClass, str] = {
+    SourceClass.OFFICIAL_INSTITUTIONAL: "official institutional source",
+    SourceClass.PRIMARY_LEGISLATION: "primary legislation full text",
+    SourceClass.REGULATOR: "regulator official guidance",
+    SourceClass.PEER_REVIEWED: "peer reviewed study DOI methods results",
+    SourceClass.RESEARCH_BODY: "research institute report data methods",
+    SourceClass.GOVERNMENT_STATISTICS: "official statistics dataset methodology",
+    SourceClass.MANUFACTURER_ENGINEERING: "official engineering specification",
+    SourceClass.FINANCIAL_FILING: "official financial filing dataset",
+    SourceClass.SOFTWARE_VENDOR: "official technical documentation",
+}
+
+_EVIDENCE_QUERY_TERMS: dict[EvidenceType, str] = {
+    EvidenceType.PRIMARY_EMPIRICAL: "primary empirical study methods results measurements",
+    EvidenceType.EXPERIMENT: "experimental study measured results methods",
+    EvidenceType.OBSERVATIONAL: "observational field measurements longitudinal data",
+    EvidenceType.MODEL_SIMULATION: "model simulation assumptions uncertainty results",
+    EvidenceType.REVIEW_META_ANALYSIS: "systematic review meta-analysis",
+    EvidenceType.LEGISLATION_REGULATION: "legislation regulation primary text",
+    EvidenceType.INSTITUTIONAL_GUIDANCE: "official institutional guidance",
+    EvidenceType.COMPANY_CLAIM: "official company statement filing",
+}
+
+_QUERY_STOPWORDS = {
+    "assess",
+    "compare",
+    "confronta",
+    "copri",
+    "della",
+    "delle",
+    "degli",
+    "dello",
+    "descrivi",
+    "determine",
+    "including",
+    "includendo",
+    "nella",
+    "nelle",
+    "realistico",
+    "rispetto",
+    "study",
+    "valuta",
+    "where",
+    "with",
+}
+
+
+def _compact_search_text(text: str, *, limit: int) -> str:
+    tokens = re.findall(r"[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9+_-]*", text)
+    kept = [token for token in tokens if token.casefold() not in _QUERY_STOPWORDS]
+    return " ".join(kept[:limit])
+
+
+def _generic_requirement_queries(
+    requirement: AnswerRequirement,
+    *,
+    round_number: int,
+    subject_context: str = "",
+) -> list[str]:
+    context_tokens = set(re.findall(r"[a-z0-9]+", subject_context.casefold()))
+    requirement_tokens = set(re.findall(r"[a-z0-9]+", requirement.text.casefold()))
+    prefix = subject_context if context_tokens - requirement_tokens else ""
+    subject = _compact_search_text(prefix, limit=8)
+    requirement_terms = _compact_search_text(requirement.text, limit=16)
+    base = f"{subject} {requirement_terms}".strip()[:300]
+    suffixes: list[str] = []
+    if requirement.kind == RequirementKind.QUANTIFICATION or requirement.quantification_required:
+        suffixes.append("quantitative measurements estimates range dataset methods")
+    if requirement.kind == RequirementKind.COMPARISON:
+        subjects = " ".join(requirement.comparison_subjects[:2])
+        suffixes.append(f"{subjects} comparative study matched dimensions methods uncertainty")
+    if requirement.kind == RequirementKind.METHODOLOGY:
+        suffixes.append("study methodology sample design assumptions limitations")
+    if requirement.kind == RequirementKind.TIMELINE:
+        suffixes.append("longitudinal follow-up time series measured change")
+    if requirement.kind == RequirementKind.DISTINCTION:
+        suffixes.append("evidence types observations experiments models review")
+    suffixes.extend(
+        _SOURCE_QUERY_TERMS[item]
+        for item in requirement.expected_source_classes[:2]
+        if item in _SOURCE_QUERY_TERMS
+    )
+    suffixes.extend(
+        _EVIDENCE_QUERY_TERMS[item]
+        for item in requirement.required_evidence_types[:2]
+        if item in _EVIDENCE_QUERY_TERMS
+    )
+    if not suffixes:
+        suffixes.append("authoritative evidence study report")
+    if round_number >= 2:
+        suffixes.append("references cited primary source full text")
+    if round_number >= 3:
+        suffixes.append("alternate terminology scholarly institutional dataset")
+    return list(dict.fromkeys(f"{base} {suffix}"[:500] for suffix in suffixes))[:4]
+
+
+def _task_overlaps_requirement(task, requirement: AnswerRequirement) -> bool:
+    task_tokens = set(re.findall(r"[a-z0-9]+", task.objective.casefold()))
+    req_tokens = set(re.findall(r"[a-z0-9]+", requirement.text.casefold()))
+    return bool(req_tokens) and req_tokens <= task_tokens
+
+
+def contract_research_tasks(
+    contract: ResearchContract,
+    *,
+    research_mode: str | None = None,
+    existing_tasks: list | None = None,
+) -> list[PlannerTask]:
+    """Supplement planner output with bounded, requirement-scoped research tasks."""
+    from deepscout_research.contracts.source_authority import enrich_search_query_with_policy
+
     tasks: list[PlannerTask] = []
+    existing_tasks = existing_tasks or []
+    profile = research_profile(research_mode)
     lowered = contract.primary_question.casefold()
+    subject_context = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0][:160]
     req_ids = {item.requirement_id for item in contract.requirements}
 
     if "R_president" in req_ids and ("quindi" in lowered or "then" in lowered):
@@ -186,6 +302,39 @@ def contract_research_tasks(contract: ResearchContract) -> list[PlannerTask]:
                     expected_output="facts",
                 )
             )
+
+    existing_and_added = [*existing_tasks, *tasks]
+    remaining = max(0, profile.max_requirement_tasks - len(existing_and_added))
+    eligible = [
+        item
+        for item in contract.requirements
+        if item.requirement_id != "R0"
+        and item.kind
+        not in {RequirementKind.OUTPUT_FORMAT, RequirementKind.SOURCE_POLICY, RequirementKind.SYNTHESIS}
+        and item.materiality == "central"
+    ]
+    for requirement in eligible:
+        if remaining <= 0:
+            break
+        if any(_task_overlaps_requirement(task, requirement) for task in existing_and_added):
+            continue
+        query = _generic_requirement_queries(
+            requirement,
+            round_number=0,
+            subject_context=subject_context,
+        )[0]
+        key_part = re.sub(r"[^a-z0-9-]", "-", requirement.requirement_id.casefold()).strip("-")
+        task = PlannerTask(
+            task_key=f"req-{key_part}"[:64],
+            objective=enrich_search_query_with_policy(query, contract),
+            question_text=requirement.text[:500],
+            priority=1 if requirement.critical else 3,
+            dependency_reason=f"contract_requirement:{requirement.requirement_id}",
+            expected_output="facts",
+        )
+        tasks.append(task)
+        existing_and_added.append(task)
+        remaining -= 1
     return tasks
 
 
@@ -195,6 +344,16 @@ def gap_queries_for_requirement(
     *,
     round_number: int,
 ) -> list[str]:
+    if requirement.kind == RequirementKind.SOURCE_POLICY:
+        requested = list(
+            dict.fromkeys(
+                [*contract.required_source_classes, *contract.preferred_source_classes]
+            )
+        )
+        suffix = " ".join(
+            _SOURCE_QUERY_TERMS[item] for item in requested[:2] if item in _SOURCE_QUERY_TERMS
+        )
+        return [f"{contract.primary_question[:300]} {suffix or 'authoritative primary source'}"[:500]]
     if requirement.requirement_id == "R_president":
         return office_holder_queries(contract)
     if requirement.requirement_id in {"R_reg_now", "R_reg_current", "R_reg_apply"}:
@@ -233,4 +392,9 @@ def gap_queries_for_requirement(
             requirement.text,
             intent="official_guidance",
         )[:2]
-    return [f"{contract.primary_question[:140]} {requirement.text[:160]}"[:500]]
+    subject_context = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0][:160]
+    return _generic_requirement_queries(
+        requirement,
+        round_number=round_number,
+        subject_context=subject_context,
+    )

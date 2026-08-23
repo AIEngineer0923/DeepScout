@@ -56,6 +56,8 @@ class RequirementKind(StrEnum):
     TRADEOFF = "tradeoff"
     DEPENDENCY = "dependency"
     SYNTHESIS = "synthesis"
+    SOURCE_POLICY = "source_policy"
+    OUTPUT_FORMAT = "output_format"
 
 
 class RequirementCoverageStatus(StrEnum):
@@ -67,6 +69,39 @@ class RequirementCoverageStatus(StrEnum):
     PARTIAL = "partial"
     CONFLICTING = "conflicting"
     UNSUPPORTED = "unsupported"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class CoverageGapCause(StrEnum):
+    """Earliest observable stage at which a requirement remains unresolved."""
+
+    NOT_SEARCHED = "not_searched"
+    SEARCH_EXECUTION_FAILED = "search_execution_failed"
+    SEARCH_NO_RESULTS = "search_no_results"
+    SOURCE_FETCH_FAILED = "source_fetch_failed"
+    SOURCE_ADMISSION_FAILED = "source_admission_failed"
+    EXTRACTION_FAILED = "extraction_failed"
+    ATTRIBUTION_FAILED = "attribution_failed"
+    NUMERIC_EVIDENCE_MISSING = "numeric_evidence_missing"
+    COMPARISON_INCOMPLETE = "comparison_incomplete"
+    TIMELINE_INCOMPLETE = "timeline_incomplete"
+    SOURCE_PORTFOLIO_INADEQUATE = "source_portfolio_inadequate"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+    EVIDENCE_NOT_RETRIEVED = "evidence_not_retrieved"
+
+
+class EvidenceType(StrEnum):
+    PRIMARY_EMPIRICAL = "primary_empirical"
+    EXPERIMENT = "experiment"
+    OBSERVATIONAL = "observational"
+    MODEL_SIMULATION = "model_simulation"
+    REVIEW_META_ANALYSIS = "review_meta_analysis"
+    LEGISLATION_REGULATION = "legislation_regulation"
+    INSTITUTIONAL_GUIDANCE = "institutional_guidance"
+    COMPANY_CLAIM = "company_claim"
+    SECONDARY_REPORTING = "secondary_reporting"
+    OPINION_COMMENTARY = "opinion_commentary"
+    UNKNOWN = "unknown"
 
 
 class ClaimSupportState(StrEnum):
@@ -188,8 +223,12 @@ class AnswerRequirement(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     kind: RequirementKind = RequirementKind.FACT
     critical: bool = True
+    materiality: Literal["central", "secondary"] = "central"
     depends_on: list[str] = Field(default_factory=list, max_length=10)
     quantification_required: bool = False
+    comparison_subjects: list[str] = Field(default_factory=list, max_length=6)
+    expected_source_classes: list[SourceClass] = Field(default_factory=list, max_length=10)
+    required_evidence_types: list[EvidenceType] = Field(default_factory=list, max_length=10)
     coverage_status: RequirementCoverageStatus = RequirementCoverageStatus.NOT_RESEARCHED
     coverage_note: str = Field(default="", max_length=2000)
 
@@ -254,6 +293,13 @@ class CoverageMapEntry(BaseModel):
     status: RequirementCoverageStatus
     note: str = Field(default="", max_length=2000)
     supporting_claim_ids: list[str] = Field(default_factory=list, max_length=20)
+    gap_cause: CoverageGapCause | None = None
+    searched_queries: list[str] = Field(default_factory=list, max_length=12)
+    candidate_source_count: int = Field(default=0, ge=0)
+    admissible_source_count: int = Field(default=0, ge=0)
+    corrective_attempts: int = Field(default=0, ge=0)
+    source_classes: list[SourceClass] = Field(default_factory=list, max_length=10)
+    evidence_types: list[EvidenceType] = Field(default_factory=list, max_length=10)
 
 
 class CoverageMap(BaseModel):

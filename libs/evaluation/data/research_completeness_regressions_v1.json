@@ -1,0 +1,61 @@
+{
+  "version": "research-completeness-regressions-v1",
+  "corpus_type": "synthetic_regression",
+  "description": "Sanitized, domain-neutral structural regressions for requirement coverage and finalization. No production record or identifier is included.",
+  "cases": [
+    {
+      "case_id": "formal-report-material-gap",
+      "origin": "development_synthetic",
+      "expected": "research_gap",
+      "guards": ["material_requirement", "formal_report_false_completion"]
+    },
+    {
+      "case_id": "qualitative-only-quantitative-request",
+      "origin": "development_synthetic",
+      "expected": "numeric_evidence_missing",
+      "guards": ["quantitative_requirement"]
+    },
+    {
+      "case_id": "one-sided-requested-comparison",
+      "origin": "development_synthetic",
+      "expected": "comparison_incomplete",
+      "guards": ["comparison_requirement"]
+    },
+    {
+      "case_id": "secondary-only-primary-expected",
+      "origin": "development_synthetic",
+      "expected": "source_portfolio_inadequate",
+      "guards": ["source_class", "evidence_type"]
+    },
+    {
+      "case_id": "searched-zero-results",
+      "origin": "development_synthetic",
+      "expected": "search_no_results",
+      "guards": ["honest_no_evidence"]
+    },
+    {
+      "case_id": "budget-exhausted-gap",
+      "origin": "development_synthetic",
+      "expected": "budget_exhausted",
+      "guards": ["bounded_cost"]
+    },
+    {
+      "case_id": "duplicate-localized-bibliography",
+      "origin": "development_synthetic",
+      "expected": "one_localized_bibliography",
+      "guards": ["en", "it"]
+    },
+    {
+      "case_id": "mode-depth-ordering",
+      "origin": "development_synthetic",
+      "expected": "quick_lt_standard_lt_deep",
+      "guards": ["tasks", "search_results", "corrective_rounds", "rewrites"]
+    },
+    {
+      "case_id": "terminal-failure-learning-observation",
+      "origin": "development_synthetic",
+      "expected": "case_candidate_experiment_no_promotion",
+      "guards": ["tenant_scope", "trust_ladder", "no_auto_promotion"]
+    }
+  ]
+}

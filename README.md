@@ -33,13 +33,13 @@ The public deployment splits **Vercel** (Next.js frontend) and a **persistent AP
 1. **Research goal** — Quick, Standard, or Deep mode; output language; optional model/region/freshness hints.
 2. **Planning** — Semantic planner produces a task DAG with dependencies.
 3. **Orchestration** — Python state machine runs phases under a hard `ResearchBudget`.
-4. **Research agents** — LangChain `create_agent` per phase (plan, research, extract, critic, synthesis, report).
+4. **Research workers** — bounded LangGraph search workers under the application-owned orchestrator; structured LLM calls assist planner, synthesis, and report phases.
 5. **Source discovery & fetch** — Tavily web search (v1 adapter); SSRF-safe HTTP fetch; HTML → text snapshots.
 6. **Retrieval** — Run-scoped hybrid RAG: dense pgvector + Postgres FTS, fused with RRF, deterministic rerank.
 7. **Claims & evidence** — Claims linked to snapshot quotes; provenance chain to sources.
-8. **Quality** — Contradiction detection; deterministic quality checks on the run.
+8. **Quality** — Evidence-backed material requirement coverage, bounded corrective research, contradiction detection, and a contract-aware final critic.
 9. **Report** — Markdown report with citations rendered in the UI (not raw `**` / pipe tables).
-10. **Evaluations** — 48 evaluator slots per run; deterministic results persisted; honest unavailable/skipped states.
+10. **Evaluations** — 53 evaluator slots per run; deterministic results persisted; honest unavailable/skipped states.
 11. **Continuous learning** — Observes terminal runs and may promote **versioned runtime policies** (nine bounded families) after diagnosis, experiment, and optional HITL. Post-promotion monitoring measures whether future runs improve; rollback when regressions are detected. DeepScout does not autonomously mutate code or train models.
 12. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, `/learning` operator UI, optional LangSmith tracing.
 

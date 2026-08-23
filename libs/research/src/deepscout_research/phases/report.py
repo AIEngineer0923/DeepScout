@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections import OrderedDict
 
 from deepscout_core.domain.contracts import (
     CoverageMap,
     RequirementCoverageStatus,
+    RequirementKind,
     ResearchContract,
 )
 from deepscout_core.domain.enums import ClaimVerificationStatus
@@ -160,8 +162,12 @@ def _evidence_ids_for_claims(store: ResearchStore, run_id: uuid.UUID, claim_ids:
 
 
 def _append_sources_cited(body: str, cited_sources, language: str) -> str:
-    if "## Sources Cited" in body or "## Fonti citate" in body:
-        return body
+    bibliography = re.compile(
+        r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$"
+    )
+    match = bibliography.search(body)
+    if match:
+        body = body[: match.start()].rstrip()
     heading = _section_heading("Sources Cited", language)
     lines = [body.rstrip(), "", f"## {heading}", ""]
     if cited_sources:
@@ -326,6 +332,7 @@ def generate_report(
             ClaimVerificationStatus.PARTIALLY_VERIFIED,
         }
     ]
+    claims_by_id = {str(claim.id): claim for claim in claims}
     if claims:
         for index, claim in enumerate(claims[:12], start=1):
             lines.append(f"{index}. {claim.statement.strip()}")
@@ -356,8 +363,60 @@ def generate_report(
     if report_spec.include_comparisons and research.required_comparisons:
         comparison_heading = _section_heading("Comparison", language)
         lines.extend(["", f"## {comparison_heading}", ""])
-        for item in research.required_comparisons:
-            lines.append(f"- {item}")
+        comparison_claim_ids = {
+            claim_id
+            for entry in coverage.entries
+            if next(
+                (
+                    requirement.kind == RequirementKind.COMPARISON
+                    for requirement in research.requirements
+                    if requirement.requirement_id == entry.requirement_id
+                ),
+                False,
+            )
+            for claim_id in entry.supporting_claim_ids
+        }
+        comparison_claims = [
+            claims_by_id[claim_id].statement.strip()
+            for claim_id in comparison_claim_ids
+            if claim_id in claims_by_id
+        ]
+        if comparison_claims:
+            for item in comparison_claims[:8]:
+                lines.append(f"- {item}")
+        elif language.startswith("it"):
+            lines.append("- Nessun confronto diretto verificato per i soggetti richiesti.")
+        else:
+            lines.append("- No verified direct comparison for the requested subjects.")
+
+    if report_spec.include_quantitative_results:
+        quantitative_heading = _section_heading("Quantitative Results", language)
+        lines.extend(["", f"## {quantitative_heading}", ""])
+        quantitative_claim_ids = {
+            claim_id
+            for entry in coverage.entries
+            if next(
+                (
+                    requirement.quantification_required
+                    for requirement in research.requirements
+                    if requirement.requirement_id == entry.requirement_id
+                ),
+                False,
+            )
+            for claim_id in entry.supporting_claim_ids
+        }
+        quantitative_claims = [
+            claims_by_id[claim_id].statement.strip()
+            for claim_id in quantitative_claim_ids
+            if claim_id in claims_by_id and re.search(r"\d", claims_by_id[claim_id].statement)
+        ][:8]
+        if quantitative_claims:
+            for item in quantitative_claims:
+                lines.append(f"- {item}")
+        elif language.startswith("it"):
+            lines.append("- Nessun risultato quantitativo verificato per le quantità richieste.")
+        else:
+            lines.append("- No verified quantitative result for the requested quantities.")
 
     if contradictions:
         if language.startswith("it"):

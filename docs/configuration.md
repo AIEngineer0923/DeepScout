@@ -64,6 +64,17 @@ Local compose default is in `.env.example` (lab password only).
 
 See `.env.example` for budget limits: `RESEARCH_MAX_ITERATIONS`, `RESEARCH_MAX_COST_USD`, etc.
 
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RESEARCH_MAX_COVERAGE_ROUNDS` | `3` | Operator hard cap; mode profiles use Quick 1, Standard 2, Deep 3 |
+| `RESEARCH_MAX_GAP_QUERIES_PER_ROUND` | `6` | Operator hard cap; mode profiles use 2 / 3 / 3; Deep adds a third round |
+| `RESEARCH_MAX_REPORT_REWRITES` | `3` | Operator hard cap; mode profiles use 1 / 2 / 3 |
+
+The canonical mode profile also bounds requirement tasks, search results per query, and cumulative
+embedding/index tokens. See
+[agent-runtime.md](agent-runtime.md#quick--standard--deep). Lower operator caps win; learning policy
+deltas cannot exceed these bounds.
+
 ## Retrieval
 
 | Variable | Default | Description |

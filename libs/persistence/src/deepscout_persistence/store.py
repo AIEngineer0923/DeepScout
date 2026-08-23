@@ -1493,6 +1493,41 @@ class ResearchStore:
         )
         return existing is not None
 
+    def merge_evidence_metadata(
+        self,
+        claim_id: uuid.UUID,
+        snapshot_id: uuid.UUID,
+        quote: str,
+        metadata: dict[str, object],
+    ) -> EvidenceRow | None:
+        row = self._session.scalar(
+            select(EvidenceRow).where(
+                EvidenceRow.claim_id == claim_id,
+                EvidenceRow.snapshot_id == snapshot_id,
+                EvidenceRow.quote == quote[:16000],
+            )
+        )
+        if row is None:
+            return None
+        merged = dict(row.extraction_metadata or {})
+        previous_raw = merged.get("requirement_ids", [])
+        incoming_raw = metadata.get("requirement_ids", [])
+        previous_ids = (
+            [str(item) for item in previous_raw]
+            if isinstance(previous_raw, list)
+            else []
+        )
+        incoming_ids = (
+            [str(item) for item in incoming_raw]
+            if isinstance(incoming_raw, list)
+            else []
+        )
+        merged.update(metadata)
+        merged["requirement_ids"] = list(dict.fromkeys([*previous_ids, *incoming_ids]))[:10]
+        row.extraction_metadata = merged
+        self._session.flush()
+        return row
+
     def list_evidence(self, run_id: uuid.UUID) -> list[EvidenceRow]:
         self._require_run(run_id)
         return list(
@@ -2947,25 +2982,9 @@ def _hash_content(content: str) -> str:
 
 
 def _budget_for_mode(budget: ResearchBudget, mode: str | None) -> ResearchBudget:
-    if mode == "quick":
-        return ResearchBudget(
-            max_iterations=min(2, budget.max_iterations),
-            max_wall_time_seconds=min(300, budget.max_wall_time_seconds),
-            max_total_tokens=min(40_000, budget.max_total_tokens),
-            max_cost_usd=min(1.0, budget.max_cost_usd),
-            max_sources=min(8, budget.max_sources),
-            max_tool_calls=min(16, budget.max_tool_calls),
-        )
-    if mode == "deep":
-        return ResearchBudget(
-            max_iterations=max(5, budget.max_iterations),
-            max_wall_time_seconds=max(budget.max_wall_time_seconds, 1200),
-            max_total_tokens=max(budget.max_total_tokens, 400_000),
-            max_cost_usd=max(budget.max_cost_usd, 8.0),
-            max_sources=max(budget.max_sources, 60),
-            max_tool_calls=max(budget.max_tool_calls, 120),
-        )
-    return budget
+    from deepscout_core.domain.research_profiles import budget_for_research_mode
+
+    return budget_for_research_mode(budget, mode)
 
 
 def _run_to_read(row: ResearchRunRow) -> ResearchRunRead:

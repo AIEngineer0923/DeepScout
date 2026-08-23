@@ -6,6 +6,8 @@ import re
 
 from deepscout_core.domain.contracts import AnswerRequirement, ResearchContract
 
+from deepscout_research.contracts.text_normalize import normalized_research_tokens
+
 _NOISE_HINTS = (
     "morrisons",
     "humanitarian",
@@ -15,9 +17,23 @@ _NOISE_HINTS = (
     "stock price unrelated",
 )
 
+_SUBJECT_STOPWORDS = {
+    "assess",
+    "determine",
+    "evaluate",
+    "explain",
+    "find",
+    "how",
+    "research",
+    "the",
+    "valuta",
+    "what",
+    "whether",
+}
+
 
 def _tokens(text: str) -> set[str]:
-    return {token for token in re.findall(r"[a-z0-9]{3,}", text.casefold())}
+    return normalized_research_tokens(text)
 
 
 def relevance_score(
@@ -58,6 +74,15 @@ def is_evidence_relevant(
         goal_tokens = _tokens(contract.primary_question)
         quote_tokens = _tokens(quote)
         if goal_tokens and len(goal_tokens & quote_tokens) == 0 and score < 3:
+            return False
+        subject = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0]
+        subject_tokens = {
+            token
+            for token in _tokens(subject) - _SUBJECT_STOPWORDS
+            if len(token) >= 5
+        }
+        required_overlap = min(1, len(subject_tokens))
+        if required_overlap and len(subject_tokens & quote_tokens) < required_overlap:
             return False
     return True
 

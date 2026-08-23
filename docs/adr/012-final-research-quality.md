@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-08-22)
+Accepted; amended (2026-08-23)
 
 ## Context
 
@@ -26,6 +26,17 @@ Introduce an application-owned quality architecture:
 5. **Goal-conditioned LLM report synthesis** — curated verified claims/evidence + contracts; LLM writes prose; app owns verification and policy.
 6. **Final answer critic** — typed verdicts (`PASS`, `REVISION_REQUIRED`, `RESEARCH_GAP`, `BLOCKED_BY_EVIDENCE`) with bounded rewrites (`RESEARCH_MAX_REPORT_REWRITES`).
 7. **Report revision metadata** — prior report bodies archived in `config_snapshot.report_revisions`; `save_report` upserts.
+8. **Material completeness gate** — coverage is requirement-scoped and evidence-backed. Central
+   partial/unsupported requirements prevent `PASS`; a globally searched run, incidental number, or
+   unrelated comparison cannot satisfy them.
+9. **Requirement-aware evidence** — source class and conservative evidence type metadata are kept
+   distinct from relevance. Quantitative and comparison requirements need attributable support of
+   the requested kind.
+10. **Canonical mode profiles** — Quick/Standard/Deep share completion truthfulness while increasing
+    bounded task/query/correction/rewrite depth. Each mode reserves iteration/source capacity for
+    correction and separately caps cumulative embedding tokens.
+11. **Canonical bibliography** — the renderer removes model-emitted EN/IT bibliography sections and
+    appends one localized list from cited evidence.
 
 Rejected alternatives:
 
@@ -60,11 +71,13 @@ EU-specific answer hardcoding.
 
 ## Technical debt (non-blocking)
 
-`RetrievalFailureClass` exists in contracts but full diagnostic wiring into coverage/critic
-reason codes remains partial. Failures still surface primarily via `BLOCKED_BY_EVIDENCE` /
-`MISSING_REQUIREMENT` critic codes until wiring is completed.
+Coverage diagnoses the observable pipeline stage but cannot prove that external evidence does not
+exist. After bounded unsuccessful attempts it may publish an explicit partial/blocked report; it
+must not translate retrieval failure into a claim of literature non-existence.
 
 ## Benchmark
 
 Dataset: `libs/evaluation/data/final_report_quality_v1.json`  
 Live runner: `scripts/final_report_quality_live.py`
+Structural corpus: `libs/evaluation/data/research_completeness_regressions_v1.json`
+CI manifest gate: `scripts/research_completeness_gate.py`
