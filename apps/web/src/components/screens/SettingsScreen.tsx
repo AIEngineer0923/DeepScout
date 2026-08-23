@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Tabs } from "@/components/Tabs";
 import { useI18n } from "@/i18n/context";
+import {
+  presentBoolean,
+  presentHealthKey,
+  presentHealthStatus,
+  presentIdentityRole,
+} from "@/presentation/product";
 
 export function SettingsScreen() {
   const { t, locale, setLocale } = useI18n();
@@ -16,7 +22,7 @@ export function SettingsScreen() {
   const langsmith = (data?.langsmith ?? {}) as { connected?: boolean; project?: string; region?: string };
   const defaults = (data?.research_defaults ?? {}) as Record<string, unknown>;
   const health = (data?.health ?? {}) as Record<string, string>;
-  const identity = (data?.identity ?? {}) as { label?: string; role?: string };
+  const identity = (data?.identity ?? {}) as { label?: string; role?: string; mode?: string };
   const tabs = [
     { id: "general", label: t("settings.tab.general") },
     { id: "models", label: t("settings.tab.models") },
@@ -38,7 +44,7 @@ export function SettingsScreen() {
             <>
               <h2>{t("settings.workspace")}</h2>
               <p>
-                {identity.label} · {identity.role}
+                {identity.label || "—"} · {presentIdentityRole(identity.role, locale)}
               </p>
               <div className="field" style={{ marginTop: 12 }}>
                 <label htmlFor="ui-lang">{t("settings.uiLanguage")}</label>
@@ -48,7 +54,9 @@ export function SettingsScreen() {
                 </select>
               </div>
               <p className="muted">{t("settings.researchLangNote")}</p>
-              <p className="muted">{t("settings.noMultiuser")}</p>
+              <p className="muted">
+                {identity.mode === "hosted" ? t("settings.hostedWorkspace") : t("settings.localWorkspace")}
+              </p>
             </>
           ) : null}
           {tab === "models" ? (
@@ -78,9 +86,9 @@ export function SettingsScreen() {
                 {t("settings.maxToolCalls")}: {String(defaults.max_tool_calls)}
               </p>
               <p>
-                {t("settings.durableCheckpoint")}: {String(defaults.durable_checkpoint)}
+                {t("settings.durableCheckpoint")}: {presentBoolean(defaults.durable_checkpoint, locale)}
               </p>
-              <p className="muted">{String(defaults.concurrency_note)}</p>
+              <p className="muted">{t("settings.concurrencyNote")}</p>
             </>
           ) : null}
           {tab === "quality" ? (
@@ -107,19 +115,14 @@ export function SettingsScreen() {
           {tab === "security" ? (
             <>
               <h2>{t("settings.privacy")}</h2>
-              <p>{String((data?.security as { untrusted_content?: string } | undefined)?.untrusted_content)}</p>
-              <p>{String((data?.security as { ssrf?: string } | undefined)?.ssrf)}</p>
+              <p>{t("settings.untrustedText")}</p>
+              <p>{t("settings.ssrfText")}</p>
             </>
           ) : null}
           {tab === "notifications" ? <p className="muted">{t("settings.notifications")}</p> : null}
           {tab === "advanced" ? (
             <>
-              <h2>{t("settings.system")}</h2>
-              {Object.entries(health).map(([key, value]) => (
-                <p key={key}>
-                  {key}: {value}
-                </p>
-              ))}
+              <h2>{t("settings.advancedTitle")}</h2>
               <p className="muted">{t("settings.vector")}</p>
             </>
           ) : null}
@@ -128,7 +131,7 @@ export function SettingsScreen() {
           <h2>{t("settings.system")}</h2>
           {Object.entries(health).map(([key, value]) => (
             <p key={key}>
-              {key}: {value}
+              {presentHealthKey(key, locale)}: {presentHealthStatus(value, locale)}
             </p>
           ))}
           <p className="muted">{t("settings.noSaas")}</p>

@@ -128,6 +128,60 @@ def test_list_and_overview(api_client: TestClient) -> None:
 
 
 @pytest.mark.postgres
+def test_settings_exposes_enforced_mode_limits(api_client: TestClient) -> None:
+    response = api_client.get("/api/v1/settings")
+    assert response.status_code == 200
+    payload = response.json()
+    modes = payload["research_modes"]
+    defaults = payload["research_defaults"]
+    assert modes["standard"]["max_iterations"] == defaults["max_iterations"]
+    assert modes["standard"]["max_sources"] == defaults["max_sources"]
+    assert modes["quick"]["max_iterations"] <= 2
+    assert modes["quick"]["max_sources"] <= 8
+    assert modes["deep"]["max_iterations"] >= 8
+    assert modes["deep"]["max_sources"] >= 60
+    assert modes["quick"]["max_requirement_tasks"] == 3
+    assert modes["standard"]["max_requirement_tasks"] == 9
+    assert modes["deep"]["max_requirement_tasks"] == 12
+
+
+@pytest.mark.postgres
+def test_local_account_reports_environment_credentials_as_read_only(api_client: TestClient) -> None:
+    profile = api_client.get("/api/v1/account")
+    assert profile.status_code == 200
+    payload = profile.json()
+    assert payload["credential_source"] == "ENV"
+    assert "Local mode" in payload["privacy"]
+    assert {item["provider"] for item in payload["credentials"]} == {
+        "google",
+        "openai",
+        "anthropic",
+        "tavily",
+        "langsmith",
+    }
+    assert all(isinstance(item["configured"], bool) for item in payload["credentials"])
+
+    write = api_client.put(
+        "/api/v1/account/credentials/google",
+        json={"secret": "unused-local-secret"},
+    )
+    assert write.status_code == 409
+
+
+def test_cors_allows_ui_locale_header(validation_client: TestClient) -> None:
+    response = validation_client.options(
+        "/api/v1/demos",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-ui-locale",
+        },
+    )
+    assert response.status_code == 200
+    assert "x-ui-locale" in response.headers["access-control-allow-headers"].lower()
+
+
+@pytest.mark.postgres
 def test_create_run_persists_mode_and_language(api_client: TestClient) -> None:
     created = api_client.post(
         "/api/v1/research-runs",

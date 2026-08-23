@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathRunId = parseRunId(pathname);
   const [storedRunId, setStoredRunId] = useState<string | null>(null);
   const [langsmith, setLangsmith] = useState<{ connected: boolean; project: string; region: string } | null>(null);
-  const [identityLabel, setIdentityLabel] = useState("Local workspace");
+  const [identityLabel, setIdentityLabel] = useState("");
   const [identityRole, setIdentityRole] = useState("Operator");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isHosted, setIsHosted] = useState(false);
@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const runId = pathRunId ?? storedRunId;
   const overviewHref = demoReadOnly ? "/demo" : "/dashboard";
   const newResearchHref = demoReadOnly ? "/login?next=/research/new" : "/research/new";
-  const displayIdentityLabel = demoReadOnly ? t("demo.visitor") : identityLabel;
+  const displayIdentityLabel = demoReadOnly ? t("demo.visitor") : identityLabel || t("identity.label");
   const displayIdentityRole = demoReadOnly
     ? t("demo.publicBadge")
     : identityRole === "Anonymous"

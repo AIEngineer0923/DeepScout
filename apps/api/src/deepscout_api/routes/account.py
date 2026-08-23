@@ -34,6 +34,11 @@ PRIVACY_COPY = (
     "Provider charges are billed directly by the user's configured provider. DeepScout estimates may differ "
     "from provider invoices."
 )
+LOCAL_PRIVACY_COPY = (
+    "Local mode reads provider credentials from the operator environment. Credentials are not "
+    "returned to the browser or stored by this account screen. Provider charges are billed "
+    "directly by the configured provider."
+)
 
 
 class CredentialWrite(BaseModel):
@@ -60,6 +65,25 @@ def _meta(row: ProviderCredentialRow | None, provider: str) -> dict:
     }
 
 
+def _local_credential_meta(settings: Settings, provider: CredentialProvider) -> dict:
+    configured = {
+        CredentialProvider.GOOGLE: settings.google_api_key is not None,
+        CredentialProvider.OPENAI: settings.openai_api_key is not None,
+        CredentialProvider.ANTHROPIC: settings.anthropic_api_key is not None,
+        CredentialProvider.TAVILY: settings.tavily_api_key is not None,
+        CredentialProvider.LANGSMITH: settings.langsmith_api_key is not None,
+    }[provider]
+    return {
+        "provider": provider.value,
+        "status": (
+            CredentialStatus.CONFIGURED.value
+            if configured
+            else CredentialStatus.NOT_CONFIGURED.value
+        ),
+        "configured": configured,
+    }
+
+
 @router.get("")
 def account_profile(
     request: Request,
@@ -68,14 +92,19 @@ def account_profile(
 ) -> dict:
     access = load_access(request, store._session, settings)
     principal = require_user(access)
-    operator_synced = try_sync_operator_vault(store._session, principal.id, settings)
-    rows = {row.provider: row for row in list_credentials(store._session, principal.id)}
+    if access.is_local:
+        credentials = [_local_credential_meta(settings, item) for item in CredentialProvider]
+        operator_synced: list[str] = []
+    else:
+        operator_synced = try_sync_operator_vault(store._session, principal.id, settings)
+        rows = {row.provider: row for row in list_credentials(store._session, principal.id)}
+        credentials = [_meta(rows.get(item.value), item.value) for item in CredentialProvider]
     return {
         "id": str(principal.id),
         "display_name": principal.display_name,
         "email": principal.email if principal.email_verified else None,
-        "privacy": PRIVACY_COPY,
-        "credentials": [_meta(rows.get(item.value), item.value) for item in CredentialProvider],
+        "privacy": LOCAL_PRIVACY_COPY if access.is_local else PRIVACY_COPY,
+        "credentials": credentials,
         "credential_source": "USER_VAULT" if access.mode.value == "hosted" else "ENV",
         "operator_vault_synced": bool(operator_synced),
     }
@@ -92,6 +121,8 @@ def put_credential(
     if provider not in {item.value for item in CredentialProvider}:
         raise HTTPException(status_code=404, detail="unknown provider")
     access = load_access(request, store._session, settings)
+    if access.is_local:
+        raise HTTPException(status_code=409, detail="Local mode uses environment credentials")
     principal = require_user(access)
     existing = get_credential(store._session, principal.id, provider)
     try:
@@ -118,6 +149,8 @@ def remove_credential(
     settings: Settings = Depends(get_settings),
 ) -> None:
     access = load_access(request, store._session, settings)
+    if access.is_local:
+        raise HTTPException(status_code=409, detail="Local mode uses environment credentials")
     principal = require_user(access)
     if delete_credential(store._session, principal.id, provider):
         record_event(store._session, principal.id, "credential_delete", provider)

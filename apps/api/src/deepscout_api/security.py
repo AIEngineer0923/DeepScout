@@ -166,5 +166,5 @@ def install_security_middleware(app: FastAPI, settings: Settings) -> None:
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Last-Event-ID"],
+        allow_headers=["Content-Type", "Last-Event-ID", "X-UI-Locale"],
     )

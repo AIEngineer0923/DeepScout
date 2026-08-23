@@ -30,7 +30,7 @@ export function MonitorsScreen() {
   const t = useT();
   const { locale } = useI18n();
   const [rows, setRows] = useState<Monitor[]>([]);
-  const [name, setName] = useState("Daily monitor");
+  const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [timezone, setTimezone] = useState("Europe/Rome");
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export function MonitorsScreen() {
     setError(null);
     try {
       await api.createMonitor({
-        name,
+        name: name.trim() || t("monitors.defaultName"),
         goal,
         schedule_kind: "daily",
         timezone,
@@ -63,7 +63,7 @@ export function MonitorsScreen() {
       <p className="page-sub">{t("monitors.subtitle")}</p>
       <section className="card">
         <h2>{t("monitors.create")}</h2>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} aria-label={t("monitors.name")} />
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("monitors.defaultName")} aria-label={t("monitors.name")} />
         <textarea className="input" rows={3} value={goal} onChange={(e) => setGoal(e.target.value)} placeholder={t("monitors.goal")} />
         <input className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)} aria-label={t("monitors.timezone")} />
         {error ? <p className="empty">{error}</p> : null}

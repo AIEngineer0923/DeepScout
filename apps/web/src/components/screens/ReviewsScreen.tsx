@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useT } from "@/i18n/context";
+import { useI18n } from "@/i18n/context";
+import { formatCost } from "@/lib/format";
+import { presentRiskLevel } from "@/presentation/learning";
+import { presentCostStatus, presentReviewReason } from "@/presentation/product";
 
 type Review = {
   id: string;
@@ -20,7 +23,7 @@ type Review = {
 };
 
 export function ReviewsScreen() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const [items, setItems] = useState<Review[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,7 +59,7 @@ export function ReviewsScreen() {
       }
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t("reviews.requestFailed"));
     } finally {
       setBusy(null);
     }
@@ -71,6 +74,8 @@ export function ReviewsScreen() {
       <div className="stack" style={{ gap: 16, marginTop: 16 }}>
         {items.map((review) => {
           const p = review.proposed_action_payload;
+          const rawCost = Number(p.consumed_cost_usd);
+          const consumedCost = Number.isFinite(rawCost) ? rawCost : null;
           return (
             <article key={review.id} className="card" aria-labelledby={`review-${review.id}`}>
               <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
@@ -79,28 +84,26 @@ export function ReviewsScreen() {
               </div>
               <p className="wrap-text">{review.explanation}</p>
               <p className="muted">
-                {t("reviews.risk")}: {review.risk_level} · {review.reason_code.replaceAll("_", " ")}
+                {t("reviews.risk")}: {presentRiskLevel(review.risk_level, locale)} · {presentReviewReason(review.reason_code, locale)}
               </p>
               {review.proposed_action_type === "budget_extension" ? (
                 <div className="grid cols-3" style={{ margin: "12px 0" }}>
                   <div>
                     <strong>{t("reviews.currentLimits")}</strong>
                     <p>
-                      iter {String(p.current_max_iterations)} / tools {String(p.current_max_tool_calls)} / sources{" "}
-                      {String(p.current_max_sources)}
+                      {t("reviews.iterationsShort")} {String(p.current_max_iterations)} · {t("reviews.toolCallsShort")} {String(p.current_max_tool_calls)} · {t("reviews.sourcesShort")} {String(p.current_max_sources)}
                     </p>
                   </div>
                   <div>
                     <strong>{t("reviews.requested")}</strong>
                     <p>
-                      +{String(p.requested_extra_iterations)} iter · +{String(p.requested_extra_tool_calls)} tools · +
-                      {String(p.requested_extra_sources)} sources
+                      +{String(p.requested_extra_iterations)} {t("reviews.iterationsShort")} · +{String(p.requested_extra_tool_calls)} {t("reviews.toolCallsShort")} · +{String(p.requested_extra_sources)} {t("reviews.sourcesShort")}
                     </p>
                   </div>
                   <div>
                     <strong>{t("reviews.consumed")}</strong>
                     <p>
-                      {String(p.consumed_iterations)} iter · cost {String(p.consumed_cost_usd)} ({String(p.cost_status)})
+                      {String(p.consumed_iterations)} {t("reviews.iterationsShort")} · {t("reviews.costLabel")} {formatCost(consumedCost, String(p.cost_status), t("cost.unknown"))} ({presentCostStatus(String(p.cost_status), locale)})
                     </p>
                   </div>
                 </div>

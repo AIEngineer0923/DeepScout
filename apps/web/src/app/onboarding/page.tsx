@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useT } from "@/i18n/context";
 
 export default function OnboardingPage() {
-  const [name, setName] = useState("there");
+  const t = useT();
+  const [name, setName] = useState("");
 
   useEffect(() => {
     api.me().then((data) => {
@@ -15,19 +17,19 @@ export default function OnboardingPage() {
 
   return (
     <div className="grid" style={{ gap: 18, maxWidth: 640 }}>
-      <h1 className="page-title">Welcome, {name}</h1>
+      <h1 className="page-title">{t("onboarding.welcome", { name: name || t("onboarding.fallbackName") })}</h1>
       <ol className="list">
-        <li>Configure required providers (LLM + search).</li>
-        <li>Validate readiness on the account page.</li>
-        <li>Start your first research run.</li>
+        <li>{t("onboarding.stepProviders")}</li>
+        <li>{t("onboarding.stepReadiness")}</li>
+        <li>{t("onboarding.stepResearch")}</li>
       </ol>
-      <p>LangSmith is optional and off unless you supply your own key.</p>
+      <p>{t("onboarding.langsmith")}</p>
       <div className="chip-row">
         <Link className="btn primary" href="/account">
-          Configure providers
+          {t("new.configureProviders")}
         </Link>
         <Link className="btn" href="/research/new">
-          Start research
+          {t("action.start")}
         </Link>
       </div>
     </div>

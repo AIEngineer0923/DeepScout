@@ -746,6 +746,7 @@ class ResearchStore:
         self,
         candidate_id: uuid.UUID,
         *,
+        owner_principal_id: uuid.UUID,
         status: str,
         promotion_verdict: str | None = None,
         promotion_reason: str | None = None,
@@ -753,7 +754,7 @@ class ResearchStore:
         if not self._learning_tables_available():
             return False
         row = self._session.get(ImprovementCandidateRow, candidate_id)
-        if row is None:
+        if row is None or row.owner_principal_id != owner_principal_id:
             return False
         row.status = status
         if promotion_verdict is not None:

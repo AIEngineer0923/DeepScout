@@ -21,6 +21,16 @@ type ModelPolicyMode = "automatic" | "quality" | "balanced" | "speed" | "cost" |
 type GeoMode = "automatic" | "global" | "regions";
 type FreshnessMode = "automatic" | "explicit";
 type FreshnessPolicy = "any" | "24h" | "7d" | "30d" | "1y";
+type ProviderStatus = "checking" | "ready" | "missing" | "unavailable";
+type ModeProfile = {
+  max_iterations: number;
+  max_wall_time_seconds: number;
+  max_total_tokens: number;
+  max_cost_usd: number;
+  max_sources: number;
+  max_tool_calls: number;
+  max_requirement_tasks: number;
+};
 
 const MODES = [
   { id: "quick" as const, titleKey: "new.mode.quick", bodyKey: "new.mode.quickBody", badgeKey: "new.mode.quickBadge", icon: IconBolt },
@@ -57,27 +67,31 @@ export function NewResearchScreen() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [providerReady, setProviderReady] = useState(true);
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>("checking");
+  const [modeProfiles, setModeProfiles] = useState<Record<string, ModeProfile> | null>(null);
   const [hosted, setHosted] = useState(false);
 
   useEffect(() => {
     api.listTemplates().then(setTemplates).catch(() => setTemplates([]));
     Promise.all([api.settings(), api.me().catch(() => ({ mode: "local" }))])
       .then(([settings, me]) => {
+        setModeProfiles((settings.research_modes as Record<string, ModeProfile> | undefined) ?? null);
         const identity = settings.identity as { mode?: string } | undefined;
         const isHosted = me.mode === "hosted" || identity?.mode === "hosted";
         setHosted(isHosted);
         if (!isHosted) {
-          setProviderReady(true);
+          setProviderStatus("ready");
           return;
         }
         const providers = settings.providers as Record<string, { configured?: boolean }>;
         const llmReady = Boolean(providers.google?.configured || providers.openai?.configured || providers.anthropic?.configured);
         const searchReady = Boolean(providers.tavily?.configured);
-        setProviderReady(llmReady && searchReady);
+        setProviderStatus(llmReady && searchReady ? "ready" : "missing");
       })
-      .catch(() => setProviderReady(true));
+      .catch(() => setProviderStatus("unavailable"));
   }, []);
+
+  const selectedProfile = modeProfiles?.[mode];
 
   const filteredCountries = useMemo(() => {
     const q = geoQuery.trim().toLowerCase();
@@ -94,11 +108,11 @@ export function NewResearchScreen() {
     () => ({
       mode,
       outputLanguage,
-      sources: mode === "quick" ? "4–8" : mode === "deep" ? "20–60" : "8–20",
-      iterations: mode === "quick" ? "1" : mode === "deep" ? "Up to 5" : "Up to 3",
+      sources: selectedProfile?.max_sources ?? null,
+      iterations: selectedProfile?.max_iterations ?? null,
       depth: mode === "quick" ? t("new.depthQuick") : mode === "deep" ? t("new.depthDeep") : t("new.depthStandard"),
     }),
-    [mode, outputLanguage, t],
+    [mode, outputLanguage, selectedProfile, t],
   );
 
   function buildPreferences() {
@@ -178,7 +192,7 @@ export function NewResearchScreen() {
 
   async function start() {
     if (!goal.trim()) return;
-    if (hosted && !providerReady) {
+    if (providerStatus !== "ready") {
       setError(t("new.providerMissing"));
       return;
     }
@@ -388,11 +402,11 @@ export function NewResearchScreen() {
               <label htmlFor="max-sources" style={{ marginTop: 12, display: "block" }}>
                 {t("new.maxSources")}
               </label>
-              <input id="max-sources" className="input" value={summary.sources} readOnly title={t("new.budgetByMode")} />
+              <input id="max-sources" className="input" value={summary.sources ?? "—"} readOnly title={t("new.budgetByMode")} />
               <span className="muted">{t("new.budgetByMode")}</span>
             </div>
           ) : null}
-          {hosted && !providerReady ? (
+          {hosted && providerStatus === "missing" ? (
             <div className="note-box" style={{ marginTop: 12 }}>
               <p className="wrap-text" style={{ margin: 0 }}>
                 {t("new.providerMissing")}
@@ -400,6 +414,11 @@ export function NewResearchScreen() {
               <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => router.push("/account")}>
                 {t("new.configureProviders")}
               </button>
+            </div>
+          ) : null}
+          {providerStatus === "unavailable" ? (
+            <div className="note-box" style={{ marginTop: 12 }} role="alert">
+              <p className="wrap-text" style={{ margin: 0 }}>{t("new.providerCheckFailed")}</p>
             </div>
           ) : null}
           {error ? <p className="badge bad wrap-text">{error}</p> : null}
@@ -415,7 +434,7 @@ export function NewResearchScreen() {
               <button
                 className="btn primary"
                 type="button"
-                disabled={busy || !goal.trim() || (hosted && !providerReady)}
+                disabled={busy || !goal.trim() || providerStatus !== "ready" || !selectedProfile}
                 data-testid="start-research"
                 onClick={() => void start()}
               >
@@ -489,27 +508,29 @@ export function NewResearchScreen() {
           </dl>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>{t("new.estimatedEnvelope")}</h2>
+          <h2>{t("new.runtimeLimits")}</h2>
           <dl className="kv-list">
             <div className="kv-row">
-              <dt>{t("new.modelCalls")}</dt>
-              <dd>{mode === "quick" ? "~3–6" : mode === "deep" ? "~12–24" : "~7–12"}</dd>
+              <dt>{t("new.maxTasks")}</dt>
+              <dd>{selectedProfile?.max_requirement_tasks ?? "—"}</dd>
             </div>
             <div className="kv-row">
               <dt>{t("new.totalTokens")}</dt>
-              <dd>{mode === "quick" ? "~8k–20k" : mode === "deep" ? "~60k–150k" : "~25k–60k"}</dd>
+              <dd>{selectedProfile?.max_total_tokens.toLocaleString(locale === "it" ? "it-IT" : "en-US") ?? "—"}</dd>
             </div>
             <div className="kv-row">
               <dt>{t("new.toolCalls")}</dt>
-              <dd>{mode === "quick" ? "~6–12" : mode === "deep" ? "~30–60" : "~15–25"}</dd>
+              <dd>{selectedProfile?.max_tool_calls ?? "—"}</dd>
             </div>
             <div className="kv-row">
               <dt>{t("new.duration")}</dt>
-              <dd>{mode === "quick" ? "~1–2 min" : mode === "deep" ? "~5–12 min" : "~2–5 min"}</dd>
+              <dd>{selectedProfile ? t("new.upToMinutes", { count: Math.ceil(selectedProfile.max_wall_time_seconds / 60) }) : "—"}</dd>
             </div>
           </dl>
-          <div className="cost-highlight">{t("new.costUnknown")}</div>
-          <p className="cost-range">{t("new.actualUsage")}</p>
+          <div className="note-box" style={{ marginTop: 12 }}>
+            {selectedProfile ? t("new.costCeiling", { value: selectedProfile.max_cost_usd.toFixed(2) }) : "—"}
+          </div>
+          <p className="cost-range">{t("new.runtimeLimitsNote")}</p>
         </section>
         <section className="card" style={{ marginTop: 16 }}>
           <h2>{t("new.templates")}</h2>
