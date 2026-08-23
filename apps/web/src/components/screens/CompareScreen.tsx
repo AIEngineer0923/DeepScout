@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { useT } from "@/i18n/context";
+import { useI18n } from "@/i18n/context";
 import { ClampedText } from "@/components/ClampedText";
+import { formatCost, formatTokens } from "@/lib/format";
+import { presentCostStatus } from "@/presentation/product";
 
 export function CompareScreen() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const params = useSearchParams();
   const [left, setLeft] = useState(params.get("left") ?? "");
   const [right, setRight] = useState(params.get("right") ?? "");
@@ -28,6 +30,10 @@ export function CompareScreen() {
   }, []);
   const sources = (diff?.sources as { added?: string[]; removed?: string[]; unchanged?: string[] }) ?? {};
   const claims = (diff?.claims as { added?: string[]; removed?: string[]; unchanged?: number }) ?? {};
+  const plan = diff?.plan as {
+    left?: { task_count?: number; critical_path_depth?: number; parallel_width?: number; edges?: number };
+    right?: { task_count?: number; critical_path_depth?: number; parallel_width?: number; edges?: number };
+  } | undefined;
   const usage = diff?.usage as { left?: { total_tokens?: number | null; cost_usd?: number | null; cost_status?: string }; right?: { total_tokens?: number | null; cost_usd?: number | null; cost_status?: string } } | undefined;
   return (
     <div>
@@ -49,7 +55,15 @@ export function CompareScreen() {
             <p>
               {t("compare.right")}: <ClampedText lines={3}>{String((diff.right as { goal?: string })?.goal)}</ClampedText>
             </p>
-            <p>{t("nav.plan")}: {JSON.stringify((diff.plan as { left?: { task_count?: number }; right?: { task_count?: number } }) ?? {})}</p>
+            <h3>{t("nav.plan")}</h3>
+            <dl className="kv-list">
+              {(["task_count", "critical_path_depth", "parallel_width", "edges"] as const).map((key) => (
+                <div className="kv-row" key={key}>
+                  <dt>{t(`compare.plan.${key}`)}</dt>
+                  <dd>{plan?.left?.[key] ?? "—"} → {plan?.right?.[key] ?? "—"}</dd>
+                </div>
+              ))}
+            </dl>
           </article>
           <article className="card">
             <h2>{t("nav.sources")}</h2>
@@ -64,8 +78,16 @@ export function CompareScreen() {
           </article>
           <article className="card">
             <h2>{t("compare.usage")}</h2>
-            <p>L tokens: {usage?.left?.total_tokens ?? t("cost.unknown")} · {usage?.left?.cost_status}</p>
-            <p>R tokens: {usage?.right?.total_tokens ?? t("cost.unknown")} · {usage?.right?.cost_status}</p>
+            {(["left", "right"] as const).map((side) => (
+              <div key={side} style={{ marginTop: 12 }}>
+                <strong>{t(`compare.${side}`)}</strong>
+                <p>
+                  {t("new.totalTokens")}: {formatTokens(usage?.[side]?.total_tokens, t("cost.unknown"))}
+                  {" · "}{t("dashboard.metric.cost")}: {formatCost(usage?.[side]?.cost_usd, usage?.[side]?.cost_status, t("cost.unknown"))}
+                  {" · "}{presentCostStatus(usage?.[side]?.cost_status, locale)}
+                </p>
+              </div>
+            ))}
           </article>
         </div>
       ) : null}

@@ -175,3 +175,77 @@ def test_mismatched_origin_is_rejected(hosted_client) -> None:
         headers={"Origin": "https://evil.example"},
     )
     assert denied.status_code == 403
+
+
+def test_learning_candidate_decisions_are_owner_scoped(hosted_client) -> None:
+    session = _session()
+    store = ResearchStore(session)
+    user_a, token_a = _user(session, "LearningOwnerA")
+    user_b, token_b = _user(session, "LearningOwnerB")
+    case_id = store.upsert_learning_case(
+        {
+            "case_key": f"tenant-case-{uuid4().hex}",
+            "owner_principal_id": user_a.id,
+            "subsystem": "retrieval",
+            "failure_class": "retrieval_failure",
+            "symptom": "owner-scoped candidate",
+            "origin": "development_synthetic",
+            "trust_level": "validated_learning",
+            "review_state": "diagnosed",
+            "sanitized": True,
+        }
+    )
+    candidate_id = store.upsert_improvement_candidate(
+        {
+            "candidate_key": f"tenant-candidate-{uuid4().hex}",
+            "learning_case_row_id": case_id,
+            "owner_principal_id": user_a.id,
+            "candidate_type": "retrieval_parameter",
+            "title": "Scoped candidate",
+            "rationale": "Regression coverage",
+            "affected_subsystem": "retrieval",
+            "trust_level": "validated_learning",
+            "status": "requires_human_review",
+        }
+    )
+    session.commit()
+    try:
+        denied = hosted_client.post(
+            f"/api/v1/learning/candidates/{candidate_id}/approve",
+            json={},
+            cookies={"ds_session": token_b},
+        )
+        assert denied.status_code == 404
+        allowed = hosted_client.post(
+            f"/api/v1/learning/candidates/{candidate_id}/approve",
+            json={},
+            cookies={"ds_session": token_a},
+        )
+        assert allowed.status_code == 200
+        assert allowed.json()["status"] == "approved"
+    finally:
+        from deepscout_persistence.identity import delete_principal_data
+
+        delete_principal_data(session, user_a.id)
+        delete_principal_data(session, user_b.id)
+        session.commit()
+        session.close()
+
+
+def test_controlled_learning_smoke_is_not_available_to_regular_hosted_users(
+    hosted_client,
+) -> None:
+    session = _session()
+    user, token = _user(session, "RegularHostedUser")
+    try:
+        response = hosted_client.post(
+            "/api/v1/learning/smoke/controlled",
+            cookies={"ds_session": token},
+        )
+        assert response.status_code == 404
+    finally:
+        from deepscout_persistence.identity import delete_principal_data
+
+        delete_principal_data(session, user.id)
+        session.commit()
+        session.close()

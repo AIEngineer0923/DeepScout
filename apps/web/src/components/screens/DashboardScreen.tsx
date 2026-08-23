@@ -23,7 +23,7 @@ const EMPTY: Overview = {
     cost_status: "unknown",
     avg_completion_seconds: null,
   },
-  identity: { label: "Local workspace", role: "Operator" },
+  identity: { label: "", role: "Operator" },
   langsmith: { connected: false, project: "deepscout-dev", region: "EU", tracing: false },
   providers: {},
 };
@@ -38,6 +38,7 @@ export function DashboardScreen() {
   const [mode, setMode] = useState<"quick" | "standard" | "deep">("standard");
   const [outputLanguage, setOutputLanguage] = useState("en");
   const [busy, setBusy] = useState(false);
+  const [providerStatus, setProviderStatus] = useState<"checking" | "ready" | "missing" | "unavailable">("checking");
   const active = overview.active;
 
   useEffect(() => {
@@ -46,12 +47,25 @@ export function DashboardScreen() {
         router.replace("/login");
         return;
       }
+      if (data.identity.mode !== "hosted") {
+        setProviderStatus("ready");
+      } else {
+        const llmReady = Boolean(
+          data.providers.google?.configured ||
+          data.providers.openai?.configured ||
+          data.providers.anthropic?.configured,
+        );
+        setProviderStatus(llmReady && Boolean(data.providers.tavily?.configured) ? "ready" : "missing");
+      }
       setOverview(data);
-    }).catch(() => setOverview(EMPTY));
+    }).catch(() => {
+      setOverview(EMPTY);
+      setProviderStatus("unavailable");
+    });
   }, [router]);
 
   async function start() {
-    if (!goal.trim()) return;
+    if (!goal.trim() || providerStatus !== "ready") return;
     setBusy(true);
     try {
       const created = await api.createRun({
@@ -96,7 +110,7 @@ export function DashboardScreen() {
     <div className="grid" style={{ gap: 22 }}>
       <div className="page-head">
         <h1 className="page-title">
-          {t("dashboard.title")}, {overview.identity.label}
+          {t("dashboard.title")}, {overview.identity.label || t("identity.label")}
         </h1>
         <p className="page-sub">{t("dashboard.subtitle")}</p>
       </div>
@@ -136,10 +150,12 @@ export function DashboardScreen() {
             </select>
           </div>
           <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
-            <button className="btn primary" disabled={busy || !goal.trim()} onClick={() => void start()}>
+            <button className="btn primary" disabled={busy || !goal.trim() || providerStatus !== "ready"} onClick={() => void start()}>
               {t("action.start")} →
             </button>
           </div>
+          {providerStatus === "missing" ? <p className="note-box">{t("new.providerMissing")}</p> : null}
+          {providerStatus === "unavailable" ? <p className="note-box" role="alert">{t("new.providerCheckFailed")}</p> : null}
         </section>
         <section className="card">
           <p className="card-eyebrow">{t("dashboard.active")}</p>

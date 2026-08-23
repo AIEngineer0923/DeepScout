@@ -111,6 +111,7 @@ test.describe("mode B public surfaces", () => {
       route.fulfill({
         json: {
           privacy: "encrypted at rest",
+          credential_source: "USER_VAULT",
           credentials: [{ provider: "google", configured: true, status: "configured" }],
         },
       }),
@@ -124,6 +125,13 @@ test.describe("mode B public surfaces", () => {
 });
 
 test.describe("mode B public entry routing", () => {
+  test("authentication outage fails closed", async ({ page }) => {
+    await page.route("**/api/v1/auth/me", async (route) => route.abort("failed"));
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("hosted-auth-gate-error")).toBeVisible();
+    await expect(page.getByTestId("app-shell")).toHaveCount(0);
+  });
+
   test("anonymous hosted / shows public landing without app dashboard", async ({ page }) => {
     await mockHostedAnonymous(page);
     await page.goto("/");
@@ -185,6 +193,7 @@ test.describe("mode B public entry routing", () => {
       route.fulfill({
         json: {
           privacy: "encrypted at rest",
+          credential_source: "USER_VAULT",
           credentials: [],
         },
       }),
@@ -196,7 +205,7 @@ test.describe("mode B public entry routing", () => {
       );
     });
     await page.goto("/account");
-    await page.getByRole("button", { name: "Log out", exact: true }).click();
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await expect(page).toHaveURL("/");
     await expect(page.getByTestId("public-shell")).toBeVisible();
   });

@@ -34,6 +34,7 @@ from deepscout_evaluation.learning.policy_families import (
 )
 from deepscout_evaluation.learning.promotion import evaluate_promotion
 from deepscout_evaluation.regression_origins import RegressionOrigin
+from deepscout_research.credentials.operator_vault import is_operator_principal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -202,10 +203,11 @@ def approve_candidate(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     access = load_access(request, store._session, settings)
-    require_user(access)
+    principal = require_user(access)
     _require_learning(store)
     updated = store.update_improvement_candidate_status(
         candidate_id,
+        owner_principal_id=principal.id,
         status=ImprovementCandidateStatus.APPROVED.value,
         promotion_verdict=PromotionVerdict.REQUIRES_HUMAN_REVIEW.value,
         promotion_reason=body.reason or "approved by operator",
@@ -224,10 +226,11 @@ def reject_candidate(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     access = load_access(request, store._session, settings)
-    require_user(access)
+    principal = require_user(access)
     _require_learning(store)
     updated = store.update_improvement_candidate_status(
         candidate_id,
+        owner_principal_id=principal.id,
         status=ImprovementCandidateStatus.REJECTED.value,
         promotion_verdict=PromotionVerdict.REJECTED.value,
         promotion_reason=body.reason or "rejected by operator",
@@ -268,6 +271,10 @@ def controlled_smoke_promote(
     """Operator-only controlled smoke — requires authenticated owner."""
     access = load_access(request, store._session, settings)
     principal = require_user(access)
+    if not access.is_local and not is_operator_principal(
+        store._session, principal.id, settings
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
     _require_learning(store)
     case = diagnose_learning_case(
         LearningCase(

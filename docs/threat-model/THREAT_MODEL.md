@@ -1,8 +1,9 @@
 # Threat Model
 
 Scope: URL fetch, document handling, tool execution, API, DB, LLM prompts,
-exports, CI, containers. DeepScout is currently a local trusted single-user
-research workstation.
+exports, CI, containers, and both supported deployment modes: the local
+single-operator workstation (MODE A) and authenticated, owner-isolated hosted
+workspaces with BYOK credentials and read-only public demos (MODE B).
 
 ## Assets
 
@@ -15,11 +16,15 @@ research workstation.
 ## Trust boundaries
 
 ```text
-[Trusted local user] → [Web UI] → [API, no auth] → [Orchestrator]
-                              ↓                         ↓
-                         [PostgreSQL]            [Tools/Fetch → Internet]
-                              ↓
-                         [LangSmith traces, optional]
+MODE A: [Trusted local operator] → [Web UI] → [Local API] → [Orchestrator]
+MODE B: [Browser] → [OAuth/session boundary] → [Owner-scoped API] → [Orchestrator]
+             [Anonymous browser] → [Read-only published demo API]
+                                                     ↓
+                                              [PostgreSQL]
+                                                     ↓
+                                      [BYOK providers / secure fetch]
+                                                     ↓
+                                        [LangSmith traces, opt-in]
 ```
 
 Untrusted: Internet content, model outputs before verification, export
@@ -44,7 +49,7 @@ consumers (spreadsheet formula parsers).
 | T13 | Denial-of-wallet | infinite loop | API cost | ResearchBudget hard stops |
 | T14 | PII in logs | verbose logging | privacy | redaction; no claim of GDPR certification |
 | T15 | Supply chain | bad dependency | breach | Dependabot, npm/pip audit, CodeQL, Semgrep |
-| T16 | Unauthenticated remote API | bind `0.0.0.0` | full data/cost access | default bind localhost; document as unsupported Internet posture |
+| T16 | Unauthenticated MODE A API exposed remotely | bind local mode to `0.0.0.0` | full data/cost access | default bind localhost; document local mode as an unsupported Internet posture |
 | T17 | CSV formula injection | export | spreadsheet code exec | prefix sanitization |
 | T18 | Checkpoint cross-run | forged thread id | state mix | `run_id:task_id` thread IDs; domain DB authoritative |
 | T19 | LangSmith data export | tracing left on | research text leaves host | default `LANGSMITH_TRACING=false`; key-name redaction; documented opt-in |
@@ -57,7 +62,7 @@ consumers (spreadsheet formula parsers).
 | T26 | Source pin/exclude bypass | URL aliases, www, vector re-entry | excluded evidence reused | canonical URLs; retrieval exclusion; pin ≠ verified |
 | T27 | Monitor DoW / schedule explosion | injected “create monitor every second” | unbounded spend | API-only monitor CRUD; max 25; leases; per-run budget |
 | T28 | Knowledge graph DoS | unbounded hops/cycles | API stall | max 3 hops; node/edge caps |
-| T29 | Run-diff cross-run mix | guessing UUIDs | MODE A local; still run-scoped | compare requires two existing run IDs |
+| T29 | Run-diff cross-run mix | guessing UUIDs | foreign research disclosure | compare requires two existing run IDs and hosted owner authorization for both |
 | T30 | RUM abuse / high cardinality | unbounded routes, research text | DB growth | allowlisted path, rate limit, no payload text |
 | T31 | SSE Last-Event-ID abuse | huge/negative cursors | extra reads | integer sequence cursor; durable log is run_events |
 
@@ -81,15 +86,16 @@ Retrieved text cannot grant tools, change budget, verify claims, or alter prompt
 
 | ID | Threat | Mitigation |
 |---|---|---|
-| T20 | IDOR/BOLA | Server-side owner match; 404 for foreign ids |
-| T21 | Cross-user RAG/Wiki/SSE | Authorize run before retrieval, wiki, events |
-| T22 | Credential theft / exfil | AES-GCM vault, no read-back, redaction |
-| T23 | Maintainer key fallback | Hosted overlay zeros env keys |
-| T24 | OAuth CSRF / open redirect | PKCE + state; allowlisted `next` |
-| T25 | Session theft | HttpOnly Secure SameSite cookies |
-| T26 | Demo mutation | Write paths denied for `is_public_demo` |
-| T27 | Prompt-injection tenant escape | Owner is never model-selected |
-| T28 | Denial of wallet (host) | Per-IP rate limits, concurrent run caps |
-| T29 | Preview secret leak | Fork PRs do not receive production secrets |
-| T30 | Next.js cache leak | `no-store` on authenticated fetches |
-
+| T32 | IDOR/BOLA | Server-side owner match; 404 for foreign ids |
+| T33 | Cross-user RAG/Wiki/SSE | Authorize run before retrieval, wiki, events |
+| T34 | Credential theft / exfil | AES-GCM vault, no read-back, redaction |
+| T35 | Maintainer key fallback | Hosted overlay zeros env keys |
+| T36 | OAuth CSRF / open redirect | PKCE + state; allowlisted `next` |
+| T37 | Session theft | HttpOnly Secure SameSite cookies |
+| T38 | Demo mutation | Write paths denied for `is_public_demo` |
+| T39 | Prompt-injection tenant escape | Owner is never model-selected |
+| T40 | Denial of wallet (host) | Per-IP rate limits, concurrent run caps |
+| T41 | Preview secret leak | Fork PRs do not receive production secrets |
+| T42 | Next.js cache leak | `no-store` on authenticated fetches |
+| T43 | Cross-tenant learning decision | Candidate approve/reject updates require the authenticated owner id and return 404 on mismatch |
+| T44 | Synthetic policy promotion by regular users | Controlled learning-smoke promotion is limited to local mode or the configured hosted operator |

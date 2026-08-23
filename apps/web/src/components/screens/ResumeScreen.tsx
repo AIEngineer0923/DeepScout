@@ -8,6 +8,7 @@ import { useRun } from "@/components/run/RunProvider";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useI18n, useT } from "@/i18n/context";
 import { ResearchGoalHeading } from "@/components/research/ResearchGoalHeading";
+import { presentCheckpointRole, presentJob, presentRuntimePhase } from "@/presentation/product";
 
 export function ResumeScreen() {
   const { workspace, reload } = useRun();
@@ -52,7 +53,7 @@ export function ResumeScreen() {
       reload();
       router.push(`/research/${workspace!.run_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Approval failed");
+      setError(err instanceof Error ? err.message : t("reviews.approvalFailed"));
     }
   }
 
@@ -101,11 +102,11 @@ export function ResumeScreen() {
       <div className="grid cols-3" style={{ marginTop: 16 }}>
         <article className="card">
           <h2>{t("resume.lastState")}</h2>
-          <p>Current phase: {resume.current_phase}</p>
+          <p>{t("resume.currentPhase")}: {presentRuntimePhase(resume.current_phase, locale)}</p>
           <p>
-            Latest job: {resume.latest_job_type ?? "—"} ({resume.latest_job_status ?? "none"})
+            {t("resume.latestJob")}: {presentJob(resume.latest_job_type, locale)} ({presentJob(resume.latest_job_status, locale)})
           </p>
-          <p>Checkpoint role: {resume.checkpoint_role.replaceAll("_", " ")}</p>
+          <p>{t("resume.checkpoint")}: {presentCheckpointRole(resume.checkpoint_role, locale)}</p>
         </article>
         <article className="card">
           <h2>{t("resume.completed")}</h2>

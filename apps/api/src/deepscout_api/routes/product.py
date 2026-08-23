@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from deepscout_core.deployment import CredentialProvider
+from deepscout_core.domain.research_profiles import budget_for_research_mode, research_profile
 from deepscout_core.settings import Settings, get_settings
 from deepscout_core.types import ProviderKind
 from deepscout_providers.defaults import DEFAULT_EMBEDDING_MODELS
@@ -90,6 +91,7 @@ def product_settings(
         "mode": access.mode.value,
     }
     langsmith = _resolve_langsmith_status(settings, access=access, session=store._session)
+    mode_profiles = _research_mode_settings(settings)
     return {
         "identity": identity,
         "providers": _provider_status(settings, access=access, session=store._session),
@@ -103,6 +105,7 @@ def product_settings(
             "durable_checkpoint": settings.research_durable_langgraph_checkpoint,
             "finalize_on_budget_exhausted": settings.research_finalize_on_budget_exhausted,
         },
+        "research_modes": mode_profiles,
         "model_routing": {
             "mode": "automatic",
             "default_provider": settings.llm_provider.value,
@@ -120,7 +123,11 @@ def product_settings(
         "health": {
             "api": "ok",
             "postgres": postgres,
-            "vector_store": "user_vault" if hosted else _vector_store_status(settings, postgres),
+            "vector_store": _hosted_vector_store_status(
+                settings, access=access, session=store._session, postgres=postgres
+            )
+            if hosted
+            else _vector_store_status(settings, postgres),
             "langsmith": "connected"
             if langsmith["connected"]
             else ("off" if hosted and access.principal is None else "not_configured"),
@@ -130,6 +137,24 @@ def product_settings(
             "ssrf": "Private, loopback, link-local, CGNAT, and metadata URLs are blocked. Fetch pins TCP connect to the resolved IP.",
         },
     }
+
+
+def _research_mode_settings(settings: Settings) -> dict[str, dict[str, int | float]]:
+    base = settings.default_research_budget()
+    result: dict[str, dict[str, int | float]] = {}
+    for mode in ("quick", "standard", "deep"):
+        budget = budget_for_research_mode(base, mode)
+        profile = research_profile(mode)
+        result[mode] = {
+            "max_iterations": budget.max_iterations,
+            "max_wall_time_seconds": budget.max_wall_time_seconds,
+            "max_total_tokens": budget.max_total_tokens,
+            "max_cost_usd": budget.max_cost_usd,
+            "max_sources": budget.max_sources,
+            "max_tool_calls": budget.max_tool_calls,
+            "max_requirement_tasks": profile.max_requirement_tasks,
+        }
+    return result
 
 
 def _provider_status(settings: Settings, *, access=None, session=None) -> dict:
@@ -226,3 +251,21 @@ def _vector_store_status(settings: Settings, postgres: str) -> str:
     except ValueError:
         return "embedding_not_configured"
     return "pgvector_ready"
+
+
+def _hosted_vector_store_status(settings: Settings, *, access, session, postgres: str) -> str:
+    if postgres != "ok":
+        return "unavailable"
+    provider = settings.resolved_embedding_provider()
+    if provider not in {ProviderKind.GOOGLE, ProviderKind.OPENAI}:
+        return "embedding_provider_unsupported"
+    if access.principal is None:
+        return "authentication_required"
+    from deepscout_persistence.identity import get_credential
+
+    row = get_credential(session, access.principal.id, provider.value)
+    return (
+        "pgvector_ready"
+        if row is not None and row.status == "configured"
+        else "embedding_not_configured"
+    )

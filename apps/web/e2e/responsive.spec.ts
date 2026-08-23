@@ -9,6 +9,9 @@ test("no horizontal overflow at representative widths", async ({ page }) => {
   });
   await page.route("**/api/v1/overview", async (route) => route.fulfill({ json: overviewFixture }));
   await page.route("**/api/v1/settings", async (route) => route.fulfill({ json: settingsFixture }));
+  await page.route("**/api/v1/auth/me", async (route) =>
+    route.fulfill({ json: { authenticated: true, mode: "local", hosted_auth_ready: true } }),
+  );
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/research/new");
@@ -24,6 +27,9 @@ test("Italian chrome does not overflow at compact widths", async ({ page }) => {
   });
   await page.route("**/api/v1/overview", async (route) => route.fulfill({ json: overviewFixture }));
   await page.route("**/api/v1/settings", async (route) => route.fulfill({ json: settingsFixture }));
+  await page.route("**/api/v1/auth/me", async (route) =>
+    route.fulfill({ json: { authenticated: true, mode: "local", hosted_auth_ready: true } }),
+  );
   for (const width of [320, 390, 430, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/research/new");
