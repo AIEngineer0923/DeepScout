@@ -82,11 +82,11 @@ Not included as production backends today: SPLADE, Neo4j GraphRAG, community Gra
 |------|---|
 | Planning & agents | <img src="docs/assets/screenshots/research-flow.png" alt="Research flow diagram: orchestrator, agents, verification, synthesis" width="100%"> |
 | Sources | Fetched URLs, pin/exclude, export CSV/JSON — <img src="docs/assets/screenshots/sources.png" alt="Sources list with fetch status and worker assignment" width="100%"> |
-| Captured content | Snapshot text, content hash, linked evidence — <img src="docs/assets/screenshots/captured-content.png" alt="Captured snapshot with evidence sidebar" width="100%"> |
+| Captured content | Source snapshots, word counts, linked evidence, download — <img src="docs/assets/screenshots/captured-content.png" alt="Captured source snapshots with word counts, linked evidence, and download actions" width="100%"> |
 | Claims / evidence | Verified claims with quotes and source links — <img src="docs/assets/screenshots/claims-evidence.png" alt="Claims and evidence verification table" width="100%"> |
 | Quality | Deterministic checks + contradiction cards — <img src="docs/assets/screenshots/quality-contradictions.png" alt="Quality checks and contradiction list" width="100%"> |
 | Final report | Rendered Markdown, PDF/JSON export, follow-up — <img src="docs/assets/screenshots/final-report.png" alt="Final report with citations and export actions" width="100%"> |
-| Evaluations | Passed / score / skipped / unavailable per evaluator — <img src="docs/assets/screenshots/evaluations-retrieval.png" alt="Retrieval quality evaluators with honest unavailable states" width="100%"> |
+| Evaluations | Explicit result, method, and applicability per evaluator — <img src="docs/assets/screenshots/evaluations-security.png" alt="Security and planning evaluator cards with result, method, and applicability" width="100%"> |
 | Public demo | Read-only completed runs — <img src="docs/assets/screenshots/explore-demo.png" alt="Explore demo catalog" width="100%"> |
 
 ## Stack (summary)
