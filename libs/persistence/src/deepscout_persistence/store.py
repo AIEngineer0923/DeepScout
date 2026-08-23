@@ -594,6 +594,10 @@ class ResearchStore:
                     description=str(item["description"]),
                 )
             )
+        # Production sessions disable autoflush. Terminal learning observation
+        # runs immediately after replacement and must see this evaluator set in
+        # the same transaction.
+        self._session.flush()
 
     def _learning_tables_available(self) -> bool:
         try:

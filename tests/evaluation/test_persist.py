@@ -13,6 +13,7 @@ def settings():
 
 @pytest.mark.postgres
 def test_persist_and_reload_evaluation_results(store, settings, db_session) -> None:
+    db_session.autoflush = False
     run = store.create_run(
         ResearchRunCreate(goal="Eval persist", budget=settings.default_research_budget()),
         settings,
@@ -20,7 +21,6 @@ def test_persist_and_reload_evaluation_results(store, settings, db_session) -> N
     store.commit()
     rows = build_evaluation_rows({"budget_compliance": True, "dag_cycle_free": True})
     store.replace_evaluation_results(run.id, rows)
-    store.commit()
     loaded = store.list_evaluation_results(run.id)
     assert len(loaded) == len(rows)
     budget = next(item for item in loaded if item["evaluator_id"] == "budget_compliance")
