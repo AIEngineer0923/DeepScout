@@ -258,7 +258,10 @@ def extract_claims_for_run(
                 continue
             if not is_evidence_relevant(
                 quote=quote,
-                query=query,
+                # Search snippets/titles provide a generic cross-language
+                # bridge when the user query and fetched source differ in
+                # language. The quote must still resolve to the snapshot.
+                query=f"{query} {hint}"[:4000],
                 goal=goal,
                 contract=contract,
             ):

@@ -104,6 +104,23 @@ def test_evidence_relevance_rejects_noise() -> None:
     )
 
 
+def test_evidence_relevance_accepts_strong_cross_language_context() -> None:
+    goal = "Valuta se l'arretramento gestito riduce il rischio di alluvioni costiere."
+    contract = build_research_contract(goal=goal, planner=_planner(goal))
+    assert is_evidence_relevant(
+        quote=(
+            "Observed managed retreat outcomes reduced long-term coastal flood losses "
+            "in the studied communities."
+        ),
+        query=(
+            "Valuta l'arretramento gestito. Managed retreat observed outcomes "
+            "long-term coastal flood losses."
+        ),
+        goal=goal,
+        contract=contract,
+    )
+
+
 def test_claim_specificity_requires_numeric_support() -> None:
     assert not claim_specificity_allowed(
         claim="Break-even occurs at 70,000 km",

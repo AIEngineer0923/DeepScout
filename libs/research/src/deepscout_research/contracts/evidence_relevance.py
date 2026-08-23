@@ -82,7 +82,14 @@ def is_evidence_relevant(
             if len(token) >= 5
         }
         required_overlap = min(1, len(subject_tokens))
-        if required_overlap and len(subject_tokens & quote_tokens) < required_overlap:
+        # Cross-language research may not share literal primary-question
+        # tokens. A strong requirement/query-context match is an acceptable
+        # substitute; weak matches still need explicit subject overlap.
+        if (
+            required_overlap
+            and len(subject_tokens & quote_tokens) < required_overlap
+            and score < 4
+        ):
             return False
     return True
 
