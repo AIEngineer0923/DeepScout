@@ -189,11 +189,14 @@ All modes use the same material-completeness semantics. They differ only in boun
 
 Quick budgets remain capped at 2 iterations / 8 sources / 16 tool calls. Standard uses the run's
 normal budget (defaults: 5 / 40 / 80). Deep floors are 8 iterations / 60 sources / 120 tool calls.
-The initial-task caps reserve iteration capacity for corrective work under the default concurrency of
-three. Initial discovery also reserves source capacity for the mode's corrective rounds. The
-cumulative indexing allowance keeps embedding work from consuming the total run budget; lexical
-chunks remain available when that allowance is exhausted. Operator settings remain hard upper
-bounds for corrective rounds, gap fan-out, and rewrites.
+One orchestration iteration drains every currently ready task; the worker allocation limit is an
+admission bound, not a task-slice size. Database-writing workers within a run execute sequentially
+because their task, event, source, usage, and budget rows share a PostgreSQL parent and must retain a
+deterministic lock order. Separate durable run jobs may still execute on separate worker replicas.
+Initial discovery reserves source capacity for the mode's corrective rounds. The cumulative indexing
+allowance keeps embedding work from consuming the total run budget; lexical chunks remain available
+when that allowance is exhausted. Operator settings remain hard upper bounds for corrective rounds,
+gap fan-out, and rewrites.
 
 ### HITL pause / resume
 
