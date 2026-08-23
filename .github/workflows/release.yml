@@ -306,7 +306,14 @@ jobs:
       - name: Create or update release
         run: |
           set -euo pipefail
-          notes="docs/releases/$RELEASE_TAG.md"
+          notes_source="docs/releases/$RELEASE_TAG.md"
+          notes="$(mktemp)"
+          docs_base="https://github.com/$GITHUB_REPOSITORY/blob/$RELEASE_TAG/docs"
+          sed \
+            -e "s#](../local-development.md)#]($docs_base/local-development.md)#g" \
+            -e "s#](../docker.md)#]($docs_base/docker.md)#g" \
+            -e "s#](../DEPLOYMENT.md)#]($docs_base/DEPLOYMENT.md)#g" \
+            "$notes_source" > "$notes"
           title="DeepScout $RELEASE_TAG"
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
