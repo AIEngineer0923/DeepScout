@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish or recover
+        required: true
+        default: v0.1.0
 
 permissions:
   contents: read
@@ -14,6 +20,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   validate:
@@ -25,6 +32,8 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      revision: ${{ steps.version.outputs.revision }}
+      short_revision: ${{ steps.version.outputs.short_revision }}
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -46,28 +55,34 @@ jobs:
       - name: Checkout exact tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
       - name: Verify tag is on main
         run: |
           set -euo pipefail
           git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          revision="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$revision" origin/main
 
       - name: Verify version and release notes
         id: version
         run: |
           set -euo pipefail
-          python scripts/check_release_version.py --tag "$GITHUB_REF_NAME"
-          version="${GITHUB_REF_NAME#v}"
+          python scripts/check_release_version.py --tag "$RELEASE_TAG"
+          version="${RELEASE_TAG#v}"
+          revision="$(git rev-parse HEAD)"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "short_revision=${revision:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Verify main CI and CodeQL passed for this revision
         run: |
           set -euo pipefail
+          revision="$(git rev-parse HEAD)"
           for workflow in ci.yml codeql.yml; do
             conclusion="$(gh api \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$GITHUB_SHA&event=push&status=completed&per_page=20" \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$revision&event=push&status=completed&per_page=20" \
               --jq '.workflow_runs | map(select(.head_branch == "main")) | first | .conclusion // "missing"')"
             echo "$workflow: $conclusion"
             test "$conclusion" = "success"
@@ -111,9 +126,9 @@ jobs:
           npm run build
 
   publish:
-    name: Publish ${{ matrix.name }} image
+    name: Build ${{ matrix.image.name }} (${{ matrix.arch.name }})
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -121,7 +136,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        image:
           - name: api
             image: deepscout-api
             dockerfile: infra/docker/Dockerfile.api
@@ -132,12 +147,18 @@ jobs:
             dockerfile: infra/docker/Dockerfile.web
             title: DeepScout Web
             description: DeepScout Next.js web application for self-hosted deployments
+        arch:
+          - name: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - name: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout exact tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -153,41 +174,113 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image.image }}
           labels: |
-            org.opencontainers.image.title=${{ matrix.title }}
-            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.title=${{ matrix.image.title }}
+            org.opencontainers.image.description=${{ matrix.image.description }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.revision }}
             org.opencontainers.image.version=${{ needs.validate.outputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
-      - name: Build and publish multi-architecture image
+      - name: Build and publish native image by digest
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          file: ${{ matrix.image.dockerfile }}
+          platforms: ${{ matrix.arch.platform }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image.image }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ needs.validate.outputs.version }}
-            REVISION=${{ github.sha }}
+            REVISION=${{ needs.validate.outputs.revision }}
             SOURCE=https://github.com/${{ github.repository }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.arch.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.arch.name }}
           provenance: mode=max
           sbom: true
 
+      - name: Export image digest
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digests-${{ matrix.image.name }}-${{ matrix.arch.name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish ${{ matrix.name }} manifest
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: api
+            image: deepscout-api
+          - name: web
+            image: deepscout-web
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digests-${{ matrix.name }}-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate release tags
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.validate.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate.outputs.version }}
+            type=raw,value=sha-${{ needs.validate.outputs.short_revision }}
+            type=raw,value=latest
+
+      - name: Create multi-architecture manifest
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          mapfile -t tags < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          tag_args=()
+          for tag in "${tags[@]}"; do
+            tag_args+=("-t" "$tag")
+          done
+          sources=()
+          for digest_file in /tmp/digests/*; do
+            sources+=("$IMAGE@sha256:$(basename "$digest_file")")
+          done
+          test "${#sources[@]}" -eq 2
+          docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:${{ needs.validate.outputs.version }}"
+
   release:
     name: Publish GitHub Release
-    needs: [validate, publish]
+    needs: [validate, merge]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -198,6 +291,8 @@ jobs:
     steps:
       - name: Checkout exact tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Make repository packages public
         run: |
@@ -216,12 +311,12 @@ jobs:
       - name: Create or update release
         run: |
           set -euo pipefail
-          notes="docs/releases/$GITHUB_REF_NAME.md"
-          title="DeepScout $GITHUB_REF_NAME"
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+          notes="docs/releases/$RELEASE_TAG.md"
+          title="DeepScout $RELEASE_TAG"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
               --title "$title" --notes-file "$notes" --latest
           else
-            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
               --verify-tag --title "$title" --notes-file "$notes" --latest
           fi
