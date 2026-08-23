@@ -18,6 +18,7 @@ from deepscout_research.contracts.source_authority import is_source_admissible
 from deepscout_research.contracts.temporal_claims import (
     extract_temporal_claims,
     requirement_ids_for_temporal_claim,
+    temporal_claim_statement,
 )
 from deepscout_research.phases.text_utils import locate_quote_in_content
 
@@ -70,7 +71,7 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
                 or claim.evidence_quote
             )
             req_ids = requirement_ids_for_temporal_claim(claim)
-            statement = f"{claim.subject}: {claim.temporal_relation.value} {claim.date_text}"
+            statement = temporal_claim_statement(claim)
             claim_row = store.find_claim(run_id, source_id=source.id, statement=statement[:8000])
             if claim_row is None:
                 claim_row = store.add_claim(

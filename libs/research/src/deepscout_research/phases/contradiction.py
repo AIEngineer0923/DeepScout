@@ -19,8 +19,21 @@ _TRADEOFF_DIMENSIONS = (
     ("power", "durability"),
 )
 
-_SCOPE_MARKERS = ("global", "europe", "eu", "us", "cell level", "pack level", "2024", "2025", "2026")
+_TIMEFRAME_MARKERS = ("2024", "2025", "2026")
+_SCOPE_MARKERS = ("global", "europe", "eu", "us", "cell level", "pack level")
 _METHOD_MARKERS = ("methodology", "assumption", "model", "scenario", "grid mix", "lifetime", "recycling")
+
+# Closed set of contradiction kinds. Descriptions are stored and rendered
+# directly, so the wording here is product copy, not a diagnostic string. The
+# frontend keys its localized rendering off these exact prefixes — see
+# apps/web/src/presentation/contradictions.ts and its parity test.
+CONTRADICTION_KINDS: tuple[str, ...] = (
+    "Timeframe difference",
+    "Scope difference",
+    "Methodological difference",
+    "Negation conflict",
+    "Opposing values",
+)
 
 
 def _normalized(statement: str) -> str:
@@ -51,19 +64,22 @@ def _is_tradeoff(a: str, b: str) -> bool:
     return False
 
 
+def _only_one_side(marker: str, norm_a: str, norm_b: str) -> bool:
+    return (marker in norm_a) != (marker in norm_b)
+
+
 def _scope_or_method_difference(a: str, b: str) -> str | None:
     norm_a = _normalized(a)
     norm_b = _normalized(b)
+    for marker in _TIMEFRAME_MARKERS:
+        if _only_one_side(marker, norm_a, norm_b):
+            return f"Timeframe difference: only one claim is scoped to {marker}"
     for marker in _SCOPE_MARKERS:
-        if marker in norm_a and marker not in norm_b:
-            return f"Scope difference: {marker}"
-        if marker in norm_b and marker not in norm_a:
-            return f"Scope difference: {marker}"
+        if _only_one_side(marker, norm_a, norm_b):
+            return f"Scope difference: only one claim is scoped to {marker}"
     for marker in _METHOD_MARKERS:
-        if marker in norm_a and marker not in norm_b:
-            return f"Methodological difference: {marker}"
-        if marker in norm_b and marker not in norm_a:
-            return f"Methodological difference: {marker}"
+        if _only_one_side(marker, norm_a, norm_b):
+            return f"Methodological difference: the claims differ on {marker}"
     return None
 
 
@@ -74,10 +90,8 @@ def _polarity_conflict(a: str, b: str) -> str | None:
         return None
     neg_a = (" not ", " never ", " no ") if any(x in norm_a for x in (" not ", " never ", " no ")) else ()
     neg_b = (" not ", " never ", " no ") if any(x in norm_b for x in (" not ", " never ", " no ")) else ()
-    if neg_a and not neg_b and _shared_subject(a, b):
-        return "Semantic disagreement: negation vs affirmation"
-    if neg_b and not neg_a and _shared_subject(a, b):
-        return "Semantic disagreement: negation vs affirmation"
+    if bool(neg_a) != bool(neg_b) and _shared_subject(a, b):
+        return "Negation conflict: one claim asserts what the other denies"
 
     pairs = (
         ("lower", "higher"),
@@ -91,11 +105,11 @@ def _polarity_conflict(a: str, b: str) -> str | None:
         if left in norm_a and right in norm_b and _shared_subject(a, b):
             if _is_tradeoff(a, b):
                 return None
-            return f"Opposing values on comparable proposition: {left} vs {right}"
+            return f"Opposing values: {left} versus {right} on a comparable proposition"
         if left in norm_b and right in norm_a and _shared_subject(a, b):
             if _is_tradeoff(a, b):
                 return None
-            return f"Opposing values on comparable proposition: {left} vs {right}"
+            return f"Opposing values: {right} versus {left} on a comparable proposition"
     return None
 
 

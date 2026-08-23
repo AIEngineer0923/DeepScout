@@ -11,6 +11,7 @@ import {
   presentEvaluator,
   presentEvaluationOutcome,
 } from "@/presentation/evaluators";
+import { presentContradiction } from "@/presentation/contradictions";
 
 export function QualityScreen() {
   const { workspace } = useRun();
@@ -45,23 +46,39 @@ export function QualityScreen() {
       <section className="card" style={{ marginTop: 16 }}>
         <h2>{t("quality.contradictions", { count: workspace.contradictions.length })}</h2>
         {workspace.contradictions.length === 0 ? <p className="empty">{t("quality.none")}</p> : null}
-        {workspace.contradictions.map((item) => (
-          <article key={item.id} className="card" style={{ marginBottom: 12 }}>
-            <StatusBadge status={item.evidence_status} />
-            <p className="wrap-text">{item.description}</p>
-            <p className="wrap-text">
-              {t("table.claims")}:{" "}
-              {claimById[item.claim_a_id]
-                ? displayClaimStatement(workspace, item.claim_a_id, claimById[item.claim_a_id].statement)
-                : "—"}{" "}
-              ·{" "}
-              {claimById[item.claim_b_id]
-                ? displayClaimStatement(workspace, item.claim_b_id, claimById[item.claim_b_id].statement)
-                : "—"}
-            </p>
-            <Link href={`/research/${workspace.run_id}/claims`}>{t("quality.inspect")}</Link>
-          </article>
-        ))}
+        {workspace.contradictions.map((item) => {
+          const claimA = claimById[item.claim_a_id];
+          const claimB = claimById[item.claim_b_id];
+          return (
+            <article key={item.id} className="card contradiction-card">
+              <div className="contradiction-head">
+                <StatusBadge status={item.evidence_status} />
+              </div>
+              <p className="contradiction-summary">
+                {presentContradiction(item.description, locale)}
+              </p>
+              <dl className="contradiction-pair">
+                <div className="contradiction-side">
+                  <dt>{t("quality.claimA")}</dt>
+                  <dd className="wrap-text">
+                    {claimA
+                      ? displayClaimStatement(workspace, item.claim_a_id, claimA.statement)
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="contradiction-side">
+                  <dt>{t("quality.claimB")}</dt>
+                  <dd className="wrap-text">
+                    {claimB
+                      ? displayClaimStatement(workspace, item.claim_b_id, claimB.statement)
+                      : "—"}
+                  </dd>
+                </div>
+              </dl>
+              <Link href={`/research/${workspace.run_id}/claims`}>{t("quality.inspect")}</Link>
+            </article>
+          );
+        })}
       </section>
     </div>
   );

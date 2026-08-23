@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Workspace } from "@/lib/types";
-import { elapsed, formatResearchMode } from "@/lib/format";
+import { elapsed, formatDuration, formatResearchMode } from "@/lib/format";
 import { StatusBadge } from "../StatusBadge";
 import { PhaseStepper } from "./PhaseStepper";
 import { useT, useI18n } from "@/i18n/context";
@@ -34,16 +34,17 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
     >
       <div className="research-header-main">
         <div className="research-header-copy">
-          {demoReadOnly ? (
-            <span className="demo-readonly-pill inline research-demo-pill">{t("demo.readOnlyPill")}</span>
-          ) : null}
           <ResearchGoalHeading workspace={workspace} locale={locale} />
           <div className="research-meta">
             <StatusBadge status={workspace.status} />
             <span className="meta-dot" aria-hidden="true">
               ·
             </span>
-            <span className="muted">{elapsed(workspace.started_at ?? workspace.created_at)}</span>
+            <span className="muted">
+              {completed
+                ? formatDuration(workspace.started_at ?? workspace.created_at, workspace.completed_at)
+                : elapsed(workspace.started_at ?? workspace.created_at)}
+            </span>
             {workspace.research_mode ? (
               <>
                 <span className="meta-dot" aria-hidden="true">

@@ -43,14 +43,37 @@ export function relativeTime(iso: string | null | undefined, locale = "en"): str
   return new Date(iso).toLocaleString(locale === "it" ? "it-IT" : "en-US");
 }
 
+/** Stopwatch reading for work still in flight. Rolls over to h:mm:ss past an hour. */
 export function elapsed(from: string | null, to?: string | null): string {
   if (!from) return "—";
   const start = new Date(from).getTime();
   const end = to ? new Date(to).getTime() : Date.now();
+  if (Number.isNaN(start) || Number.isNaN(end)) return "—";
   const seconds = Math.max(0, Math.round((end - start) / 1000));
-  const mm = Math.floor(seconds / 60);
+  const hh = Math.floor(seconds / 3600);
+  const mm = Math.floor((seconds % 3600) / 60);
   const ss = seconds % 60;
-  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  const tail = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  return hh > 0 ? `${hh}:${tail}` : tail;
+}
+
+/**
+ * How long a finished run took. A completed run has a fixed duration, so it is
+ * read as a quantity ("12 min 30 s") rather than as a ticking stopwatch.
+ */
+export function formatDuration(from: string | null, to: string | null): string {
+  if (!from || !to) return "—";
+  const start = new Date(from).getTime();
+  const end = new Date(to).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return "—";
+  const seconds = Math.max(0, Math.round((end - start) / 1000));
+  // h / min / s read the same in both supported locales.
+  if (seconds < 60) return `${seconds} s`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`;
+  const rest = seconds % 60;
+  return rest > 0 ? `${minutes} min ${rest} s` : `${minutes} min`;
 }
 
 export function phaseLabel(phase: string): string {

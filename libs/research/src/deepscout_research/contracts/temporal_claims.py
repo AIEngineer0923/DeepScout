@@ -31,6 +31,46 @@ _RELATION_PATTERNS: tuple[tuple[re.Pattern[str], TemporalRelation], ...] = (
 )
 
 
+_RELATION_PHRASES: dict[TemporalRelation, str] = {
+    TemporalRelation.APPLIES_FROM: "applies from",
+    TemporalRelation.ENFORCEABLE_FROM: "is enforceable from",
+    TemporalRelation.ENTERED_INTO_FORCE: "entered into force on",
+    TemporalRelation.MUST_COMPLY_BY: "must be complied with by",
+    TemporalRelation.TRANSITION_UNTIL: "has a transition period until",
+    TemporalRelation.SUPERSEDED_FROM: "is superseded from",
+}
+
+_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def readable_date(date_text: str) -> str:
+    """ISO dates read as prose; year-only and already-prose dates pass through."""
+    iso = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", date_text.strip())
+    if not iso:
+        return date_text.strip()
+    year, month, day = iso.groups()
+    index = int(month)
+    if not 1 <= index <= 12:
+        return date_text.strip()
+    return f"{int(day)} {_MONTHS[index - 1]} {year}"
+
+
+def temporal_claim_statement(claim: TemporalClaim) -> str:
+    """Human-readable claim text.
+
+    Claim statements are stored and shown to users, so they must never carry the
+    raw enum value (`applies_from`) or an unformatted ISO date.
+    """
+    subject = claim.subject.strip() or "General obligation"
+    subject = subject[0].upper() + subject[1:]
+    scope = f" ({claim.applicability_scope.strip()})" if claim.applicability_scope.strip() else ""
+    phrase = _RELATION_PHRASES.get(claim.temporal_relation, "applies from")
+    return f"{subject}{scope} {phrase} {readable_date(claim.date_text)}".strip()
+
+
 def _extract_date(text: str) -> str:
     match = _DATE_RE.search(text)
     return match.group(1) if match else ""

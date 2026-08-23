@@ -14,20 +14,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
   return (
     <div className="public-shell" data-testid="public-shell">
       <header className="public-header">
-        <Link href="/" className="brand">
+        <Link href="/" className="brand public-brand">
           <span className="brand-mark">S</span>
           {t("brand.name")}
         </Link>
-        <nav className="public-nav" aria-label={t("landing.nav")}>
-          <Link href="/demo" className={pathname === "/demo" ? "active" : ""}>
-            {t("landing.cta.demo")}
-          </Link>
-          <a href={`${REPO}/blob/main/ARCHITECTURE.md`}>{t("landing.link.architecture")}</a>
-          <a href={`${REPO}/blob/main/SECURITY.md`}>{t("landing.link.security")}</a>
-          <a href={`${REPO}/blob/main/docs/DEPLOYMENT.md`}>{t("landing.link.deploy")}</a>
-        </nav>
-        <div className="row" aria-label={t("uiLanguage.label")}>
-          <div className="lang-switch">
+        <div className="public-header-actions">
+          <div className="lang-switch" aria-label={t("uiLanguage.label")}>
             <button
               type="button"
               className={locale === "en" ? "active" : ""}
@@ -51,18 +43,24 @@ export function PublicShell({ children }: { children: ReactNode }) {
             {t("landing.cta.signIn")}
           </Link>
         </div>
+        <nav className="public-nav" aria-label={t("landing.nav")}>
+          <Link href="/demo" className={pathname === "/demo" ? "active" : ""}>
+            {t("landing.cta.demo")}
+          </Link>
+          <a href={`${REPO}/blob/main/ARCHITECTURE.md`}>{t("landing.link.architecture")}</a>
+          <a href={`${REPO}/blob/main/SECURITY.md`}>{t("landing.link.security")}</a>
+          <a href={`${REPO}/blob/main/docs/DEPLOYMENT.md`}>{t("landing.link.deploy")}</a>
+        </nav>
       </header>
       <main className="public-main">{children}</main>
       <footer className="public-footer">
-        <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
+        <nav className="public-footer-links" aria-label={t("landing.footerNav")}>
           <a href={REPO}>{t("landing.link.github")}</a>
           <a href={`${REPO}#quick-start`}>{t("landing.link.local")}</a>
           <a href={`${REPO}/blob/main/docs/DEPLOYMENT.md`}>{t("landing.link.deploy")}</a>
           <a href={`${REPO}/blob/main/README.md`}>{t("landing.link.docs")}</a>
-        </div>
-        <p className="muted" style={{ marginTop: 12 }}>
-          {t("landing.footer")}
-        </p>
+        </nav>
+        <p className="public-footer-note">{t("landing.footer")}</p>
       </footer>
     </div>
   );

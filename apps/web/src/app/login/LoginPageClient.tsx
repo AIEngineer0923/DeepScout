@@ -35,24 +35,38 @@ export function LoginPageClient() {
   }, [nextPath]);
 
   return (
-    <div className="grid" style={{ gap: 22, maxWidth: 520 }}>
-      <div className="page-head">
-        <h1 className="page-title">{t("login.title")}</h1>
-        <p className="page-sub">{t("login.subtitle")}</p>
+    <div className="login-layout">
+      <div className="login-intro">
+        <h1 className="login-title">{t("login.title")}</h1>
+        <p className="login-lead">{t("login.subtitle")}</p>
       </div>
-      <section className="card" style={{ display: "grid", gap: 12 }}>
+      <section className="card login-card">
+        <h2 className="login-card-title">{t("login.authHeading")}</h2>
         {mode === "hosted" && !ready ? (
-          <p>{t("login.notReady")}</p>
+          <p className="muted">{t("login.notReady")}</p>
         ) : (
           <>
-            <a className="btn primary" href={`${apiUrl}/api/v1/auth/login/github?next=${encodeURIComponent(nextPath)}`}>
-              {t("login.github")}
-            </a>
-            <a className="btn" href={`${apiUrl}/api/v1/auth/login/google?next=${encodeURIComponent(nextPath)}`}>
-              {t("login.google")}
-            </a>
+            <div className="login-actions">
+              <a
+                className="btn primary"
+                href={`${apiUrl}/api/v1/auth/login/github?next=${encodeURIComponent(nextPath)}`}
+              >
+                {t("login.github")}
+              </a>
+              <a
+                className="btn"
+                href={`${apiUrl}/api/v1/auth/login/google?next=${encodeURIComponent(nextPath)}`}
+              >
+                {t("login.google")}
+              </a>
+            </div>
+            <p className="login-help">{t("login.authHelp")}</p>
           </>
         )}
+      </section>
+      <section className="login-secondary">
+        <h2 className="login-card-title">{t("login.demoHeading")}</h2>
+        <p className="login-help">{t("login.demoHelp")}</p>
         <Link href="/demo" className="btn">
           {t("login.demo")}
         </Link>
