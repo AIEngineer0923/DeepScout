@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing release tag to publish or recover
-        required: true
-        default: v0.1.0
 
 permissions:
   contents: read
@@ -20,7 +14,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:
   validate:
@@ -75,6 +69,14 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
           echo "short_revision=${revision:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Protect immutable published releases
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists; refusing to move published image tags."
+            exit 1
+          fi
 
       - name: Verify main CI and CodeQL passed for this revision
         run: |
@@ -315,10 +317,5 @@ jobs:
             -e "s#](../DEPLOYMENT.md)#]($docs_base/DEPLOYMENT.md)#g" \
             "$notes_source" > "$notes"
           title="DeepScout $RELEASE_TAG"
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "$title" --notes-file "$notes" --latest
-          else
-            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-              --verify-tag --title "$title" --notes-file "$notes" --latest
-          fi
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "$title" --notes-file "$notes" --latest
