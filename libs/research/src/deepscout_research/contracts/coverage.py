@@ -1,102 +1,89 @@
-"""Requirement coverage tracking and material gap detection."""
+"""Requirement-scoped coverage tracking and material gap diagnosis."""
 
 from __future__ import annotations
 
 import re
 import uuid
+from collections import defaultdict
+from typing import Any
 
+from deepscout_core.domain.budget import BudgetConsumption, ResearchBudget
 from deepscout_core.domain.contracts import (
+    CoverageGapCause,
     CoverageMap,
     CoverageMapEntry,
+    EvidenceType,
     RequirementCoverageStatus,
     RequirementKind,
     ResearchContract,
+    SourceClass,
 )
 from deepscout_core.domain.enums import ClaimVerificationStatus
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.contracts.requirement_attribution import attribute_requirements
+from deepscout_research.contracts.source_authority import classify_source_authority
+from deepscout_research.contracts.source_portfolio import source_portfolio_is_adequate
 from deepscout_research.contracts.temporal_claims import TemporalClaim, TemporalRelation
-from deepscout_research.contracts.temporal_evidence import (
-    evidence_supports_applicable_now,
-    evidence_supports_enforcement_timing,
-    evidence_supports_future_or_transitional,
-)
+
+_UNRESOLVED = {
+    RequirementCoverageStatus.NOT_RESEARCHED,
+    RequirementCoverageStatus.SEARCHED,
+    RequirementCoverageStatus.SEARCHED_NO_EVIDENCE,
+    RequirementCoverageStatus.EVIDENCE_FOUND,
+    RequirementCoverageStatus.PARTIAL,
+    RequirementCoverageStatus.CONFLICTING,
+    RequirementCoverageStatus.UNSUPPORTED,
+}
+_STOPWORDS = {
+    "about", "after", "also", "and", "come", "con", "della", "delle", "degli",
+    "dello", "from", "into", "nella", "nelle", "per", "quali", "that", "the",
+    "their", "these", "those", "what", "when", "which", "with",
+}
 
 
 def _tokens(text: str) -> set[str]:
-    return {token for token in re.findall(r"[a-z0-9]{3,}", text.casefold())}
+    return {
+        token
+        for token in re.findall(r"[a-z0-9][a-z0-9_-]{2,}", text.casefold())
+        if token not in _STOPWORDS
+    }
 
 
-def _claim_supports_requirement(
-    statement: str,
-    requirement_text: str,
-    *,
-    primary_question: str = "",
-    requirement_id: str = "",
-) -> bool:
-    claim_tokens = _tokens(statement)
-    req_tokens = _tokens(requirement_text)
-    if requirement_text.startswith("Answer the primary research objective"):
-        req_tokens |= _tokens(primary_question)
-    lowered_claim = statement.casefold()
-    lowered_req = requirement_text.casefold()
-    if requirement_id in {"R_president"} or "office-holder" in lowered_req or "presidente" in lowered_req:
-        has_office = ("president" in lowered_claim or "presidente" in lowered_claim) and (
-            "commission" in lowered_claim or "commissione" in lowered_claim
-        )
-        has_name = bool(re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z'-]+)+\b", statement))
-        return has_office and has_name
-    if requirement_id == "R_gpai_guidance" or "gpai" in lowered_req:
-        return any(
-            token in lowered_claim
-            for token in ("gpai", "general purpose", "general-purpose", "modelli di ia", "ai act", "transparency")
-        ) and any(token in lowered_claim for token in ("guideline", "linee guida", "obligation", "obbligh"))
-    if not req_tokens:
+def _query_matches_requirement(query: str, requirement_text: str) -> bool:
+    query_tokens = _tokens(query)
+    requirement_tokens = _tokens(requirement_text)
+    if not query_tokens or not requirement_tokens:
         return False
-    overlap = len(claim_tokens & req_tokens)
-    return overlap >= max(2, min(4, len(req_tokens) // 5))
+    overlap = len(query_tokens & requirement_tokens)
+    return overlap >= 2 and overlap / min(len(query_tokens), len(requirement_tokens)) >= 0.15
 
 
-def _has_numeric_evidence(quote: str) -> bool:
-    return bool(re.search(r"\d", quote))
-
-
-def _attributed_requirement_ids(
-    store: ResearchStore,
-    run_id: uuid.UUID,
-    claims,
-    evidence_by_claim: dict,
-    contract: ResearchContract,
-) -> dict[str, list[str]]:
-    mapping: dict[str, list[str]] = {}
-    for claim in claims:
-        ev = evidence_by_claim.get(claim.id)
-        if ev is None:
-            continue
-        metadata = ev.extraction_metadata if hasattr(ev, "extraction_metadata") else None
-        req_ids: list[str] = []
-        if isinstance(metadata, dict):
-            raw = metadata.get("requirement_ids")
-            if isinstance(raw, list):
-                req_ids = [str(item) for item in raw]
-        if not req_ids:
-            req_ids = attribute_requirements(
-                statement=claim.statement,
-                quote=ev.quote,
-                contract=contract,
-            )
-        if req_ids:
-            mapping[str(claim.id)] = req_ids
-    return mapping
+def _budget_exhausted(row: Any) -> bool:
+    if row is None:
+        return False
+    budget = ResearchBudget(
+        max_iterations=row.max_iterations,
+        max_wall_time_seconds=row.max_wall_time_seconds,
+        max_total_tokens=row.max_total_tokens,
+        max_cost_usd=row.max_cost_usd,
+        max_sources=row.max_sources,
+        max_tool_calls=row.max_tool_calls,
+    )
+    consumption = BudgetConsumption(
+        iterations=row.consumed_iterations,
+        wall_time_seconds=row.consumed_wall_time_seconds,
+        total_tokens=row.consumed_total_tokens,
+        cost_usd=row.consumed_cost_usd,
+        sources=row.consumed_sources,
+        tool_calls=row.consumed_tool_calls,
+    )
+    return consumption.is_exhausted(budget)
 
 
 def _temporal_claims_from_snapshot(store: ResearchStore, run_id: uuid.UUID) -> list[TemporalClaim]:
     row = store.get_run_row(run_id)
-    snapshot = row.config_snapshot if row else None
-    if not snapshot:
-        return []
-    raw = snapshot.get("temporal_claims") or []
+    raw = ((row.config_snapshot if row else None) or {}).get("temporal_claims") or []
     claims: list[TemporalClaim] = []
     for item in raw:
         try:
@@ -114,8 +101,6 @@ def _year_from_date(date_text: str) -> int | None:
 
 
 def _temporal_supports_requirement(claims: list[TemporalClaim], requirement_id: str) -> bool:
-    if not claims:
-        return False
     if requirement_id in {"R_reg_now", "R_reg_current"}:
         return any(
             claim.temporal_relation
@@ -135,13 +120,13 @@ def _temporal_supports_requirement(claims: list[TemporalClaim], requirement_id: 
                 TemporalRelation.MUST_COMPLY_BY,
                 TemporalRelation.SUPERSEDED_FROM,
             }
-            or ((_year_from_date(claim.date_text) or 0) >= 2027)
+            or (_year_from_date(claim.date_text) or 0) >= 2027
             for claim in claims
         )
     if requirement_id == "R_reg_apply":
-        now = _temporal_supports_requirement(claims, "R_reg_now")
-        later = _temporal_supports_requirement(claims, "R_reg_later")
-        return now and later
+        return _temporal_supports_requirement(claims, "R_reg_now") and _temporal_supports_requirement(
+            claims, "R_reg_later"
+        )
     if requirement_id in {"R_reg_time", "R_timeline"}:
         return any(
             claim.temporal_relation == TemporalRelation.ENFORCEABLE_FROM for claim in claims
@@ -152,29 +137,100 @@ def _temporal_supports_requirement(claims: list[TemporalClaim], requirement_id: 
 def _verified_entity_for_president(store: ResearchStore, run_id: uuid.UUID) -> bool:
     row = store.get_run_row(run_id)
     snapshot = row.config_snapshot if row else None
-    if not snapshot:
-        return False
-    verified = snapshot.get("verified_entities") or {}
-    return bool(verified.get("entity-office-holder"))
+    return bool(((snapshot or {}).get("verified_entities") or {}).get("entity-office-holder"))
 
-def _evaluate_regulatory_apply(
-    claims,
-    evidence_by_claim: dict,
-    verified,
-) -> tuple[bool, list[str]]:
-    now_ids: list[str] = []
-    later_ids: list[str] = []
-    for claim in claims:
-        if claim.verification_status not in verified:
+
+def _metadata_enum_values(metadata: dict | None, key: str, enum_type: type) -> set:
+    if not isinstance(metadata, dict):
+        return set()
+    raw = metadata.get(key)
+    values = raw if isinstance(raw, list) else [raw]
+    parsed = set()
+    for value in values:
+        try:
+            if value:
+                parsed.add(enum_type(str(value)))
+        except ValueError:
             continue
-        ev = evidence_by_claim.get(claim.id)
-        if ev is None:
-            continue
-        if evidence_supports_applicable_now(statement=claim.statement, quote=ev.quote):
-            now_ids.append(str(claim.id))
-        if evidence_supports_future_or_transitional(statement=claim.statement, quote=ev.quote):
-            later_ids.append(str(claim.id))
-    return bool(now_ids and later_ids), now_ids + later_ids
+    return parsed
+
+
+def _comparison_complete(requirement, claims_text: str) -> bool:
+    subjects = requirement.comparison_subjects
+    if len(subjects) < 2:
+        return bool(
+            re.search(
+                r"\bvs\b|\bversus\b|compared|comparison|confront|relative to|whereas|while",
+                claims_text.casefold(),
+            )
+        )
+    claim_tokens = _tokens(claims_text)
+
+    subject_token_sets = [_tokens(subject) for subject in subjects[:2]]
+    common = subject_token_sets[0] & subject_token_sets[1]
+
+    def subject_present(subject: str) -> bool:
+        subject_tokens = _tokens(subject) - common
+        if subject_tokens & claim_tokens:
+            return True
+        compact = re.sub(r"[^A-Za-z0-9]", "", subject)
+        if not (2 <= len(compact) <= 8 and compact.isupper()):
+            return False
+        words = re.findall(r"[a-z]+", claims_text.casefold())
+        for start in range(len(words)):
+            initials = "".join(word[0] for word in words[start : start + len(compact)])
+            if len(initials) >= 2 and compact.casefold().startswith(initials[:2]):
+                return True
+        return False
+
+    return all(subject_present(subject) for subject in subjects[:2])
+
+
+def _requirement_queries(requirement, candidates, trace: list[dict], executions) -> list[str]:
+    queries = {
+        candidate.query
+        for candidate in candidates
+        if _query_matches_requirement(candidate.query, requirement.text)
+    }
+    for item in trace:
+        if item.get("requirement_id") == requirement.requirement_id and item.get("query"):
+            queries.add(str(item["query"]))
+    for execution in executions:
+        if execution.tool_name == "web_search" and _query_matches_requirement(
+            execution.input_summary,
+            requirement.text,
+        ):
+            queries.add(execution.input_summary)
+    return sorted(queries)
+
+
+def _gap_cause_without_support(
+    *,
+    searched_queries: list[str],
+    candidate_count: int,
+    search_failed: bool,
+    source_count: int,
+    snapshot_count: int,
+    evidence_count: int,
+    budget_exhausted: bool,
+) -> CoverageGapCause:
+    if not searched_queries:
+        return (
+            CoverageGapCause.BUDGET_EXHAUSTED
+            if budget_exhausted
+            else CoverageGapCause.NOT_SEARCHED
+        )
+    if search_failed:
+        return CoverageGapCause.SEARCH_EXECUTION_FAILED
+    if candidate_count == 0:
+        return CoverageGapCause.SEARCH_NO_RESULTS
+    if source_count == 0:
+        return CoverageGapCause.SOURCE_ADMISSION_FAILED
+    if snapshot_count == 0:
+        return CoverageGapCause.SOURCE_FETCH_FAILED
+    if evidence_count == 0:
+        return CoverageGapCause.EXTRACTION_FAILED
+    return CoverageGapCause.ATTRIBUTION_FAILED
 
 
 def evaluate_coverage(
@@ -182,314 +238,250 @@ def evaluate_coverage(
     run_id: uuid.UUID,
     contract: ResearchContract,
 ) -> CoverageMap:
+    """Evaluate requirements against only attributable searches and evidence.
+
+    A missing item means this run did not retrieve admissible support. It does not assert that
+    evidence does not exist in the world.
+    """
+
+    row = store.get_run_row(run_id)
+    candidates = store.list_search_candidates(run_id)
+    sources = store.list_sources(run_id)
+    snapshots = store.list_snapshots_for_run(run_id)
     claims = store.list_claims(run_id)
     evidence = store.list_evidence(run_id)
+    executions = store.list_tool_executions(run_id)
+    snapshot_by_id = {item.id: item for item in snapshots}
+    source_by_id = {item.id: item for item in sources}
     evidence_by_claim = {item.claim_id: item for item in evidence}
+    candidate_urls_by_query: dict[str, set[str]] = defaultdict(set)
+    for candidate in candidates:
+        candidate_urls_by_query[candidate.query].add(candidate.url)
+
+    snapshot = row.config_snapshot if row else None
+    trace = list((snapshot or {}).get("coverage_query_trace") or [])
+    attempts = list((snapshot or {}).get("coverage_gap_attempts") or [])
+    attempted_by_requirement: dict[str, int] = defaultdict(int)
+    for attempt in attempts:
+        req_id = str(attempt.get("requirement_id") or "")
+        if req_id:
+            attempted_by_requirement[req_id] += 1
+
     verified = {
         ClaimVerificationStatus.VERIFIED,
         ClaimVerificationStatus.PARTIALLY_VERIFIED,
     }
-    attribution = _attributed_requirement_ids(store, run_id, claims, evidence_by_claim, contract)
+    attributed_by_requirement: dict[str, list] = defaultdict(list)
+    for claim in claims:
+        ev = evidence_by_claim.get(claim.id)
+        if ev is None or claim.verification_status not in verified:
+            continue
+        metadata = ev.extraction_metadata if isinstance(ev.extraction_metadata, dict) else {}
+        raw_ids = metadata.get("requirement_ids")
+        req_ids = [str(item) for item in raw_ids] if isinstance(raw_ids, list) else []
+        if not req_ids:
+            req_ids = attribute_requirements(statement=claim.statement, quote=ev.quote, contract=contract)
+        for req_id in req_ids:
+            attributed_by_requirement[req_id].append(claim)
+
     temporal_claims = _temporal_claims_from_snapshot(store, run_id)
     has_verified_president = _verified_entity_for_president(store, run_id)
-
+    exhausted = _budget_exhausted(row)
     entries: list[CoverageMapEntry] = []
-    critical_unresolved: list[str] = []
-    material_gaps: list[str] = []
 
-    searched = bool(store.list_search_candidates(run_id))
     for requirement in contract.requirements:
-        supporting: list[str] = []
-        status = RequirementCoverageStatus.NOT_RESEARCHED
-        note = ""
-
-        if searched:
-            status = RequirementCoverageStatus.SEARCHED
-
-        for claim in claims:
-            if claim.verification_status not in verified:
-                continue
-            ev = evidence_by_claim.get(claim.id)
-            if ev is None:
-                continue
-            attributed = attribution.get(str(claim.id), [])
-            if requirement.requirement_id in attributed:
-                supporting.append(str(claim.id))
-                status = RequirementCoverageStatus.SUPPORTED
-                continue
-            if requirement.requirement_id == "R0":
-                if _claim_supports_requirement(
-                    claim.statement,
-                    requirement.text,
-                    primary_question=contract.primary_question,
+        if requirement.kind == RequirementKind.OUTPUT_FORMAT:
+            entries.append(
+                CoverageMapEntry(
                     requirement_id=requirement.requirement_id,
-                ):
-                    supporting.append(str(claim.id))
-                    status = RequirementCoverageStatus.SUPPORTED
-                continue
-            if not _claim_supports_requirement(
-                claim.statement,
-                requirement.text,
-                primary_question=contract.primary_question,
-                requirement_id=requirement.requirement_id,
-            ):
-                if requirement.quantification_required and _has_numeric_evidence(ev.quote):
-                    supporting.append(str(claim.id))
-                    status = RequirementCoverageStatus.SUPPORTED
-                elif requirement.kind == RequirementKind.COMPARISON:
-                    lowered = claim.statement.casefold()
-                    goal_lower = contract.primary_question.casefold()
-                    if any(token in lowered for token in ("lfp", "nmc", "bev", "ice", "icev")) and (
-                        "lfp" in goal_lower or "nmc" in goal_lower or "bev" in goal_lower
-                    ):
-                        supporting.append(str(claim.id))
-                        status = RequirementCoverageStatus.PARTIAL
-                continue
-            if requirement.quantification_required and not _has_numeric_evidence(ev.quote):
-                supporting.append(str(claim.id))
-                status = RequirementCoverageStatus.PARTIAL
-                note = "Qualitative evidence found; quantitative support missing"
-                continue
-            supporting.append(str(claim.id))
-            status = RequirementCoverageStatus.SUPPORTED
+                    status=RequirementCoverageStatus.NOT_APPLICABLE,
+                    note="Validated against the rendered report, not research evidence.",
+                )
+            )
+            continue
+
+        searched_queries = _requirement_queries(requirement, candidates, trace, executions)
+        matching_executions = [
+            execution
+            for execution in executions
+            if execution.tool_name == "web_search"
+            and execution.input_summary in searched_queries
+        ]
+        search_failed = bool(matching_executions) and all(
+            execution.status.value == "failed" for execution in matching_executions
+        )
+        candidate_urls: set[str] = set()
+        for query in searched_queries:
+            candidate_urls.update(candidate_urls_by_query[query])
+        relevant_sources = [source for source in sources if source.canonical_url in candidate_urls]
+        relevant_source_ids = {source.id for source in relevant_sources}
+        relevant_snapshots = [item for item in snapshots if item.source_id in relevant_source_ids]
+        relevant_snapshot_ids = {item.id for item in relevant_snapshots}
+        relevant_evidence = [item for item in evidence if item.snapshot_id in relevant_snapshot_ids]
+        supporting_claims = list(attributed_by_requirement.get(requirement.requirement_id, []))
 
         if requirement.requirement_id == "R_president" and has_verified_president:
             status = RequirementCoverageStatus.SUPPORTED
-            note = "Verified office-holder entity in structured state"
-
-        if requirement.requirement_id in {
-            "R_reg_now",
-            "R_reg_current",
-            "R_reg_later",
-            "R_reg_apply",
-            "R_reg_time",
-            "R_timeline",
-        } and _temporal_supports_requirement(temporal_claims, requirement.requirement_id):
+            note = "Verified office-holder entity in structured state."
+        elif _temporal_supports_requirement(temporal_claims, requirement.requirement_id):
             status = RequirementCoverageStatus.SUPPORTED
-            note = "Verified temporal claim in structured state"
-
-        if requirement.requirement_id == "R_reg_apply":
-            supported, claim_ids = _evaluate_regulatory_apply(claims, evidence_by_claim, verified)
-            now_entry = next((e for e in entries if e.requirement_id == "R_reg_now"), None)
-            later_entry = next((e for e in entries if e.requirement_id == "R_reg_later"), None)
-            if (
-                now_entry
-                and later_entry
-                and now_entry.status == RequirementCoverageStatus.SUPPORTED
-                and later_entry.status == RequirementCoverageStatus.SUPPORTED
-            ):
-                supported = True
-            if supported:
-                supporting = list(dict.fromkeys(supporting + claim_ids))
+            note = "Verified temporal claim in structured state."
+        elif requirement.kind == RequirementKind.SOURCE_POLICY:
+            policy_classes = {
+                classify_source_authority(url=source.canonical_url, title=source.title).source_class
+                for source in sources
+            }
+            if source_portfolio_is_adequate(requirement, contract, policy_classes):
                 status = RequirementCoverageStatus.SUPPORTED
-                note = "Applicable-now and future/transitional evidence present"
-            elif claim_ids:
-                supporting = list(dict.fromkeys(supporting + claim_ids))
-                status = RequirementCoverageStatus.PARTIAL
-                note = "Only one side of applicability distinction evidenced"
-
-        if requirement.requirement_id == "R_reg_now" and not supporting:
-            for claim in claims:
-                if claim.verification_status not in verified:
-                    continue
-                ev = evidence_by_claim.get(claim.id)
-                if ev and evidence_supports_applicable_now(statement=claim.statement, quote=ev.quote):
-                    supporting.append(str(claim.id))
-                    status = RequirementCoverageStatus.SUPPORTED
-
-        if requirement.requirement_id == "R_reg_later" and not supporting:
-            for claim in claims:
-                if claim.verification_status not in verified:
-                    continue
-                ev = evidence_by_claim.get(claim.id)
-                if ev and evidence_supports_future_or_transitional(statement=claim.statement, quote=ev.quote):
-                    supporting.append(str(claim.id))
-                    status = RequirementCoverageStatus.SUPPORTED
-
-        if requirement.requirement_id in {"R_reg_time", "R_timeline"} and not supporting:
-            for claim in claims:
-                if claim.verification_status not in verified:
-                    continue
-                ev = evidence_by_claim.get(claim.id)
-                if ev and evidence_supports_enforcement_timing(statement=claim.statement, quote=ev.quote):
-                    supporting.append(str(claim.id))
-                    status = RequirementCoverageStatus.SUPPORTED
-
-        if searched and not supporting:
+                note = "The run contains a source class required by the source policy."
+            else:
+                status = RequirementCoverageStatus.PARTIAL if sources else RequirementCoverageStatus.UNSUPPORTED
+                note = "The retrieved source portfolio does not satisfy the requested source policy."
+        elif supporting_claims:
+            status = RequirementCoverageStatus.SUPPORTED
+            note = "Verified evidence was attributed to this requirement."
+        elif searched_queries:
             status = RequirementCoverageStatus.SEARCHED_NO_EVIDENCE
+            note = "The run searched this requirement but did not retrieve attributable evidence."
+        else:
+            status = RequirementCoverageStatus.NOT_RESEARCHED
+            note = "No requirement-scoped search was recorded."
 
-        if supporting and status != RequirementCoverageStatus.PARTIAL:
-            status = RequirementCoverageStatus.EVIDENCE_FOUND
-            if any(
-                claim.verification_status in verified
-                for claim in claims
-                if str(claim.id) in supporting
-            ):
-                status = RequirementCoverageStatus.SUPPORTED
+        supporting_ids = [str(claim.id) for claim in supporting_claims]
+        source_classes: set[SourceClass] = set()
+        evidence_types: set[EvidenceType] = set()
+        supporting_text: list[str] = []
+        has_numeric = False
+        for claim in supporting_claims:
+            ev = evidence_by_claim.get(claim.id)
+            if ev is None:
+                continue
+            supporting_text.extend((claim.statement, ev.quote))
+            has_numeric = has_numeric or bool(re.search(r"\d", f"{claim.statement} {ev.quote}"))
+            source_classes |= _metadata_enum_values(ev.extraction_metadata, "source_class", SourceClass)
+            evidence_types |= _metadata_enum_values(ev.extraction_metadata, "evidence_type", EvidenceType)
+            snap = snapshot_by_id.get(ev.snapshot_id)
+            source = source_by_id.get(snap.source_id) if snap else None
+            if source:
+                source_classes.add(
+                    classify_source_authority(
+                        url=source.canonical_url,
+                        title=source.title,
+                    ).source_class
+                )
 
-        if requirement.kind == RequirementKind.COMPARISON and supporting:
-            combined = " ".join(
-                claim.statement
-                for claim in claims
-                if str(claim.id) in supporting and claim.verification_status in verified
-            ).casefold()
-            goal_lower = contract.primary_question.casefold()
-            subjects = [
-                token
-                for token in ("lfp", "nmc", "bev", "ice", "icev", "gpai")
-                if token in goal_lower
-            ]
-            if len(subjects) >= 2 and all(subject in combined for subject in subjects[:2]):
-                status = RequirementCoverageStatus.SUPPORTED
-            elif " vs " in goal_lower or "versus" in goal_lower or "confronta" in goal_lower:
-                if supporting:
-                    status = RequirementCoverageStatus.SUPPORTED
-
-        if requirement.requirement_id == "R0" and supporting:
-            status = RequirementCoverageStatus.SUPPORTED
-        elif requirement.requirement_id == "R0":
-            substantive_supported = any(
-                entry.requirement_id not in {"R0", "R_success"}
-                and entry.status == RequirementCoverageStatus.SUPPORTED
-                for entry in entries
+        gap_cause: CoverageGapCause | None = None
+        if status == RequirementCoverageStatus.SUPPORTED and requirement.quantification_required and not has_numeric:
+            status = RequirementCoverageStatus.PARTIAL
+            gap_cause = CoverageGapCause.NUMERIC_EVIDENCE_MISSING
+            note = "Qualitative support was found, but no attributable numeric evidence was found."
+        if status == RequirementCoverageStatus.SUPPORTED and requirement.kind == RequirementKind.COMPARISON:
+            if not _comparison_complete(requirement, " ".join(supporting_text)):
+                status = RequirementCoverageStatus.PARTIAL
+                gap_cause = CoverageGapCause.COMPARISON_INCOMPLETE
+                note = "Evidence does not cover both sides of the requested comparison."
+        if status == RequirementCoverageStatus.SUPPORTED and requirement.kind == RequirementKind.TIMELINE:
+            required_times = set(re.findall(r"\b\d+", requirement.text))
+            supported_times = set(re.findall(r"\b\d+", " ".join(supporting_text)))
+            if required_times and not required_times <= supported_times:
+                status = RequirementCoverageStatus.PARTIAL
+                gap_cause = CoverageGapCause.TIMELINE_INCOMPLETE
+                note = "Evidence does not cover every requested timeframe."
+        if status == RequirementCoverageStatus.SUPPORTED and requirement.required_evidence_types:
+            if not set(requirement.required_evidence_types) & evidence_types:
+                status = RequirementCoverageStatus.PARTIAL
+                gap_cause = CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
+                note = "Attributable evidence lacks the requested evidence type."
+        if status == RequirementCoverageStatus.SUPPORTED and not source_portfolio_is_adequate(
+            requirement, contract, source_classes
+        ):
+            status = RequirementCoverageStatus.PARTIAL
+            gap_cause = CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
+            note = "Attributable evidence lacks an adequate source class for this requirement."
+        if status in _UNRESOLVED and gap_cause is None:
+            gap_cause = _gap_cause_without_support(
+                searched_queries=searched_queries,
+                candidate_count=len(candidate_urls),
+                search_failed=search_failed,
+                source_count=len(relevant_sources),
+                snapshot_count=len(relevant_snapshots),
+                evidence_count=len(relevant_evidence),
+                budget_exhausted=exhausted,
             )
-            if substantive_supported:
-                status = RequirementCoverageStatus.SUPPORTED
-                note = "Primary objective satisfied via supported substantive requirements"
-            elif any(
-                str(claim.id) in attribution and attribution[str(claim.id)]
-                for claim in claims
-                if claim.verification_status in verified
-            ):
-                status = RequirementCoverageStatus.SUPPORTED
-                note = "Primary objective satisfied via attributed evidence"
-
-        if requirement.kind == RequirementKind.DEPENDENCY:
-            if requirement.requirement_id == "R_dep":
-                prereqs = [
-                    entry
-                    for entry in entries
-                    if entry.requirement_id in {"R_president", "R_gpai_guidance"}
-                ]
-                president_entry = next(
-                    (entry for entry in entries if entry.requirement_id == "R_president"),
-                    None,
-                )
-                president_resolved = has_verified_president or (
-                    president_entry is not None
-                    and president_entry.status == RequirementCoverageStatus.SUPPORTED
-                )
-                if (
-                    president_resolved
-                    and prereqs
-                    and all(
-                        entry.status
-                        in {RequirementCoverageStatus.SUPPORTED, RequirementCoverageStatus.PARTIAL}
-                        for entry in prereqs
-                    )
-                ):
-                    status = RequirementCoverageStatus.SUPPORTED
-                    note = "Dependent sub-questions resolved in order with verified entity"
-                elif prereqs:
-                    status = RequirementCoverageStatus.UNSUPPORTED
-                    note = "Blocked by unresolved dependency"
-            elif requirement.depends_on:
-                unresolved_dep = False
-                for dep_id in requirement.depends_on:
-                    dep_entry = next((e for e in entries if e.requirement_id == dep_id), None)
-                    if dep_entry and dep_entry.status not in {
-                        RequirementCoverageStatus.SUPPORTED,
-                        RequirementCoverageStatus.PARTIAL,
-                    }:
-                        unresolved_dep = True
-                if unresolved_dep:
-                    status = RequirementCoverageStatus.UNSUPPORTED
-                    note = "Blocked by unresolved dependency"
-
-        if status in {
-            RequirementCoverageStatus.NOT_RESEARCHED,
-            RequirementCoverageStatus.SEARCHED,
-            RequirementCoverageStatus.SEARCHED_NO_EVIDENCE,
-            RequirementCoverageStatus.UNSUPPORTED,
-        } and requirement.critical:
-            critical_unresolved.append(requirement.requirement_id)
-        if requirement.critical and status in {
-            RequirementCoverageStatus.PARTIAL,
-            RequirementCoverageStatus.EVIDENCE_FOUND,
-            RequirementCoverageStatus.SEARCHED,
-            RequirementCoverageStatus.SEARCHED_NO_EVIDENCE,
-            RequirementCoverageStatus.NOT_RESEARCHED,
-            RequirementCoverageStatus.UNSUPPORTED,
-        }:
-            material_gaps.append(requirement.requirement_id)
 
         entries.append(
             CoverageMapEntry(
                 requirement_id=requirement.requirement_id,
                 status=status,
                 note=note,
-                supporting_claim_ids=supporting[:20],
+                supporting_claim_ids=supporting_ids[:20],
+                gap_cause=gap_cause,
+                searched_queries=searched_queries[:12],
+                candidate_source_count=len(candidate_urls),
+                admissible_source_count=len(relevant_snapshots),
+                corrective_attempts=attempted_by_requirement[requirement.requirement_id],
+                source_classes=sorted(source_classes, key=lambda item: item.value)[:10],
+                evidence_types=sorted(evidence_types, key=lambda item: item.value)[:10],
             )
         )
 
-    entries, critical_unresolved, material_gaps = _finalize_dependency_coverage(
-        entries,
-        contract=contract,
-        has_verified_president=has_verified_president,
-        critical_unresolved=critical_unresolved,
-        material_gaps=material_gaps,
-    )
+    by_id = {entry.requirement_id: entry for entry in entries}
+    for requirement in contract.requirements:
+        if not requirement.depends_on or requirement.requirement_id not in by_id:
+            continue
+        unresolved = [
+            dep
+            for dep in requirement.depends_on
+            if dep in by_id and by_id[dep].status != RequirementCoverageStatus.SUPPORTED
+        ]
+        if unresolved:
+            entry = by_id[requirement.requirement_id]
+            entry.status = RequirementCoverageStatus.UNSUPPORTED
+            entry.note = f"Blocked by unresolved prerequisite(s): {', '.join(unresolved)}."
+            entry.gap_cause = CoverageGapCause.EVIDENCE_NOT_RETRIEVED
 
+    primary = by_id.get("R0")
+    substantive = [
+        entry
+        for entry in entries
+        if entry.requirement_id != "R0"
+        and entry.status != RequirementCoverageStatus.NOT_APPLICABLE
+        and next(
+            (
+                req.materiality == "central"
+                for req in contract.requirements
+                if req.requirement_id == entry.requirement_id
+            ),
+            False,
+        )
+    ]
+    if primary and substantive:
+        if all(entry.status == RequirementCoverageStatus.SUPPORTED for entry in substantive):
+            primary.status = RequirementCoverageStatus.SUPPORTED
+            primary.gap_cause = None
+            primary.note = "All central material requirements are supported."
+        else:
+            primary.status = RequirementCoverageStatus.PARTIAL
+            primary.gap_cause = CoverageGapCause.EVIDENCE_NOT_RETRIEVED
+            primary.note = "The primary objective remains partial because material requirements are unresolved."
+
+    requirements_by_id = {item.requirement_id: item for item in contract.requirements}
+    critical_unresolved = [
+        entry.requirement_id
+        for entry in entries
+        if entry.status in _UNRESOLVED and requirements_by_id[entry.requirement_id].critical
+    ]
+    material_gaps = [
+        entry.requirement_id
+        for entry in entries
+        if entry.status in _UNRESOLVED
+        and requirements_by_id[entry.requirement_id].materiality == "central"
+    ]
     return CoverageMap(
         entries=entries,
-        critical_unresolved=critical_unresolved,
-        material_gaps=material_gaps,
+        critical_unresolved=critical_unresolved[:15],
+        material_gaps=material_gaps[:15],
     )
-
-
-def _finalize_dependency_coverage(
-    entries: list[CoverageMapEntry],
-    *,
-    contract: ResearchContract,
-    has_verified_president: bool,
-    critical_unresolved: list[str],
-    material_gaps: list[str],
-) -> tuple[list[CoverageMapEntry], list[str], list[str]]:
-    by_id = {entry.requirement_id: entry for entry in entries}
-    updated: list[CoverageMapEntry] = []
-    for entry in entries:
-        if entry.requirement_id != "R_dep":
-            updated.append(entry)
-            continue
-        prereqs = [by_id[item] for item in ("R_president", "R_gpai_guidance") if item in by_id]
-        president_entry = by_id.get("R_president")
-        president_resolved = has_verified_president or (
-            president_entry is not None
-            and president_entry.status == RequirementCoverageStatus.SUPPORTED
-        )
-        if (
-            president_resolved
-            and prereqs
-            and all(
-                item.status in {RequirementCoverageStatus.SUPPORTED, RequirementCoverageStatus.PARTIAL}
-                for item in prereqs
-            )
-        ):
-            updated.append(
-                CoverageMapEntry(
-                    requirement_id=entry.requirement_id,
-                    status=RequirementCoverageStatus.SUPPORTED,
-                    note="Dependent sub-questions resolved in order with verified entity",
-                    supporting_claim_ids=entry.supporting_claim_ids,
-                )
-            )
-            if "R_dep" in critical_unresolved:
-                critical_unresolved = [item for item in critical_unresolved if item != "R_dep"]
-            if "R_dep" in material_gaps:
-                material_gaps = [item for item in material_gaps if item != "R_dep"]
-        else:
-            updated.append(entry)
-    return updated, critical_unresolved, material_gaps
 
 
 def gap_search_queries(contract: ResearchContract, coverage: CoverageMap, *, limit: int = 3) -> list[str]:
@@ -498,7 +490,7 @@ def gap_search_queries(contract: ResearchContract, coverage: CoverageMap, *, lim
     queries: list[str] = []
     gap_ids = set(coverage.material_gaps)
     for requirement in contract.requirements:
-        if requirement.requirement_id not in gap_ids:
+        if requirement.requirement_id not in gap_ids or requirement.kind == RequirementKind.OUTPUT_FORMAT:
             continue
         queries.extend(gap_queries_for_requirement(requirement, contract, round_number=1))
         if len(queries) >= limit:

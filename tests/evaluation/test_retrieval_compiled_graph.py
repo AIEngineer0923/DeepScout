@@ -137,3 +137,29 @@ def test_compiled_benchmark_fixture_passes(
     )
     result = evaluate_compiled_retrieval(service, run_id=run.id, fixture=fixture)
     assert result["passed"] == len(fixture["queries"])
+
+
+@pytest.mark.postgres
+def test_snapshot_indexing_respects_embedding_token_cap(
+    store, settings, embedding_spec, fake_embeddings
+) -> None:
+    run = store.create_run(ResearchRunCreate(goal="bounded indexing"), settings)
+    source, _ = store.add_source(
+        run.id,
+        SourceWrite(canonical_url="https://benchmark.local/long", title="Long document"),
+    )
+    store.add_snapshot(
+        source.id,
+        SourceSnapshotWrite(content=("Measured result and methodology. " * 800)),
+    )
+    stats = index_snapshots_for_run(
+        store,
+        settings,
+        run.id,
+        client=fake_embeddings,
+        spec=embedding_spec,
+        max_input_tokens=500,
+    )
+    usage = [item for item in store.list_token_usage(run.id) if str(item.phase) == "index"]
+    assert sum(item.total_tokens or 0 for item in usage) <= 500
+    assert stats["failed"] == 1  # partial indexing retains lexical chunks

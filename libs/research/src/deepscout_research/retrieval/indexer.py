@@ -34,13 +34,25 @@ def index_snapshots_for_run(
     *,
     client=None,
     spec: EmbeddingSpec | None = None,
+    max_input_tokens: int | None = None,
 ) -> dict[str, int]:
     if client is None or spec is None:
         client, spec = build_embedding_client(settings)
     snapshots = store.list_snapshots_for_run(run_id)
     indexed = failed = skipped = 0
+    remaining_tokens = max_input_tokens
     for snapshot in snapshots:
-        status = _index_one(store, settings, run_id, snapshot, client=client, spec=spec)
+        status, used_tokens = _index_one(
+            store,
+            settings,
+            run_id,
+            snapshot,
+            client=client,
+            spec=spec,
+            max_input_tokens=remaining_tokens,
+        )
+        if remaining_tokens is not None:
+            remaining_tokens = max(0, remaining_tokens - used_tokens)
         if status == IndexingStatus.INDEXED:
             indexed += 1
         elif status == IndexingStatus.SKIPPED:
@@ -50,17 +62,26 @@ def index_snapshots_for_run(
     return {"indexed": indexed, "failed": failed, "skipped": skipped, "seen": len(snapshots)}
 
 
-def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec) -> IndexingStatus:
+def _index_one(
+    store,
+    settings,
+    run_id,
+    snapshot,
+    *,
+    client,
+    spec: EmbeddingSpec,
+    max_input_tokens: int | None,
+) -> tuple[IndexingStatus, int]:
     session = store._session
     if (
         snapshot.indexing_status == IndexingStatus.INDEXED
         and snapshot.embedding_spec_key == spec.key
     ):
-        return IndexingStatus.INDEXED
+        return IndexingStatus.INDEXED, 0
     text = (snapshot.content_text or "").strip()
     if len(text) < 40:
         set_indexing_status(session, snapshot.id, IndexingStatus.SKIPPED, error="empty_or_short")
-        return IndexingStatus.SKIPPED
+        return IndexingStatus.SKIPPED, 0
     set_indexing_status(session, snapshot.id, IndexingStatus.INDEXING)
     try:
         drafts = chunk_snapshot_text(snapshot.content_text, snapshot_id=str(snapshot.id))
@@ -112,10 +133,18 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
             config_version=spec.config_version,
         )
         pending = [row for row in rows if row.id not in already]
+        embedding_pending = []
+        planned_tokens = 0
+        for row in pending:
+            token_count = estimate_tokens(embed_by_ordinal.get(row.ordinal, row.text))
+            if max_input_tokens is not None and planned_tokens + token_count > max_input_tokens:
+                continue
+            embedding_pending.append(row)
+            planned_tokens += token_count
         written = 0
         token_total = 0
-        for offset in range(0, len(pending), EMBED_BATCH_SIZE):
-            batch = pending[offset : offset + EMBED_BATCH_SIZE]
+        for offset in range(0, len(embedding_pending), EMBED_BATCH_SIZE):
+            batch = embedding_pending[offset : offset + EMBED_BATCH_SIZE]
             texts = [embed_by_ordinal.get(row.ordinal, row.text) for row in batch]
             vectors = embed_documents(client, texts)
             if len(vectors) != len(batch):
@@ -130,7 +159,7 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
                 items=list(zip([row.id for row in batch], vectors, strict=True)),
             )
             written += len(batch)
-            token_total += sum(estimate_tokens(row.text) for row in batch)
+            token_total += sum(estimate_tokens(text) for text in texts)
         if token_total:
             _record_embedding_usage(store, spec=spec, run_id=run_id, input_tokens=token_total)
         status = (
@@ -138,7 +167,7 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
             if written == len(pending) or not pending
             else IndexingStatus.PARTIALLY_INDEXED
         )
-        if pending and written == 0:
+        if pending and written == 0 and max_input_tokens is None:
             status = IndexingStatus.FAILED
         set_indexing_status(
             session,
@@ -149,11 +178,11 @@ def _index_one(store, settings, run_id, snapshot, *, client, spec: EmbeddingSpec
             chunking_version=CHUNKING_VERSION,
             embedding_spec_key=spec.key,
         )
-        return status
+        return status, token_total
     except Exception as exc:
         logger.exception("Indexing failed", extra={"snapshot_id": str(snapshot.id)})
         set_indexing_status(session, snapshot.id, IndexingStatus.FAILED, error=str(exc)[:500])
-        return IndexingStatus.FAILED
+        return IndexingStatus.FAILED, 0
 
 
 def _record_embedding_usage(

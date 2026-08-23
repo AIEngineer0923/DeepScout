@@ -65,6 +65,28 @@ def observe_and_persist_terminal_run(store: ResearchStore, run_id: UUID) -> UUID
             case_id = existing
         else:
             case_id = persist_learning_case(store, case)
+            from deepscout_evaluation.learning.candidates import generate_improvement_candidate
+
+            candidate = generate_improvement_candidate(case)
+            if candidate is not None:
+                candidate_id = persist_improvement_candidate(
+                    store,
+                    candidate,
+                    learning_case_row_id=case_id,
+                )
+                store.enqueue_learning_experiment(
+                    candidate_id=candidate_id,
+                    owner_principal_id=row.owner_principal_id,
+                    payload={
+                        "baseline_policy": {},
+                        "fixture": {
+                            "failure_class": case.root_cause_class or case.failure_class,
+                            "coverage_score": 0.0,
+                        },
+                        "trust_level": case.trust_level.value,
+                        "automatic_promotion_allowed": False,
+                    },
+                )
 
     from deepscout_evaluation.learning.monitoring import (
         evaluate_monitoring_rollback,

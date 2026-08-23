@@ -21,7 +21,7 @@ def test_tavily_normalizes_results() -> None:
             }
         ]
     }
-    with patch.object(httpx.Client, "post", return_value=response):
+    with patch.object(httpx.Client, "post", return_value=response) as post:
         with TavilyWebSearchProvider(settings) as provider:
             results = provider.search("battery tech", max_results=3)
     assert results == [
@@ -32,6 +32,9 @@ def test_tavily_normalizes_results() -> None:
             score=0.91,
         )
     ]
+    payload = post.call_args.kwargs["json"]
+    assert payload["search_depth"] == "advanced"
+    assert payload["chunks_per_source"] == 3
 
 
 def test_tavily_requires_api_key() -> None:

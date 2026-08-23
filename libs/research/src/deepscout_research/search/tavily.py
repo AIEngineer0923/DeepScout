@@ -30,6 +30,11 @@ class TavilyWebSearchProvider:
                 "query": query,
                 "max_results": max_results,
                 "include_answer": False,
+                # Research runs need source-level relevance, not a recency-biased
+                # general web summary. Advanced search returns query-matched chunks
+                # and is still bounded by the mode-specific result/tool budgets.
+                "search_depth": "advanced",
+                "chunks_per_source": 3,
             }
             if days is not None and days > 0:
                 payload["days"] = days

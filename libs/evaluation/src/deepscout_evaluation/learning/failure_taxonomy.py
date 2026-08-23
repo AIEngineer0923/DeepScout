@@ -47,6 +47,11 @@ _RETRIEVAL_MAP: dict[RetrievalFailureClass, FailureClass] = {
 }
 
 _EVALUATOR_FAILURE_MAP: dict[str, FailureClass] = {
+    "requirement_coverage": FailureClass.COVERAGE_FAILURE,
+    "quantitative_coverage": FailureClass.COVERAGE_FAILURE,
+    "comparison_completeness": FailureClass.COVERAGE_FAILURE,
+    "source_portfolio_adequacy": FailureClass.EVIDENCE_FAILURE,
+    "report_contract_compliance": FailureClass.SYNTHESIS_FAILURE,
     "claim_has_evidence": FailureClass.CLAIM_FAILURE,
     "unsupported_claim_rate": FailureClass.CLAIM_FAILURE,
     "quote_resolves": FailureClass.CITATION_FAILURE,

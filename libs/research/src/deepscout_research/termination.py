@@ -23,6 +23,14 @@ def evaluate_termination(
     questions: list[ResearchQuestionRead],
     tasks: list[ResearchTaskRead] | None = None,
 ) -> TerminationDecision:
+    if tasks:
+        graph = TaskGraph(tuple(tasks))
+        if graph.all_terminal():
+            return TerminationDecision(
+                should_stop=True,
+                reason="no_active_tasks",
+                terminal_status=ResearchRunStatus.COMPLETED,
+            )
     if consumption.is_exhausted(budget):
         return TerminationDecision(
             should_stop=True,
@@ -37,14 +45,7 @@ def evaluate_termination(
         )
 
     if tasks:
-        graph = TaskGraph(tuple(tasks))
         ready = graph.ready_tasks()
-        if graph.all_terminal():
-            return TerminationDecision(
-                should_stop=True,
-                reason="no_active_tasks",
-                terminal_status=ResearchRunStatus.COMPLETED,
-            )
         if not ready and not any(
             task.status.value in {"pending", "ready", "running"} for task in tasks
         ):

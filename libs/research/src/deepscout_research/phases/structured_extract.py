@@ -27,6 +27,19 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
     contract = contract_from_snapshot(row.config_snapshot if row else None)
     goal = row.goal if row else ""
     prefs = store.list_source_preferences(run_id)
+    requirement_ids = {item.requirement_id for item in contract.requirements} if contract else set()
+    needs_temporal = bool(
+        requirement_ids
+        & {
+            "R_reg_now",
+            "R_reg_current",
+            "R_reg_later",
+            "R_reg_apply",
+            "R_reg_time",
+            "R_timeline",
+        }
+    )
+    needs_office_holder = "R_president" in requirement_ids
 
     temporal_claims = []
     verified_entities: dict[str, dict] = {}
@@ -48,7 +61,7 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
         text = snapshot.content_text
         url = source.canonical_url
 
-        for claim in extract_temporal_claims(text, source_url=url):
+        for claim in extract_temporal_claims(text, source_url=url) if needs_temporal else []:
             if not claim.verified:
                 continue
             temporal_claims.append(claim.model_dump(mode="json"))
@@ -84,10 +97,14 @@ def enrich_structured_evidence(store: ResearchStore, run_id: uuid.UUID) -> dict[
                 )
                 evidence_created += 1
 
-        office = extract_office_holder_evidence(
-            text,
-            source_url=url,
-            office_title=office_title_from_goal(goal),
+        office = (
+            extract_office_holder_evidence(
+                text,
+                source_url=url,
+                office_title=office_title_from_goal(goal),
+            )
+            if needs_office_holder
+            else None
         )
         if office and verify_office_holder(office):
             quote = (

@@ -7,6 +7,7 @@ import re
 from deepscout_core.domain.contracts import (
     AnswerRequirement,
     EvidenceStandard,
+    EvidenceType,
     ReportContract,
     ReportSectionSpec,
     ReportType,
@@ -64,6 +65,60 @@ _SCIENTIFIC_HINTS = (
 )
 _TRADEOFF_HINTS = ("tradeoff", "trade-off", "trade off", "vs", "versus", "compared to")
 _TIMELINE_HINTS = ("timeline", "when", "applicable", "enforcement", "transitional", "cronologia")
+_QUANTIFICATION_HINTS = (
+    "quantif",
+    "quantitative",
+    "number",
+    "numeric",
+    "percentage",
+    "percent",
+    "estimate",
+    "measurement",
+    "misur",
+    "percentual",
+    "intervall",
+    "density",
+    "densità",
+)
+_DISTINCTION_HINTS = (
+    "distinguish",
+    "distinguere",
+    "distinguendo",
+    "differentiate",
+    "observed vs",
+    "osservat",
+    "model/prevision",
+)
+_METHODOLOGY_HINTS = (
+    "methodolog",
+    "metodolog",
+    "sample",
+    "campione",
+    "study limitations",
+    "limiti dello studio",
+    "conflicting studies",
+    "studi autorevoli",
+)
+_SOURCE_POLICY_HINTS = (
+    "prioritize",
+    "priorità",
+    "prefer",
+    "peer-reviewed",
+    "peer reviewed",
+    "primary source",
+    "fonte originale",
+    "fonti secondarie",
+    "official sources",
+)
+_OUTPUT_HINTS = (
+    "conclude",
+    "concludi",
+    "final judgment",
+    "giudizio",
+    "supported /",
+    "insufficient evidence",
+    "output format",
+)
 _ONLY_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str], list[SourceClass]], ...] = (
     (
         re.compile(
@@ -229,43 +284,252 @@ def _requirement_from_text(
     critical: bool = True,
     quantification_required: bool = False,
     depends_on: list[str] | None = None,
+    materiality: str = "central",
+    comparison_subjects: list[str] | None = None,
+    expected_source_classes: list[SourceClass] | None = None,
+    required_evidence_types: list[EvidenceType] | None = None,
 ) -> AnswerRequirement:
     return AnswerRequirement(
         requirement_id=requirement_id,
         text=text.strip()[:2000],
         kind=kind,
         critical=critical,
+        materiality=materiality,  # type: ignore[arg-type]
         quantification_required=quantification_required,
         depends_on=list(depends_on or []),
+        comparison_subjects=list(comparison_subjects or []),
+        expected_source_classes=list(expected_source_classes or []),
+        required_evidence_types=list(required_evidence_types or []),
     )
+
+
+def _material_segments(goal: str, planner: PlannerOutput) -> list[str]:
+    """Extract user-authored material clauses without inventing domain concepts."""
+    bullet_segments = [
+        match.group(1).strip()
+        for line in goal.splitlines()
+        if (match := re.match(r"^\s*(?:[-*•]|\d+[.)])\s+(.+?)\s*$", line))
+    ]
+    paragraphs = [re.sub(r"\s+", " ", part).strip() for part in re.split(r"\n\s*\n", goal)]
+    instruction_segments = [
+        part
+        for part in paragraphs
+        if len(part) >= 24
+        and any(
+            hint in part.casefold()
+            for hint in (
+                *_DISTINCTION_HINTS,
+                *_METHODOLOGY_HINTS,
+                *_SOURCE_POLICY_HINTS,
+                *_OUTPUT_HINTS,
+            )
+        )
+        and not any(item in part for item in bullet_segments)
+    ]
+    candidates = bullet_segments + instruction_segments if bullet_segments else []
+    if not bullet_segments:
+        clauses = [
+            re.sub(r"\s+", " ", part).strip()
+            for part in re.split(r"(?<=[.!?])\s+|;|\n+", goal)
+            if len(part.strip()) >= 20
+        ]
+        if len(clauses) > 1:
+            candidates = clauses
+        else:
+            candidates = instruction_segments
+    if not candidates:
+        candidates = [
+            question.text.strip()
+            for question in planner.questions
+            if question.text.strip() and not _looks_like_internal_task(question.text)
+        ]
+    seen: set[str] = set()
+    out: list[str] = []
+    for candidate in candidates:
+        normalized = re.sub(r"\s+", " ", candidate).strip(" -*•\t")
+        key = normalized.casefold()
+        if not normalized or key in seen:
+            continue
+        seen.add(key)
+        out.append(normalized[:2000])
+    return out[:24]
+
+
+def _comparison_subjects(text: str) -> list[str]:
+    patterns = (
+        r"\b([\w-]{2,40})\s+(?:vs\.?|versus)\s+([\w-]{2,40})\b",
+        r"\b(?:compare|confronta)\s+([\w-]{2,40})\s+(?:and|e|con)\s+([\w-]{2,40})\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if match:
+            return [match.group(1), match.group(2)]
+    relative = re.search(r"(.{3,80}?)\s+(?:compared to|rispetto (?:a|ad|all['’]))\s*(.{3,80})", text, re.I)
+    if relative:
+        left = " ".join(relative.group(1).split()[-5:])
+        right = " ".join(relative.group(2).split()[:5])
+        return [left.strip(" ,.;:"), right.strip(" ,.;:")]
+    return []
+
+
+def _kind_for_text(text: str) -> tuple[RequirementKind, bool]:
+    lowered = text.casefold()
+    quantification = any(hint in lowered for hint in _QUANTIFICATION_HINTS)
+    if any(hint in lowered for hint in _SOURCE_POLICY_HINTS):
+        return RequirementKind.SOURCE_POLICY, False
+    if any(hint in lowered for hint in _OUTPUT_HINTS):
+        return RequirementKind.OUTPUT_FORMAT, False
+    if any(hint in lowered for hint in _METHODOLOGY_HINTS):
+        return RequirementKind.METHODOLOGY, quantification
+    if any(hint in lowered for hint in _DISTINCTION_HINTS):
+        return RequirementKind.DISTINCTION, quantification
+    if any(hint in lowered for hint in _COMPARISON_HINTS):
+        return RequirementKind.COMPARISON, quantification
+    if any(hint in lowered for hint in _TRADEOFF_HINTS) or (
+        any(token in lowered for token in ("pros and cons", "pro e contro", "advantages", "svantaggi"))
+    ):
+        return RequirementKind.TRADEOFF, quantification
+    if quantification:
+        return RequirementKind.QUANTIFICATION, True
+    if (
+        any(hint in lowered for hint in _TIMELINE_HINTS)
+        or re.search(
+            r"\b(?:after|dopo)\s+\d+|\b\d+(?:\s*[+,/]\s*\d+)*\+?\s*(?:years?|anni)\b",
+            lowered,
+        )
+        or (
+            len(re.findall(r"\b\d+", lowered)) >= 2
+            and any(token in lowered for token in ("recover", "recuper"))
+            and any(token in lowered for token in ("year", "anni"))
+        )
+    ):
+        return RequirementKind.TIMELINE, False
+    return RequirementKind.FACT, False
+
+
+def _source_expectations(text: str, kind: RequirementKind) -> list[SourceClass]:
+    lowered = text.casefold()
+    if kind == RequirementKind.SOURCE_POLICY:
+        return []
+    if any(token in lowered for token in (*_REGULATORY_HINTS, "regulator", "authority", "autorità")):
+        return [
+            SourceClass.PRIMARY_LEGISLATION,
+            SourceClass.REGULATOR,
+            SourceClass.OFFICIAL_INSTITUTIONAL,
+        ]
+    if any(
+        token in lowered
+        for token in (
+            "study",
+            "studi",
+            "experiment",
+            "esperiment",
+            "observed",
+            "osservat",
+            "ecosystem",
+            "ecosistema",
+            "biodiversity",
+            "biodiversità",
+            "methodolog",
+            "metodolog",
+            "model",
+        )
+    ):
+        return [SourceClass.PEER_REVIEWED, SourceClass.RESEARCH_BODY]
+    if kind == RequirementKind.QUANTIFICATION:
+        return [
+            SourceClass.GOVERNMENT_STATISTICS,
+            SourceClass.PEER_REVIEWED,
+            SourceClass.RESEARCH_BODY,
+            SourceClass.FINANCIAL_FILING,
+        ]
+    if any(
+        token in lowered
+        for token in ("company", "società", "financial", "earnings", "revenue", "ricavi")
+    ):
+        return [
+            SourceClass.FINANCIAL_FILING,
+            SourceClass.GOVERNMENT_STATISTICS,
+            SourceClass.RESEARCH_BODY,
+            SourceClass.PEER_REVIEWED,
+        ]
+    if any(token in lowered for token in ("market", "mercato", "supply", "offerta")):
+        return [
+            SourceClass.GOVERNMENT_STATISTICS,
+            SourceClass.RESEARCH_BODY,
+            SourceClass.PEER_REVIEWED,
+            SourceClass.FINANCIAL_FILING,
+        ]
+    return []
+
+
+def _evidence_type_expectations(text: str) -> list[EvidenceType]:
+    lowered = text.casefold()
+    out: list[EvidenceType] = []
+    if any(token in lowered for token in ("experiment", "esperiment", "test")):
+        out.append(EvidenceType.EXPERIMENT)
+    if any(token in lowered for token in ("observed", "observation", "osservat", "field")):
+        out.append(EvidenceType.OBSERVATIONAL)
+    if any(token in lowered for token in ("model", "simulation", "prevision")):
+        out.append(EvidenceType.MODEL_SIMULATION)
+    if any(token in lowered for token in ("review", "meta-analysis", "revisione")):
+        out.append(EvidenceType.REVIEW_META_ANALYSIS)
+    return list(dict.fromkeys(out))
 
 
 def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerRequirement]:
     requirements: list[AnswerRequirement] = []
     lowered = goal.casefold()
+    segments = _material_segments(goal, planner)
 
     requirements.append(
-        _requirement_from_text("R0", f"Answer the primary research objective: {goal[:500]}", critical=True)
+        _requirement_from_text(
+            "R0",
+            f"Answer the primary research objective: {goal[:500]}",
+            critical=not bool(segments),
+            materiality="central" if not segments else "secondary",
+        )
     )
 
-    if any(h in lowered for h in _COMPARISON_HINTS):
+    used_ids = {"R0"}
+    generic_index = 1
+    for segment in segments:
+        kind, quantitative = _kind_for_text(segment)
+        preferred_id = None
+        if kind == RequirementKind.COMPARISON and "R_compare" not in used_ids:
+            preferred_id = "R_compare"
+        elif quantitative and "R_quant" not in used_ids:
+            preferred_id = "R_quant"
+        while f"R{generic_index}" in used_ids:
+            generic_index += 1
+        requirement_id = preferred_id or f"R{generic_index}"
+        used_ids.add(requirement_id)
+        generic_index += 1
+        is_output = kind == RequirementKind.OUTPUT_FORMAT
+        requirements.append(
+            _requirement_from_text(
+                requirement_id,
+                segment,
+                kind=kind,
+                critical=not is_output,
+                materiality="secondary" if is_output else "central",
+                quantification_required=quantitative,
+                comparison_subjects=_comparison_subjects(segment),
+                expected_source_classes=_source_expectations(segment, kind),
+                required_evidence_types=_evidence_type_expectations(segment),
+            )
+        )
+
+    if any(h in lowered for h in _COMPARISON_HINTS) and not any(
+        item.kind == RequirementKind.COMPARISON for item in requirements
+    ):
         requirements.append(
             _requirement_from_text(
                 "R_compare",
                 "Provide a direct comparison across the requested subjects or options",
                 kind=RequirementKind.COMPARISON,
                 critical=True,
-            )
-        )
-
-    if any(word in lowered for word in ("quantify", "quantitative", "number", "estimate", "break-even", "break even")):
-        requirements.append(
-            _requirement_from_text(
-                "R_quant",
-                "Provide quantitative estimates where published sources allow",
-                kind=RequirementKind.QUANTIFICATION,
-                critical=True,
-                quantification_required=True,
+                comparison_subjects=_comparison_subjects(goal),
             )
         )
 
@@ -368,7 +632,9 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
                 )
             )
 
-    if any(h in lowered for h in ("why", "methodology", "methodological", "drivers", "explain why")):
+    if any(h in lowered for h in ("why", "methodology", "methodological", "drivers", "explain why")) and not any(
+        item.kind == RequirementKind.METHODOLOGY for item in requirements
+    ):
         requirements.append(
             _requirement_from_text(
                 "R_method",
@@ -378,7 +644,7 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
             )
         )
 
-    if any(h in lowered for h in _TRADEOFF_HINTS):
+    if any(h in lowered for h in ("tradeoff", "trade-off", "trade off", "pros and cons", "pro e contro")):
         requirements.append(
             _requirement_from_text(
                 "R_tradeoff",
@@ -395,6 +661,7 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
                 planner.success_criteria.strip()[:2000],
                 kind=RequirementKind.SYNTHESIS,
                 critical=False,
+                materiality="secondary",
             )
         )
 
@@ -441,12 +708,14 @@ def build_research_contract(
         distinctions.append("already_applicable_vs_future")
     if "transitional" in goal.casefold():
         distinctions.append("transitional_requirements")
-    comparisons: list[str] = []
-    for match in re.finditer(r"\b(\w+)\s+vs\.?\s+(\w+)\b", goal, re.I):
-        comparisons.append(f"{match.group(1)} vs {match.group(2)}")
-    quant: list[str] = []
-    if any(word in goal.casefold() for word in ("quantify", "number", "estimate", "break-even", "break even")):
-        quant.append("numeric_estimates_where_available")
+    comparisons = [
+        item.text for item in requirements if item.kind == RequirementKind.COMPARISON
+    ]
+    quant = [item.text for item in requirements if item.quantification_required]
+    distinctions.extend(
+        item.text for item in requirements if item.kind == RequirementKind.DISTINCTION
+    )
+    timeframes = [item.text for item in requirements if item.kind == RequirementKind.TIMELINE]
 
     return ResearchContract(
         primary_question=goal.strip(),
@@ -461,7 +730,7 @@ def build_research_contract(
         required_distinctions=distinctions,
         required_comparisons=comparisons[:5],
         required_quantification=quant,
-        required_timeframes=[],
+        required_timeframes=timeframes[:10],
         uncertainty_requirements=["explain_missing_evidence_precisely"],
         user_facing_questions=_user_facing_questions(goal, planner),
     )

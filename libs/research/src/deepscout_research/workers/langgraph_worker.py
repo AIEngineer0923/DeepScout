@@ -46,7 +46,10 @@ def _search(state: WorkerGraphState, config) -> WorkerGraphState:
         return {**state, "status": "failed", "error": "search_provider_missing"}
     query = state.get("query", "")
     try:
-        results = search_provider.search(query, max_results=3)
+        results = search_provider.search(
+            query,
+            max_results=max(1, int(configurable.get("max_results") or 3)),
+        )
         if configurable.get("cancelled"):
             return {**state, "status": "failed", "error": "run_cancelled"}
         serialized = [
@@ -118,6 +121,7 @@ def run_worker_graph(
     database_url: str | None = None,
     durable_checkpoint: bool = True,
     cancelled: bool = False,
+    max_results: int = 3,
     interrupt_after: list[str] | None = None,
 ) -> WorkerGraphState:
     app = compile_research_worker(
@@ -132,6 +136,7 @@ def run_worker_graph(
             "thread_id": thread_id,
             "search_provider": search_provider,
             "cancelled": cancelled,
+            "max_results": max_results,
         }
     }
     durability = "sync" if durable_checkpoint else None

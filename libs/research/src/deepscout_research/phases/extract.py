@@ -10,6 +10,7 @@ from deepscout_core.domain.schemas import ClaimWrite, EvidenceWrite
 from deepscout_persistence.store import ResearchStore
 from langsmith import traceable
 
+from deepscout_research.contracts.text_normalize import normalized_research_tokens
 from deepscout_research.fetch.content_text import split_sentences
 from deepscout_research.fetch.url_normalize import normalize_source_url
 from deepscout_research.phases.text_utils import locate_quote_in_content
@@ -22,8 +23,7 @@ from deepscout_research.retrieval.service import RetrievalService
 def _keyword_tokens(*parts: str) -> set[str]:
     tokens: set[str] = set()
     for part in parts:
-        for token in re.findall(r"[a-z0-9]{3,}", part.lower()):
-            tokens.add(token)
+        tokens.update(normalized_research_tokens(part))
     return tokens
 
 
@@ -53,6 +53,27 @@ def _select_snapshot_sentence(
         if best is None or score > best[0]:
             best = (score, sentence)
     return best[1] if best else None
+
+
+def _select_snapshot_sentences(
+    snapshot_text: str,
+    *,
+    query: str,
+    hint: str,
+    limit: int,
+    min_score: int = 2,
+) -> list[str]:
+    """Select a small, diverse evidence set instead of one sentence per source."""
+    ranked: list[tuple[int, int, str]] = []
+    specialized = _select_specialized_sentence(snapshot_text, query=query)
+    for index, sentence in enumerate(split_sentences(snapshot_text)):
+        score = _score_sentence(sentence, query=query, hint=hint)
+        if score >= min_score:
+            ranked.append((score, -index, sentence))
+    selected = [item[2] for item in sorted(ranked, reverse=True)]
+    if specialized is not None:
+        selected.insert(0, specialized)
+    return list(dict.fromkeys(selected))[: max(1, limit)]
 
 
 def _select_specialized_sentence(snapshot_text: str, *, query: str) -> str | None:
@@ -110,10 +131,7 @@ def extract_claims_for_run(
     retriever: RetrievalService | None = None,
 ) -> dict[str, int]:
     """Create claims and evidence only from verifiable SourceSnapshot text."""
-    candidates_by_url = {
-        normalize_source_url(candidate.url): candidate
-        for candidate in store.list_search_candidates(run_id)
-    }
+    search_candidates = store.list_search_candidates(run_id)
     claims_created = 0
     evidence_created = 0
     retrieved_used = 0
@@ -125,6 +143,23 @@ def extract_claims_for_run(
     contract = contract_from_snapshot(row.config_snapshot if row else None)
     goal = row.goal if row else ""
     prefs = store.list_source_preferences(run_id)
+    from deepscout_research.contracts.requirement_attribution import requirements_for_query
+
+    candidates_by_url = {}
+    for candidate in search_candidates:
+        key = normalize_source_url(candidate.url)
+        existing = candidates_by_url.get(key)
+
+        def _candidate_rank(item) -> tuple[int, float]:
+            provenance = (
+                requirements_for_query(query=item.query, contract=contract)
+                if contract
+                else []
+            )
+            return (int(len(provenance) == 1), item.score or 0.0)
+
+        if existing is None or _candidate_rank(candidate) > _candidate_rank(existing):
+            candidates_by_url[key] = candidate
 
     for source in store.list_sources(run_id):
         admissible, _ = is_source_admissible(
@@ -206,62 +241,104 @@ def extract_claims_for_run(
                     retrieved_used += 1
                     search_text = "\n".join(item.text for item in packed)
 
-        statement = _select_snapshot_sentence(
+        research_mode = (
+            row.research_mode
+            if row and row.research_mode in {"quick", "standard", "deep"}
+            else "standard"
+        )
+        statements = _select_snapshot_sentences(
             search_text,
             query=query,
             hint=hint,
+            limit={"quick": 1, "standard": 2, "deep": 3}[research_mode],
         )
-        if statement is None:
-            continue
-        quote = locate_quote_in_content(statement, snapshot.content_text, min_len=24)
-        if quote is None:
-            continue
-        if not is_evidence_relevant(
-            quote=quote,
-            query=query,
-            goal=goal,
-            contract=contract,
-        ):
-            continue
+        for statement in statements:
+            quote = locate_quote_in_content(statement, snapshot.content_text, min_len=24)
+            if quote is None:
+                continue
+            if not is_evidence_relevant(
+                quote=quote,
+                query=query,
+                goal=goal,
+                contract=contract,
+            ):
+                continue
 
-        from deepscout_research.contracts.requirement_attribution import attribute_requirements
+            from deepscout_research.contracts.evidence_types import classify_evidence_type
+            from deepscout_research.contracts.requirement_attribution import (
+                attribute_requirements,
+            )
+            from deepscout_research.contracts.source_authority import classify_source_authority
 
-        requirement_ids = (
-            attribute_requirements(statement=quote[:8000], quote=quote, contract=contract)
-            if contract
-            else []
-        )
+            requirement_ids = (
+                attribute_requirements(statement=quote[:8000], quote=quote, contract=contract)
+                if contract
+                else []
+            )
+            if contract:
+                provenance_ids = requirements_for_query(query=query, contract=contract)
+                requirement_ids = list(
+                    dict.fromkeys(
+                        [
+                            *requirement_ids,
+                            *(provenance_ids if len(provenance_ids) == 1 else []),
+                        ]
+                    )
+                )[:10]
+            authority = classify_source_authority(
+                url=source.canonical_url,
+                title=source.title or "",
+            )
+            evidence_type = classify_evidence_type(
+                source=authority,
+                title=source.title or "",
+                text=quote,
+            )
 
-        claim = store.find_claim(
-            run_id,
-            source_id=source.id,
-            statement=quote[:8000],
-        )
-        if claim is None:
-            claim = store.add_claim(
+            claim = store.find_claim(
                 run_id,
-                ClaimWrite(
-                    statement=quote[:8000],
-                    source_id=source.id,
-                    question_id=candidate.question_id if candidate is not None else None,
+                source_id=source.id,
+                statement=quote[:8000],
+            )
+            if claim is None:
+                claim = store.add_claim(
+                    run_id,
+                    ClaimWrite(
+                        statement=quote[:8000],
+                        source_id=source.id,
+                        question_id=candidate.question_id if candidate is not None else None,
+                    ),
+                )
+                claims_created += 1
+
+            if store.evidence_exists(claim.id, snapshot.id, quote):
+                store.merge_evidence_metadata(
+                    claim.id,
+                    snapshot.id,
+                    quote,
+                    {
+                        "requirement_ids": requirement_ids,
+                        "evidence_type": evidence_type.value,
+                        "source_class": authority.source_class.value,
+                    },
+                )
+                continue
+            store.attach_evidence(
+                claim.id,
+                EvidenceWrite(
+                    snapshot_id=snapshot.id,
+                    quote=quote[:16000],
+                    locator=f"source:{source.canonical_url}",
+                    support_strength=0.8,
+                    confidence=0.8,
+                    extraction_metadata={
+                        "requirement_ids": requirement_ids,
+                        "evidence_type": evidence_type.value,
+                        "source_class": authority.source_class.value,
+                    },
                 ),
             )
-            claims_created += 1
-
-        if store.evidence_exists(claim.id, snapshot.id, quote):
-            continue
-        store.attach_evidence(
-            claim.id,
-            EvidenceWrite(
-                snapshot_id=snapshot.id,
-                quote=quote[:16000],
-                locator=f"source:{source.canonical_url}",
-                support_strength=0.8,
-                confidence=0.8,
-                extraction_metadata={"requirement_ids": requirement_ids},
-            ),
-        )
-        evidence_created += 1
+            evidence_created += 1
 
     return {
         "claims_created": claims_created,

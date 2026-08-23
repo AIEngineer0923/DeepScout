@@ -61,10 +61,18 @@ def detect_failure_from_evaluations(
         gaps = [
             entry.get("requirement_id")
             for entry in snapshot["coverage_map"].get("entries", [])
-            if entry.get("status") in {"SEARCHED_NO_EVIDENCE", "UNSUPPORTED", "PARTIAL"}
+            if str(entry.get("status", "")).casefold()
+            in {"searched_no_evidence", "unsupported", "partial", "not_researched"}
         ]
         if gaps:
             evidence["coverage_gap_ids"] = gaps
+        causes = {
+            str(entry.get("requirement_id")): entry.get("gap_cause")
+            for entry in snapshot["coverage_map"].get("entries", [])
+            if entry.get("gap_cause")
+        }
+        if causes:
+            evidence["coverage_gap_causes"] = causes
     return failure, evidence
 
 

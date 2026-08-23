@@ -24,7 +24,7 @@ flowchart TB
   LC --> D[Diagnosis]
   PE --> D
   D --> C[Improvement candidate]
-  C --> X[Experiment<br/>deterministic or queued job]
+  C --> X[Durable experiment job<br/>deterministic or provider-backed]
   X --> G{Promotion decision}
 
   G -->|SAFE_TO_PROMOTE| P[Versioned policy]
@@ -147,6 +147,11 @@ Global promotion → owner_principal_id IS NULL + sanitized generalized evidence
 
 Cross-tenant contamination is rejected by store scoping and tests.
 
+For a newly diagnosed terminal failure, observation now creates the tenant-scoped case and draft
+candidate and enqueues an experiment job in the same transaction. Re-observation is idempotent by
+case key. The job result cannot promote a policy by itself; sample thresholds, risk gates, cooldown,
+and HITL/operator decisions remain unchanged.
+
 ---
 
 ## Learning ≠ promotion
@@ -188,3 +193,4 @@ Authenticated owners: `/learning` — metrics, cases, candidates, policies, audi
 | Learning loop | `uv run python scripts/learning_loop_gate.py` |
 | Learning effectiveness fixtures | `uv run python scripts/learning_effectiveness_gate.py` |
 | Retrieval regression | `uv run python scripts/retrieval_regression_gate.py` |
+| Research completeness | `uv run python scripts/research_completeness_gate.py` |

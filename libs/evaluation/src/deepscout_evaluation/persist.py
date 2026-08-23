@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
@@ -9,6 +10,8 @@ from deepscout_persistence.store import ResearchStore
 
 from deepscout_evaluation.matrix import build_evaluation_rows
 from deepscout_evaluation.run_evals import evaluate_research_run
+
+logger = logging.getLogger(__name__)
 
 
 def persist_research_evaluations(store: ResearchStore, run_id: UUID) -> list[dict[str, object]]:
@@ -19,7 +22,7 @@ def persist_research_evaluations(store: ResearchStore, run_id: UUID) -> list[dic
 
         observe_and_persist_terminal_run(store, run_id)
     except Exception:
-        pass
+        logger.exception("Learning observation failed", extra={"run_id": str(run_id)})
     return rows
 
 

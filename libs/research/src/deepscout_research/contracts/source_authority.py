@@ -33,6 +33,7 @@ _PEER_REVIEW_HINTS = (
     "doi.org",
     "pubmed",
     "arxiv.org",
+    "frontiersin.org",
     "nature.com",
     "sciencedirect.com",
     "springer.com",
@@ -57,6 +58,8 @@ _NEWS_HINTS = (
     "bbc.",
     "cnn.com",
     "guardian.com",
+    "politico.com",
+    "eenews.net",
 )
 
 _INDUSTRY_BLOG_HINTS = (
@@ -86,7 +89,12 @@ def classify_source_authority(
     official = False
     primary_vs_secondary: str = "unknown"
 
-    if any(domain.endswith(suffix) or suffix.strip(".") in domain for suffix in _OFFICIAL_DOMAIN_SUFFIXES):
+    if any(hint in domain for hint in _RESEARCH_BODY_HINTS):
+        source_class = SourceClass.RESEARCH_BODY
+        authority = AuthorityClass.PRIMARY
+        institutional = True
+        primary_vs_secondary = "primary"
+    elif any(domain.endswith(suffix) or suffix.strip(".") in domain for suffix in _OFFICIAL_DOMAIN_SUFFIXES):
         source_class = SourceClass.OFFICIAL_INSTITUTIONAL
         authority = AuthorityClass.PRIMARY
         institutional = True
@@ -101,11 +109,6 @@ def classify_source_authority(
         source_class = SourceClass.PEER_REVIEWED
         authority = AuthorityClass.PRIMARY
         peer_reviewed = True
-        primary_vs_secondary = "primary"
-    elif any(hint in domain for hint in _RESEARCH_BODY_HINTS):
-        source_class = SourceClass.RESEARCH_BODY
-        authority = AuthorityClass.PRIMARY
-        institutional = True
         primary_vs_secondary = "primary"
     elif any(hint in domain for hint in _NEWS_HINTS):
         source_class = SourceClass.NEWS_MEDIA
@@ -216,6 +219,24 @@ def enrich_search_query_with_policy(query: str, contract: ResearchContract | Non
             for domain in constraint.values[:3]:
                 site_parts.append(f"site:{domain}")
         if not site_parts:
+            class_terms = {
+                SourceClass.PEER_REVIEWED: "peer reviewed study",
+                SourceClass.RESEARCH_BODY: "research institute report",
+                SourceClass.GOVERNMENT_STATISTICS: "official statistics dataset",
+                SourceClass.PRIMARY_LEGISLATION: "primary legislation",
+                SourceClass.REGULATOR: "official regulator",
+                SourceClass.OFFICIAL_INSTITUTIONAL: "official institutional source",
+                SourceClass.FINANCIAL_FILING: "official financial filing",
+                SourceClass.MANUFACTURER_ENGINEERING: "official engineering specification",
+            }
+            requested = list(
+                dict.fromkeys(
+                    [*contract.required_source_classes, *contract.preferred_source_classes]
+                )
+            )
+            suffix = " ".join(class_terms[item] for item in requested[:2] if item in class_terms)
+            if suffix and suffix.casefold() not in query.casefold():
+                return f"{query} {suffix}"[:500]
             return query
         if any(part in query for part in site_parts):
             return query

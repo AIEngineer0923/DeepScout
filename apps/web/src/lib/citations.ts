@@ -18,7 +18,8 @@ export function buildCitationMap(
     if (safe) byUrl.set(safe, source);
   }
 
-  const bibliography = markdown.match(/##\s+Sources Cited[\s\S]*$/i)?.[0] ?? "";
+  const bibliography =
+    markdown.match(/#{1,6}\s+(?:Sources Cited|Fonti citate)[\s\S]*$/i)?.[0] ?? "";
   const linePattern = /^\s*[-*]?\s*\[(\d{1,2})\]\s*(.+)$/gm;
   for (const match of bibliography.matchAll(linePattern)) {
     const index = Number(match[1]);

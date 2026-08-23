@@ -15,6 +15,7 @@ from deepscout_core.domain.enums import (
     ResearchTaskStatus,
 )
 from deepscout_core.domain.events import ResearchEvent, ResearchEventType
+from deepscout_core.domain.research_profiles import research_profile
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
@@ -246,6 +247,11 @@ class ResearchOrchestrator:
             self.build_plan(run_id, goal=run.goal)
             self._seed_institutional_profiles(run_id)
             self._store.commit()
+            initial_iteration_cap = max(
+                1,
+                run.budget.max_iterations
+                - research_profile(run.research_mode).max_coverage_rounds,
+            )
             while True:
                 self._ensure_active(run_id)
                 iterations += 1
@@ -255,6 +261,8 @@ class ResearchOrchestrator:
                         paused = self._pause_for_budget_review(run_id, iterations)
                         if paused is not None:
                             return paused
+                    break
+                if iterations >= initial_iteration_cap:
                     break
                 tasks = self._store.list_tasks(run_id)
                 from deepscout_research.contracts.dependency_gate import (
@@ -270,11 +278,6 @@ class ResearchOrchestrator:
             self._run_corrective_research_loops(run_id, iterations_ref=iterations_box)
             iterations = iterations_box[0]
             self._run_finalize_phases(run_id)
-            from deepscout_evaluation.persist import persist_research_evaluations
-
-            persist_research_evaluations(self._store, run_id)
-            self._store.commit()
-
             final = evaluate_termination(
                 budget=run.budget,
                 consumption=self._store.get_consumption(run_id),
@@ -287,6 +290,10 @@ class ResearchOrchestrator:
             reason = final.reason if final.should_stop else "pipeline_complete"
             self._store.set_termination_reason(run_id, reason)
             self._store.update_run_status(run_id, terminal_status)
+            from deepscout_evaluation.persist import persist_research_evaluations
+
+            persist_research_evaluations(self._store, run_id)
+            self._store.commit()
             self._emit(
                 ResearchEvent(
                     event_type=ResearchEventType.RUN_COMPLETED,
@@ -321,6 +328,8 @@ class ResearchOrchestrator:
             paused = self._pause_for_budget_review(run_id, iterations)
             if paused is not None:
                 return paused
+            self._store.set_termination_reason(run_id, "budget_exhausted")
+            self._store.update_run_status(run_id, ResearchRunStatus.BUDGET_EXHAUSTED)
             if self._settings.research_finalize_on_budget_exhausted:
                 try:
                     self._ensure_active(run_id)
@@ -347,8 +356,6 @@ class ResearchOrchestrator:
                         "Finalization after budget exhaustion failed",
                         extra={"run_id": str(run_id)},
                     )
-            self._store.set_termination_reason(run_id, "budget_exhausted")
-            self._store.update_run_status(run_id, ResearchRunStatus.BUDGET_EXHAUSTED)
             self._emit(
                 ResearchEvent(
                     event_type=ResearchEventType.RUN_COMPLETED,
@@ -435,12 +442,34 @@ class ResearchOrchestrator:
             },
         )
         plan_write = planner_output_to_write(plan_output)
+        mode_profile = research_profile(run.research_mode)
+        depended_on = {
+            dependency
+            for task in plan_write.tasks
+            for dependency in task.depends_on
+        }
+        plan_write.tasks = [
+            task
+            for task in plan_write.tasks
+            if not (
+                len(task.depends_on) >= 2
+                and task.task_key not in depended_on
+            )
+        ]
+        plan_write.tasks = plan_write.tasks[: mode_profile.max_requirement_tasks]
+        kept_task_keys = {task.task_key for task in plan_write.tasks}
+        for task in plan_write.tasks:
+            task.depends_on = [key for key in task.depends_on if key in kept_task_keys]
         if research_contract.user_facing_questions:
             plan_write.questions = research_contract.user_facing_questions
         self._store.save_plan(run_id, plan_write)
         from deepscout_research.contracts.query_planning import contract_research_tasks
 
-        supplemental = contract_research_tasks(research_contract)
+        supplemental = contract_research_tasks(
+            research_contract,
+            research_mode=run.research_mode,
+            existing_tasks=self._store.list_tasks(run_id),
+        )
         if supplemental:
             self._store.append_tasks(run_id, supplemental)
         self._store.commit()
@@ -817,7 +846,34 @@ class ResearchOrchestrator:
                 )
             )
             try:
-                index_stats = index_snapshots_for_run(self._store, self._settings, run_id)
+                profile = research_profile(run.research_mode)
+                index_tokens_used = sum(
+                    item.total_tokens or 0
+                    for item in self._store.list_token_usage(run_id)
+                    if str(item.phase) == ResearchPhase.INDEX.value
+                )
+                consumption = self._store.get_consumption(run_id)
+                total_tokens_used = consumption.total_tokens or 0
+                finalization_reserve = min(
+                    10_000,
+                    max(2_000, run.budget.max_total_tokens // 5),
+                )
+                remaining_run_tokens = max(
+                    0,
+                    run.budget.max_total_tokens
+                    - total_tokens_used
+                    - finalization_reserve,
+                )
+                max_index_tokens = min(
+                    max(0, profile.max_index_tokens - index_tokens_used),
+                    remaining_run_tokens,
+                )
+                index_stats = index_snapshots_for_run(
+                    self._store,
+                    self._settings,
+                    run_id,
+                    max_input_tokens=max_index_tokens,
+                )
                 retriever = RetrievalService(self._store, self._settings)
             except Exception:
                 logger.exception("Index phase failed", extra={"run_id": str(run_id)})
@@ -927,7 +983,7 @@ class ResearchOrchestrator:
                 self._store,
                 run_id,
                 coverage=decision.coverage,  # type: ignore[arg-type]
-                queries=[task.objective for task in decision.new_tasks],
+                tasks=list(decision.new_tasks),
                 round_number=round_number,
             )
             self._emit(
@@ -1088,6 +1144,7 @@ class ResearchOrchestrator:
             )
         except Exception:
             pass
+        max_rewrites = min(max_rewrites, research_profile(run.research_mode).report_rewrites)
         for _rewrite_round in range(1, max_rewrites):
             self._store.merge_config_snapshot(
                 run_id,

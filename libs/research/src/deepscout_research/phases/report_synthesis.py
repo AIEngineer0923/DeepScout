@@ -97,6 +97,15 @@ def build_synthesis_context(
                 "source_title": (source.title if source else ""),
                 "source_url": (source.canonical_url if source else ""),
                 "source_authority": authority,
+                "requirement_ids": (
+                    list((ev.extraction_metadata or {}).get("requirement_ids") or []) if ev else []
+                ),
+                "evidence_type": (
+                    (ev.extraction_metadata or {}).get("evidence_type", "unknown") if ev else "unknown"
+                ),
+                "source_class": (
+                    (ev.extraction_metadata or {}).get("source_class", "unknown") if ev else "unknown"
+                ),
             }
         )
 
@@ -114,6 +123,10 @@ def build_synthesis_context(
                 "id": req.requirement_id,
                 "text": req.text,
                 "critical": req.critical,
+                "materiality": req.materiality,
+                "kind": req.kind.value,
+                "comparison_subjects": req.comparison_subjects,
+                "required_evidence_types": [item.value for item in req.required_evidence_types],
                 "status": next(
                     (
                         entry.status.value
@@ -121,6 +134,14 @@ def build_synthesis_context(
                         if entry.requirement_id == req.requirement_id
                     ),
                     "unknown",
+                ),
+                "gap_cause": next(
+                    (
+                        entry.gap_cause.value if entry.gap_cause else None
+                        for entry in coverage.entries
+                        if entry.requirement_id == req.requirement_id
+                    ),
+                    None,
                 ),
             }
             for req in research.requirements[:15]
@@ -177,6 +198,13 @@ def synthesize_goal_conditioned_report(
         "Use ONLY verified claims and evidence quotes provided. "
         "Number citations [1], [2] matching source order in Sources Cited. "
         "For PARTIAL or unresolved requirements, explain precisely what is missing. "
+        "Address every central requirement explicitly; do not imply that unresolved items are covered. "
+        "When evidence types are requested, label observations, experiments, models, reviews, "
+        "institutional positions, and secondary reporting only from the supplied metadata. "
+        "Include quantitative results only when the numbers support the requested scientific, "
+        "technical, market, or historical quantity—not incidental administrative numbers. "
+        "If a comparison is requested, compare the named subjects on the requested dimensions only. "
+        "Do not add a Sources Cited or Fonti citate section; the renderer appends one canonical list. "
         "Never emit internal task text, planner objectives, task keys, or debug scaffolding. "
         "Do not invent numbers not supported by evidence quotes. "
         "Distinguish source-reported facts from any calculated values you derive. "

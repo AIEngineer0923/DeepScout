@@ -67,3 +67,6 @@ def test_corrective_research_schedules_gap_task(store, settings) -> None:
     assert decision.apply is True
     assert decision.new_tasks
     assert decision.new_tasks[0].objective
+    requirement_targets = {task.dependency_reason for task in decision.new_tasks}
+    first_pass = decision.new_tasks[: len(requirement_targets)]
+    assert len({task.dependency_reason for task in first_pass}) == len(first_pass)
