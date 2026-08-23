@@ -27,10 +27,11 @@ Goal submitted
   → RESEARCH (agents + web search + fetch)
   → COLLECT / INDEX (chunks + embeddings per run)
   → EXTRACT (claims + evidence quotes)
-  → VERIFY / CONTRADICTION
-  → COMPILE_KNOWLEDGE (run-scoped compiled knowledge, LLM-wiki style pages)
-  → CRITIC / SYNTHESIS
-  → REPORT (cited Markdown)
+  → VERIFY
+  → REQUIREMENT COVERAGE / bounded corrective research when actionable
+  → CONTRADICTION / CRITIC / SYNTHESIS
+  → REPORT + FINAL CRITIC (cited Markdown)
+  → COMPILE_KNOWLEDGE (derived, run-scoped pages; non-blocking for report delivery)
   → Finalize → persist evaluation_results (deterministic evaluators)
   → Observe → learning cases / experience samples (non-demo runs only)
 ```
