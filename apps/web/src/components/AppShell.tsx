@@ -160,7 +160,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="topbar-end" aria-label={t("uiLanguage.label")}>
-            {demoReadOnly ? <span className="demo-readonly-pill topbar-demo-pill">{t("demo.readOnlyPill")}</span> : null}
+            {demoReadOnly ? (
+              <span className="demo-readonly-pill topbar-demo-pill">
+                <span className="long">{t("demo.readOnlyPill")}</span>
+                <span className="short">{t("demo.readOnlyPillShort")}</span>
+              </span>
+            ) : null}
             <div className="lang-switch">
               <button
                 type="button"

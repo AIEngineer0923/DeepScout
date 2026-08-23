@@ -63,19 +63,23 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
             ) : null}
           </div>
         </div>
-        {demoReadOnly ? (
-          <div className="research-header-cta">
-            <Link href="/login?next=/research/new" className="btn primary">
-              {t("demo.cta")}
-            </Link>
-          </div>
-        ) : running ? (
+        {!demoReadOnly && running ? (
           <button className="btn danger" onClick={() => void cancel()}>
             {t("action.cancelResearch")}
           </button>
         ) : null}
       </div>
-      {demoReadOnly ? <DemoNotice /> : <div className="info-banner">{t("live.banner")}</div>}
+      {demoReadOnly ? (
+        <DemoNotice
+          action={
+            <Link href="/login?next=/research/new" className="btn primary">
+              {t("demo.cta")}
+            </Link>
+          }
+        />
+      ) : (
+        <div className="info-banner">{t("live.banner")}</div>
+      )}
       {!completed ? <PhaseStepper completed={workspace.completed_phases} status={workspace.status} /> : null}
       <TechnicalDetails workspace={workspace} />
     </header>

@@ -238,20 +238,24 @@ img { max-width: 100%; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
 .main-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* The topbar is a single row at every width. Anything that does not fit
+   truncates or switches to a shorter form — it never wraps onto a second
+   line, which is what produced the ragged half-empty header rows. */
 .topbar {
-  min-height: var(--ds-header-h);
-  height: auto;
+  height: var(--ds-header-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 32px;
+  padding: 0 32px;
+  padding-right: max(32px, env(safe-area-inset-right));
+  padding-left: max(32px, env(safe-area-inset-left));
   background: var(--ds-surface);
   border-bottom: 1px solid var(--ds-line);
   position: sticky;
   top: 0;
   z-index: 10;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .topbar-start,
 .topbar-end {
@@ -259,12 +263,14 @@ img { max-width: 100%; }
   align-items: center;
   gap: 10px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
-.topbar-end { margin-left: auto; }
+.topbar-start { flex: 1 1 auto; overflow: hidden; }
+.topbar-end { flex: 0 0 auto; }
 .mobile-menu-btn { display: none; }
 .mobile-brand { display: none; }
-.topbar-demo-pill { max-width: min(100%, 220px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-demo-pill { white-space: nowrap; flex-shrink: 0; }
+.topbar-demo-pill .short { display: none; }
 .back-link { color: var(--ds-muted); font-size: 13px; font-weight: 500; }
 .back-link:hover { color: var(--ds-primary); }
 .icon-btn {
@@ -1105,17 +1111,30 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 0;
     font-weight: 700;
     font-size: 15px;
     min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   .topbar-back { display: none; }
   .content { padding: 16px; }
 }
 .live-mobile { display: none; }
 .form-actions { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+@media (max-width: 560px) {
+  /* Not enough room for the full read-only sentence next to the brand and the
+     locale switch. The drawer and the run notice still carry it in full. */
+  .topbar-demo-pill .long { display: none; }
+  .topbar-demo-pill .short { display: inline; }
+}
 @media (max-width: 430px) {
-  .topbar { padding: 8px 12px; }
+  .topbar {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
   .form-actions .btn.primary, .form-actions .btn.danger { width: 100%; }
   .live-desktop { display: none; }
   .live-mobile { display: grid; gap: 16px; }
@@ -1343,17 +1362,22 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
   color: var(--ds-muted);
 }
 .meta-dot { color: var(--ds-faint); }
-.research-header-cta {
-  display: flex;
-  align-items: flex-start;
-  flex-shrink: 0;
-}
 .demo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 16px;
   padding: 14px 16px;
   border-radius: var(--ds-radius-sm);
   background: var(--ds-primary-soft);
   border: 1px solid #dbeafe;
+}
+.demo-notice-copy { min-width: 0; }
+.demo-notice-action { flex-shrink: 0; }
+@media (max-width: 700px) {
+  .demo-notice { flex-direction: column; align-items: stretch; gap: 12px; }
+  .demo-notice-action .btn { width: 100%; justify-content: center; }
 }
 .demo-notice-title {
   margin: 0 0 6px;
@@ -1576,8 +1600,6 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
   .research-header-main { flex-direction: column; }
   .research-header-copy { flex: 0 1 auto; width: 100%; }
   .research-header-main > .btn { align-self: flex-start; }
-  .research-header-cta { width: 100%; }
-  .research-header-cta .btn { width: 100%; justify-content: center; }
   .research-header,
   .demo-research-header { padding: 16px; }
   .research-title,
