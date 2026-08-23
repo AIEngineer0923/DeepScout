@@ -11,6 +11,7 @@ import { workerProgress } from "@/lib/visual";
 import { useI18n, useT } from "@/i18n/context";
 import { ExpandableText } from "@/components/ExpandableText";
 import { ResearchGoalHeading } from "@/components/research/ResearchGoalHeading";
+import { ClampedText } from "@/components/ClampedText";
 
 export function MobileRunScreen() {
   const { workspace, reload } = useRun();
@@ -35,7 +36,7 @@ export function MobileRunScreen() {
             <strong className="wrap-text">{worker.display_name}</strong>
             <StatusBadge status={worker.state} />
           </div>
-          <p className="wrap-text muted">{worker.assigned_task}</p>
+          <p className="muted generated-list-copy"><ClampedText lines={3}>{worker.assigned_task}</ClampedText></p>
           <div className="progress-label">
             <span>{t("phase.running")}</span>
             <span>{pct}%</span>

@@ -8,7 +8,7 @@ import type { RunListItem } from "@/lib/types";
 import { StatusBadge } from "../StatusBadge";
 import { Tabs } from "../Tabs";
 import { useI18n } from "@/i18n/context";
-import { GoalPreview } from "@/components/research/GoalPreview";
+import { ClampedText } from "@/components/ClampedText";
 
 export function HistoryScreen() {
   const { t, locale } = useI18n();
@@ -80,7 +80,7 @@ export function HistoryScreen() {
                 <tr key={run.id}>
                   <td className="table-goal">
                     <Link href={`/research/${run.id}`}>
-                      <GoalPreview>{run.goal}</GoalPreview>
+                      <ClampedText>{run.goal}</ClampedText>
                     </Link>
                     <div className="mono muted">{run.id}</div>
                     {run.parent_run_id ? (

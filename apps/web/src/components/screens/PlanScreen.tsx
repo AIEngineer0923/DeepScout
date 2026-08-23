@@ -9,7 +9,7 @@ import { useT } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayGoal, displayTaskObjective, dependsOnLabels } from "@/presentation/demo";
 import { useI18n } from "@/i18n/context";
-import { GoalPreview } from "@/components/research/GoalPreview";
+import { ClampedText } from "@/components/ClampedText";
 
 export function PlanScreen() {
   const { workspace } = useRun();
@@ -34,17 +34,20 @@ export function PlanScreen() {
           {workspace.tasks.map((item, index) => (
             <button key={item.id} type="button" className={`task-item ${task?.id === item.id ? "selected" : ""}`} onClick={() => setSelected(item.id)}>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                <strong className="wrap-text">
-                  <span className="task-index">{index + 1}.</span>
-                  {displayTaskObjective(workspace, item.task_key, item.objective)}
+                <strong className="generated-list-copy">
+                  <ClampedText lines={3}>
+                    {`${index + 1}. ${displayTaskObjective(workspace, item.task_key, item.objective)}`}
+                  </ClampedText>
                 </strong>
                 <StatusBadge status={item.status} />
               </div>
               {!demoReadOnly ? <div className="muted">{item.display_name}</div> : null}
               <div className="muted">
-                {t("plan.dependsOn", {
-                  deps: dependsOnLabels(workspace, item.depends_on, locale),
-                })}
+                <ClampedText lines={2}>
+                  {t("plan.dependsOn", {
+                    deps: dependsOnLabels(workspace, item.depends_on, locale),
+                  })}
+                </ClampedText>
               </div>
             </button>
           ))}
@@ -56,16 +59,18 @@ export function PlanScreen() {
           <div className="dag-canvas">
             <div className="dag-goal">
               <strong>{t("plan.goal")}</strong>
-              <GoalPreview lines={3}>{displayGoal(workspace, locale)}</GoalPreview>
+              <ClampedText lines={3}>{displayGoal(workspace, locale)}</ClampedText>
             </div>
             <div className="dag">
               <div className="dag-row">
                 {independent.map((item, index) => (
                   <div key={item.id} className="dag-node">
                     <StatusBadge status={item.status} />
-                    <div className="wrap-text">
-                      <strong>
-                        {index + 1}. {displayTaskObjective(workspace, item.task_key, item.objective)}
+                    <div>
+                      <strong className="generated-list-copy">
+                        <ClampedText lines={3}>
+                          {`${index + 1}. ${displayTaskObjective(workspace, item.task_key, item.objective)}`}
+                        </ClampedText>
                       </strong>
                     </div>
                     <div className="muted">{item.display_name}</div>
@@ -77,12 +82,16 @@ export function PlanScreen() {
                   {dependent.map((item, index) => (
                     <div key={item.id} className="dag-node">
                       <StatusBadge status={item.status} />
-                      <div className="wrap-text">
-                        <strong>
-                          {independent.length + index + 1}. {displayTaskObjective(workspace, item.task_key, item.objective)}
+                      <div>
+                        <strong className="generated-list-copy">
+                          <ClampedText lines={3}>
+                            {`${independent.length + index + 1}. ${displayTaskObjective(workspace, item.task_key, item.objective)}`}
+                          </ClampedText>
                         </strong>
                       </div>
-                      <div className="muted">{dependsOnLabels(workspace, item.depends_on, locale)}</div>
+                      <div className="muted">
+                        <ClampedText lines={2}>{dependsOnLabels(workspace, item.depends_on, locale)}</ClampedText>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -104,7 +113,7 @@ export function PlanScreen() {
         <aside className="drawer">
           {task ? (
             <>
-              <h2 className="wrap-text">{displayTaskObjective(workspace, task.task_key, task.objective)}</h2>
+              <h2 className="generated-heading">{displayTaskObjective(workspace, task.task_key, task.objective)}</h2>
               <StatusBadge status={task.status} />
               <dl className="kv-list" style={{ marginTop: 12 }}>
                 <div className="kv-row">

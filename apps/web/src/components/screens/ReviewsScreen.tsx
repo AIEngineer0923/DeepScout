@@ -74,7 +74,7 @@ export function ReviewsScreen() {
           return (
             <article key={review.id} className="card" aria-labelledby={`review-${review.id}`}>
               <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
-                <h2 id={`review-${review.id}`}>{review.title}</h2>
+                <h2 id={`review-${review.id}`} className="generated-heading">{review.title}</h2>
                 <StatusBadge status={review.status} />
               </div>
               <p className="wrap-text">{review.explanation}</p>

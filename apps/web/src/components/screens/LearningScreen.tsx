@@ -378,7 +378,7 @@ export function LearningScreen() {
             return (
               <article key={candidate.id} className="card" aria-labelledby={`candidate-${candidate.id}`}>
                 <div className="row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <h3 id={`candidate-${candidate.id}`}>{candidate.title}</h3>
+                  <h3 id={`candidate-${candidate.id}`} className="generated-heading">{candidate.title}</h3>
                   <span className="badge">{presentCandidateStatus(candidate.status, locale)}</span>
                 </div>
                 <dl className="kv-list compact">

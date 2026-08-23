@@ -12,6 +12,7 @@ import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayClaimStatement } from "@/presentation/demo";
 import { AutoLinkText } from "@/components/AutoLinkText";
 import { presentTaskKey, presentWorkerIndex } from "@/presentation/fields";
+import { ClampedText } from "@/components/ClampedText";
 
 export function ClaimsScreen() {
   const { workspace } = useRun();
@@ -63,9 +64,10 @@ export function ClaimsScreen() {
               <tbody>
                 {filtered.map((item, index) => (
                   <tr key={item.id} className={claim?.id === item.id ? "selected" : ""} onClick={() => setSelected(item.id)}>
-                    <td className="wrap-text claims-statement">
-                      <strong>C-{String(index + 1).padStart(2, "0")}</strong>{" "}
-                      {displayClaimStatement(workspace, item.id, item.statement)}
+                    <td className="claims-statement">
+                      <ClampedText lines={3}>
+                        {`C-${String(index + 1).padStart(2, "0")} ${displayClaimStatement(workspace, item.id, item.statement)}`}
+                      </ClampedText>
                     </td>
                     <td>
                       <StatusBadge status={item.verification_status} />

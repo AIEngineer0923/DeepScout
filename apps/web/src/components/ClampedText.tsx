@@ -1,4 +1,4 @@
-export function GoalPreview({
+export function ClampedText({
   children,
   lines = 2,
   className = "",
@@ -8,7 +8,7 @@ export function GoalPreview({
   className?: string;
 }) {
   return (
-    <span className={`goal-preview goal-preview-${lines} ${className}`.trim()}>
+    <span className={`clamped-text clamped-text-${lines} ${className}`.trim()}>
       {children}
     </span>
   );

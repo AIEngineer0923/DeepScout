@@ -42,7 +42,7 @@ export function SnapshotScreen({ snapshotId }: { snapshotId: string }) {
       <RunHeader workspace={workspace} />
       <div className="grid cols-2">
         <section className="card">
-          <h2 className="wrap-text">{snapshot?.source_title ?? t("snapshot.sourceTitle")}</h2>
+          <h2 className="generated-heading">{snapshot?.source_title ?? t("snapshot.sourceTitle")}</h2>
           {snapshot?.url ? <p><ExternalLink href={snapshot.url}>{snapshot.url}</ExternalLink></p> : null}
           <div className="grid cols-metrics">
             <article className="metric"><div className="k">{t("snapshot.fetched")}</div><div className="v" style={{ fontSize: 13 }}>{snapshot?.retrieved_at ?? "—"}</div></article>

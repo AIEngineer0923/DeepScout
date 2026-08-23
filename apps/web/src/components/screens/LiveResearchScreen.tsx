@@ -18,6 +18,7 @@ import {
 import { displayGoal } from "@/presentation/demo";
 import { presentOutputLanguage, presentResearchCost } from "@/presentation/fields";
 import { vocab } from "@/presentation/vocabulary";
+import { ClampedText } from "@/components/ClampedText";
 
 export function LiveResearchScreen() {
   const { workspace, error } = useRun();
@@ -45,9 +46,10 @@ export function LiveResearchScreen() {
           {workspace.tasks.map((task, index) => (
             <article key={task.id} className="list-row">
               <div className="grow">
-                <strong className="wrap-text task-title">
-                  <span className="task-index">{index + 1}.</span>
-                  {displayTaskObjective(workspace, task.task_key, task.objective)}
+                <strong className="task-title">
+                  <ClampedText lines={3}>
+                    {`${index + 1}. ${displayTaskObjective(workspace, task.task_key, task.objective)}`}
+                  </ClampedText>
                 </strong>
               </div>
               <StatusBadge status={task.status} />
@@ -75,7 +77,9 @@ export function LiveResearchScreen() {
                   </strong>
                   <StatusBadge status={worker.state} />
                 </div>
-                <p className="wrap-text muted">{displayWorkerTask(workspace, worker.worker_id, worker.assigned_task)}</p>
+                <p className="muted generated-list-copy">
+                  <ClampedText lines={3}>{displayWorkerTask(workspace, worker.worker_id, worker.assigned_task)}</ClampedText>
+                </p>
                 {!completed ? (
                   <>
                     <div className="progress-label">

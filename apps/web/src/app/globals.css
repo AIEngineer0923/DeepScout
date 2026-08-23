@@ -34,7 +34,7 @@
   --ds-row-h: 44px;
   --ds-font: "Inter", "Segoe UI", system-ui, sans-serif;
   --ds-text-page-title: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
-  --ds-text-research-title: clamp(1.125rem, 0.95rem + 0.65vw, 1.5rem);
+  --ds-text-research-title: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
   --ds-text-section-title: 1.0625rem;
   --ds-text-card-title: 0.9375rem;
   --ds-text-body: 0.875rem;
@@ -689,6 +689,10 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
   font-weight: 650;
   line-height: 1.4;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .worker-card-summary {
   margin: 0 0 8px;
@@ -952,7 +956,7 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
 .mobile-stat .k { font-size: 11px; color: var(--ds-muted); }
 .mobile-stat .v { font-size: 18px; font-weight: 700; margin-top: 4px; }
 .wrap-text { overflow-wrap: anywhere; white-space: pre-wrap; }
-.goal-preview {
+.clamped-text {
   display: -webkit-box;
   min-width: 0;
   overflow: hidden;
@@ -960,10 +964,33 @@ html[data-visual="1"] *, html[data-visual="1"] *::before, html[data-visual="1"] 
   white-space: normal;
   -webkit-box-orient: vertical;
 }
-.goal-preview-1 { -webkit-line-clamp: 1; }
-.goal-preview-2 { -webkit-line-clamp: 2; }
-.goal-preview-3 { -webkit-line-clamp: 3; }
+.clamped-text-1 { -webkit-line-clamp: 1; }
+.clamped-text-2 { -webkit-line-clamp: 2; }
+.clamped-text-3 { -webkit-line-clamp: 3; }
 .table-goal { min-width: 220px; max-width: 440px; }
+.source-title-cell { min-width: 200px; max-width: 320px; }
+.generated-heading,
+.generated-page-title {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.generated-heading {
+  font-size: 1rem !important;
+  line-height: 1.4 !important;
+  font-weight: 650;
+}
+.generated-page-title {
+  max-width: 62ch;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.3;
+}
+.generated-list-copy {
+  font-size: var(--ds-text-body);
+  line-height: 1.5;
+}
 .empty { color: var(--ds-muted); padding: 24px; text-align: center; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

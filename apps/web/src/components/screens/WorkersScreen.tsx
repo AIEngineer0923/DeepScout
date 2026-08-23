@@ -246,7 +246,7 @@ export function WorkersScreen() {
                 </span>
                 <StatusBadge status={worker.state} />
               </div>
-              <h2 className="worker-detail-title">
+              <h2 className="worker-detail-title generated-heading">
                 {presentWorkerCardTitle(workspace, worker.worker_id, locale)}
               </h2>
 

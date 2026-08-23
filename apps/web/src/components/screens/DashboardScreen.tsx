@@ -9,7 +9,7 @@ import { elapsed, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import type { Overview } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
-import { GoalPreview } from "@/components/research/GoalPreview";
+import { ClampedText } from "@/components/ClampedText";
 
 const EMPTY: Overview = {
   active: null,
@@ -147,7 +147,7 @@ export function DashboardScreen() {
             <>
               <p style={{ margin: "0 0 10px" }}>
                 <strong>
-                  <GoalPreview>{active.goal}</GoalPreview>
+                  <ClampedText>{active.goal}</ClampedText>
                 </strong>
               </p>
               <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
@@ -238,7 +238,7 @@ export function DashboardScreen() {
                     <td>
                       <Link href={`/research/${run.id}`}>
                         <strong>
-                          <GoalPreview>{run.goal}</GoalPreview>
+                          <ClampedText>{run.goal}</ClampedText>
                         </strong>
                       </Link>
                     </td>

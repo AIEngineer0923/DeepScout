@@ -26,7 +26,7 @@ export function MonitorDetailScreen() {
   const history = (data.history as Array<{ id: string; status: string; created_at: string }>) ?? [];
   return (
     <div>
-      <h1 className="page-title">{String(data.name)}</h1>
+      <h1 className="page-title generated-page-title">{String(data.name)}</h1>
       <ExpandableText text={String(data.goal)} className="muted monitor-goal" />
       <p>
         {t("table.status")}: <StatusBadge status={String(data.status)} /> · {String(data.timezone)} ·{" "}

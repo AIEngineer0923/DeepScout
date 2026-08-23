@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useT } from "@/i18n/context";
-import { GoalPreview } from "@/components/research/GoalPreview";
+import { ClampedText } from "@/components/ClampedText";
 
 export function CompareScreen() {
   const t = useT();
@@ -44,10 +44,10 @@ export function CompareScreen() {
           <article className="card">
             <h2>{t("compare.summary")}</h2>
             <p>
-              {t("compare.left")}: <GoalPreview lines={3}>{String((diff.left as { goal?: string })?.goal)}</GoalPreview>
+              {t("compare.left")}: <ClampedText lines={3}>{String((diff.left as { goal?: string })?.goal)}</ClampedText>
             </p>
             <p>
-              {t("compare.right")}: <GoalPreview lines={3}>{String((diff.right as { goal?: string })?.goal)}</GoalPreview>
+              {t("compare.right")}: <ClampedText lines={3}>{String((diff.right as { goal?: string })?.goal)}</ClampedText>
             </p>
             <p>{t("nav.plan")}: {JSON.stringify((diff.plan as { left?: { task_count?: number }; right?: { task_count?: number } }) ?? {})}</p>
           </article>
