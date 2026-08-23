@@ -97,6 +97,12 @@ record central/secondary materiality, kind, comparison subjects, expected source
 requested evidence types. Planner success criteria remain secondary synthesis guidance; they are not
 a substitute for user requirements.
 
+Requirement extraction uses token-aware intent matching: words such as `practical` or `impact` do
+not imply a legal Act, references to AI models do not imply simulation evidence, and
+`peer-reviewed` does not imply that a systematic review was requested. Source-only clauses and
+requested task ordering are structural requirements. The latter is verified against the executed
+DAG rather than against a web citation.
+
 ### DAG validation (deterministic + model-assisted)
 
 1. LLM → `PlannerStructuredOutput` (`with_structured_output`)
@@ -166,6 +172,11 @@ T5: Synthesize findings                    depends_on [T2, T3, T4]
    append requirement-specific gap tasks
 4. Run research batch + incremental evidence pipeline
 5. Record requirement/query/round trace in `config_snapshot`
+
+Search-result admission also requires a named research-subject match. Named software architecture
+tasks may be routed to stable official vendor documentation while broad comparison queries remain
+open to independent papers. Evidence quotes must independently name the subject; a provider snippet
+cannot validate unrelated page text.
 
 Separate from **critic loop** (`_max_correction_rounds = 1`) used in finalize.
 

@@ -32,8 +32,10 @@ _OFFICIAL_DOMAIN_SUFFIXES = (
 _PEER_REVIEW_HINTS = (
     "doi.org",
     "pubmed",
+    "ncbi.nlm.nih.gov",
     "arxiv.org",
     "frontiersin.org",
+    "mdpi.com",
     "nature.com",
     "sciencedirect.com",
     "springer.com",
@@ -43,6 +45,7 @@ _PEER_REVIEW_HINTS = (
 )
 
 _RESEARCH_BODY_HINTS = (
+    "osti.gov",
     "iea.org",
     "icct.org",
     "nrel.gov",
@@ -50,6 +53,25 @@ _RESEARCH_BODY_HINTS = (
     "ornl.gov",
     "lbl.gov",
     "anl.gov",
+)
+
+_SOFTWARE_VENDOR_HINTS = (
+    "learn.microsoft.com",
+    "microsoft.github.io",
+    "docs.microsoft.com",
+    "microsoft.com",
+    "cloud.google.com",
+    "developers.google.com",
+    "ai.google.dev",
+    "docs.aws.amazon.com",
+    "aws.amazon.com",
+    "docs.anthropic.com",
+    "anthropic.com",
+    "platform.openai.com",
+    "openai.com",
+    "docs.cohere.com",
+    "docs.pinecone.io",
+    "docs.weaviate.io",
 )
 
 _NEWS_HINTS = (
@@ -89,12 +111,26 @@ def classify_source_authority(
     official = False
     primary_vs_secondary: str = "unknown"
 
-    if any(hint in domain for hint in _RESEARCH_BODY_HINTS):
+    if any(domain == hint or domain.endswith("." + hint) for hint in _SOFTWARE_VENDOR_HINTS):
+        source_class = SourceClass.SOFTWARE_VENDOR
+        authority = AuthorityClass.PRIMARY
+        institutional = True
+        official = True
+        primary_vs_secondary = "primary"
+    elif any(hint in domain for hint in _RESEARCH_BODY_HINTS):
         source_class = SourceClass.RESEARCH_BODY
         authority = AuthorityClass.PRIMARY
         institutional = True
         primary_vs_secondary = "primary"
-    elif any(domain.endswith(suffix) or suffix.strip(".") in domain for suffix in _OFFICIAL_DOMAIN_SUFFIXES):
+    elif any(hint in domain for hint in _PEER_REVIEW_HINTS):
+        source_class = SourceClass.PEER_REVIEWED
+        authority = AuthorityClass.PRIMARY
+        peer_reviewed = True
+        primary_vs_secondary = "primary"
+    elif any(
+        domain == suffix.removeprefix(".") or domain.endswith(suffix)
+        for suffix in _OFFICIAL_DOMAIN_SUFFIXES
+    ):
         source_class = SourceClass.OFFICIAL_INSTITUTIONAL
         authority = AuthorityClass.PRIMARY
         institutional = True
@@ -104,11 +140,6 @@ def classify_source_authority(
         source_class = SourceClass.PRIMARY_LEGISLATION
         authority = AuthorityClass.PRIMARY
         official = True
-        primary_vs_secondary = "primary"
-    elif any(hint in domain for hint in _PEER_REVIEW_HINTS):
-        source_class = SourceClass.PEER_REVIEWED
-        authority = AuthorityClass.PRIMARY
-        peer_reviewed = True
         primary_vs_secondary = "primary"
     elif any(hint in domain for hint in _NEWS_HINTS):
         source_class = SourceClass.NEWS_MEDIA
@@ -179,7 +210,10 @@ def violates_only_constraint(
                 return True
         elif constraint.scope == "publisher" and constraint.values:
             publisher = (meta.publisher or "").casefold()
-            if not any(value.casefold() in publisher or value.casefold() in _domain(url) for value in constraint.values):
+            if not any(
+                value.casefold() in publisher or value.casefold() in _domain(url)
+                for value in constraint.values
+            ):
                 return True
     return False
 
@@ -228,12 +262,23 @@ def enrich_search_query_with_policy(query: str, contract: ResearchContract | Non
                 SourceClass.OFFICIAL_INSTITUTIONAL: "official institutional source",
                 SourceClass.FINANCIAL_FILING: "official financial filing",
                 SourceClass.MANUFACTURER_ENGINEERING: "official engineering specification",
+                SourceClass.SOFTWARE_VENDOR: "official technical documentation",
             }
             requested = list(
                 dict.fromkeys(
                     [*contract.required_source_classes, *contract.preferred_source_classes]
                 )
             )
+            if (
+                "site:" in query
+                and SourceClass.SOFTWARE_VENDOR in requested
+                and "official documentation" in query.casefold()
+            ):
+                # Architecture-specific vendor routes are intentionally one
+                # primary-source lane. Appending the peer-reviewed lane makes
+                # site-restricted search brittle and broad comparison tasks
+                # already cover papers separately.
+                return query
             suffix = " ".join(class_terms[item] for item in requested[:2] if item in class_terms)
             if suffix and suffix.casefold() not in query.casefold():
                 return f"{query} {suffix}"[:500]

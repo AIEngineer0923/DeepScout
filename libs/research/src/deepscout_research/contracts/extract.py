@@ -119,13 +119,35 @@ _OUTPUT_HINTS = (
     "insufficient evidence",
     "output format",
 )
+
+
+def _has_regulatory_hint(text: str) -> bool:
+    """Match regulatory language without treating substrings like ``practical`` as Acts."""
+    lowered = text.casefold()
+    return bool(
+        re.search(
+            r"\b(?:regulation|regulations|obligation|obligations|compliance|legal|law|laws|"
+            r"act|acts|directive|directives|regulator|regulators|authority|authorities)\b|"
+            r"\b(?:regulat|obbligh|normativ)\w*|\bautorità\b",
+            lowered,
+        )
+    )
+
+
 _ONLY_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str], list[SourceClass]], ...] = (
     (
         re.compile(
             r"\b(only|solely|exclusively|just)\b.{0,40}\b(official)\b.{0,60}\b(eu|european union)\b",
             re.I,
         ),
-        ["europa.eu", "eur-lex.europa.eu", "ec.europa.eu", "commission.europa.eu", "digital-strategy.ec.europa.eu", "ai-office.ec.europa.eu"],
+        [
+            "europa.eu",
+            "eur-lex.europa.eu",
+            "ec.europa.eu",
+            "commission.europa.eu",
+            "digital-strategy.ec.europa.eu",
+            "ai-office.ec.europa.eu",
+        ],
         [SourceClass.OFFICIAL_INSTITUTIONAL, SourceClass.PRIMARY_LEGISLATION],
     ),
     (
@@ -134,7 +156,14 @@ _ONLY_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str], list[SourceClass]
             r"\b(fonti\s+)?(istituzional\w*|ufficial\w*).{0,50}\b(dell[''])?(ue|eu|unione europea)\b",
             re.I,
         ),
-        ["europa.eu", "eur-lex.europa.eu", "ec.europa.eu", "commission.europa.eu", "digital-strategy.ec.europa.eu", "ai-office.ec.europa.eu"],
+        [
+            "europa.eu",
+            "eur-lex.europa.eu",
+            "ec.europa.eu",
+            "commission.europa.eu",
+            "digital-strategy.ec.europa.eu",
+            "ai-office.ec.europa.eu",
+        ],
         [SourceClass.OFFICIAL_INSTITUTIONAL, SourceClass.PRIMARY_LEGISLATION],
     ),
     (
@@ -143,7 +172,14 @@ _ONLY_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str], list[SourceClass]
             r"\b(ue|eu|unione europea|european union)\b",
             re.I,
         ),
-        ["europa.eu", "eur-lex.europa.eu", "ec.europa.eu", "commission.europa.eu", "digital-strategy.ec.europa.eu", "ai-office.ec.europa.eu"],
+        [
+            "europa.eu",
+            "eur-lex.europa.eu",
+            "ec.europa.eu",
+            "commission.europa.eu",
+            "digital-strategy.ec.europa.eu",
+            "ai-office.ec.europa.eu",
+        ],
         [SourceClass.OFFICIAL_INSTITUTIONAL, SourceClass.PRIMARY_LEGISLATION],
     ),
     (
@@ -160,8 +196,12 @@ _PREFER_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str]], ...] = (
 )
 
 _CLASS_KEYWORDS: tuple[tuple[str, SourceClass], ...] = (
+    ("original paper", SourceClass.PEER_REVIEWED),
     ("peer-reviewed", SourceClass.PEER_REVIEWED),
     ("peer reviewed", SourceClass.PEER_REVIEWED),
+    ("framework documentation", SourceClass.SOFTWARE_VENDOR),
+    ("vendor documentation", SourceClass.SOFTWARE_VENDOR),
+    ("official documentation", SourceClass.SOFTWARE_VENDOR),
     ("national lab", SourceClass.RESEARCH_BODY),
     ("doe", SourceClass.RESEARCH_BODY),
     ("icct", SourceClass.RESEARCH_BODY),
@@ -212,7 +252,7 @@ def _user_facing_questions(goal: str, planner: PlannerOutput) -> list[str]:
 def _infer_report_type(goal: str, requirements: list[AnswerRequirement]) -> ReportType:
     lowered = goal.casefold()
     kinds = {item.kind for item in requirements}
-    if any(h in lowered for h in _REGULATORY_HINTS) or RequirementKind.TIMELINE in kinds:
+    if _has_regulatory_hint(lowered) or RequirementKind.TIMELINE in kinds:
         return ReportType.REGULATORY_ANALYSIS
     if RequirementKind.COMPARISON in kinds or any(h in lowered for h in _COMPARISON_HINTS):
         if any(h in lowered for h in _SCIENTIFIC_HINTS):
@@ -356,6 +396,27 @@ def _material_segments(goal: str, planner: PlannerOutput) -> list[str]:
 
 
 def _comparison_subjects(text: str) -> list[str]:
+    enumerated = re.search(
+        r"\b(?:compare|confronta)\s+(.+?)(?=\s+for\s+(?:a|an|the)\b|"
+        r"\s+su\s+(?:ciclo|densit|sicurezza|driver|costo|effett)|"
+        r",\s*(?:focusing|evaluat|assess)|[.;]|$)",
+        text,
+        re.I,
+    )
+    if enumerated and re.search(r"(?:,\s*|\s+)(?:and|e)\s+", enumerated.group(1), re.I):
+        body = re.sub(
+            r"^(?:the\s+)?(?:current\s+)?(?:evidence|estimates?)\s+(?:on|of)\s+",
+            "",
+            enumerated.group(1).strip(),
+            flags=re.I,
+        )
+        parts = [
+            part.strip(" ,;:")
+            for part in re.split(r"\s*,\s*(?:and\s+)?|\s+(?:and|e)\s+", body)
+            if part.strip(" ,;:")
+        ]
+        if 2 <= len(parts) <= 5:
+            return parts
     patterns = (
         r"\b([\w-]{2,40})\s+(?:vs\.?|versus)\s+([\w-]{2,40})\b",
         r"\b(?:compare|confronta)\s+([\w-]{2,40})\s+(?:and|e|con)\s+([\w-]{2,40})\b",
@@ -364,7 +425,9 @@ def _comparison_subjects(text: str) -> list[str]:
         match = re.search(pattern, text, re.I)
         if match:
             return [match.group(1), match.group(2)]
-    relative = re.search(r"(.{3,80}?)\s+(?:compared to|rispetto (?:a|ad|all['’]))\s*(.{3,80})", text, re.I)
+    relative = re.search(
+        r"(.{3,80}?)\s+(?:compared to|rispetto (?:a|ad|all['’]))\s*(.{3,80})", text, re.I
+    )
     if relative:
         left = " ".join(relative.group(1).split()[-5:])
         right = " ".join(relative.group(2).split()[:5])
@@ -375,8 +438,12 @@ def _comparison_subjects(text: str) -> list[str]:
 def _kind_for_text(text: str) -> tuple[RequirementKind, bool]:
     lowered = text.casefold()
     quantification = any(hint in lowered for hint in _QUANTIFICATION_HINTS)
-    if any(hint in lowered for hint in _SOURCE_POLICY_HINTS):
+    if any(hint in lowered for hint in _SOURCE_POLICY_HINTS) or re.search(
+        r"\b(?:use|using)\s+only\b.{0,100}\bsources?\b", lowered
+    ):
         return RequirementKind.SOURCE_POLICY, False
+    if re.search(r"\b(?:depend(?:s|ed|ing)?\s+on|in order before)\b", lowered):
+        return RequirementKind.DEPENDENCY, False
     if any(hint in lowered for hint in _OUTPUT_HINTS):
         return RequirementKind.OUTPUT_FORMAT, False
     if any(hint in lowered for hint in _METHODOLOGY_HINTS):
@@ -386,7 +453,10 @@ def _kind_for_text(text: str) -> tuple[RequirementKind, bool]:
     if any(hint in lowered for hint in _COMPARISON_HINTS):
         return RequirementKind.COMPARISON, quantification
     if any(hint in lowered for hint in _TRADEOFF_HINTS) or (
-        any(token in lowered for token in ("pros and cons", "pro e contro", "advantages", "svantaggi"))
+        any(
+            token in lowered
+            for token in ("pros and cons", "pro e contro", "advantages", "svantaggi")
+        )
     ):
         return RequirementKind.TRADEOFF, quantification
     if quantification:
@@ -411,7 +481,7 @@ def _source_expectations(text: str, kind: RequirementKind) -> list[SourceClass]:
     lowered = text.casefold()
     if kind == RequirementKind.SOURCE_POLICY:
         return []
-    if any(token in lowered for token in (*_REGULATORY_HINTS, "regulator", "authority", "autorità")):
+    if _has_regulatory_hint(lowered):
         return [
             SourceClass.PRIMARY_LEGISLATION,
             SourceClass.REGULATOR,
@@ -470,9 +540,17 @@ def _evidence_type_expectations(text: str) -> list[EvidenceType]:
         out.append(EvidenceType.EXPERIMENT)
     if any(token in lowered for token in ("observed", "observation", "osservat", "field")):
         out.append(EvidenceType.OBSERVATIONAL)
-    if any(token in lowered for token in ("model", "simulation", "prevision")):
+    if re.search(
+        r"\b(?:simulation|simulations|simulated|modelling|modeling|modelled|modeled|"
+        r"prediction|predictions|prevision\w*)\b",
+        lowered,
+    ):
         out.append(EvidenceType.MODEL_SIMULATION)
-    if any(token in lowered for token in ("review", "meta-analysis", "revisione")):
+    if re.search(
+        r"\b(?:systematic\s+review|literature\s+review|meta-analysis|meta-analyses|"
+        r"revisione\s+sistematica)\b",
+        lowered,
+    ):
         out.append(EvidenceType.REVIEW_META_ANALYSIS)
     return list(dict.fromkeys(out))
 
@@ -533,7 +611,7 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
             )
         )
 
-    if any(h in lowered for h in _REGULATORY_HINTS):
+    if _has_regulatory_hint(lowered):
         if any(
             word in lowered
             for word in (
@@ -621,7 +699,10 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
                 critical=True,
             )
         )
-        if any(token in lowered for token in ("gpai", "modelli di ia", "general purpose", "general-purpose")):
+        if any(
+            token in lowered
+            for token in ("gpai", "modelli di ia", "general purpose", "general-purpose")
+        ):
             requirements.append(
                 _requirement_from_text(
                     "R_gpai_guidance",
@@ -632,9 +713,9 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
                 )
             )
 
-    if any(h in lowered for h in ("why", "methodology", "methodological", "drivers", "explain why")) and not any(
-        item.kind == RequirementKind.METHODOLOGY for item in requirements
-    ):
+    if any(
+        h in lowered for h in ("why", "methodology", "methodological", "drivers", "explain why")
+    ) and not any(item.kind == RequirementKind.METHODOLOGY for item in requirements):
         requirements.append(
             _requirement_from_text(
                 "R_method",
@@ -644,7 +725,10 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
             )
         )
 
-    if any(h in lowered for h in ("tradeoff", "trade-off", "trade off", "pros and cons", "pro e contro")):
+    if any(
+        h in lowered
+        for h in ("tradeoff", "trade-off", "trade off", "pros and cons", "pro e contro")
+    ):
         requirements.append(
             _requirement_from_text(
                 "R_tradeoff",
@@ -679,7 +763,11 @@ def _decompose_requirements(goal: str, planner: PlannerOutput) -> list[AnswerReq
 
 def _evidence_standard(goal: str, preferred: list[SourceClass]) -> EvidenceStandard:
     lowered = goal.casefold()
-    if SourceClass.PEER_REVIEWED in preferred or "peer-reviewed" in lowered or "peer reviewed" in lowered:
+    if (
+        SourceClass.PEER_REVIEWED in preferred
+        or "peer-reviewed" in lowered
+        or "peer reviewed" in lowered
+    ):
         return EvidenceStandard.PEER_REVIEWED
     if SourceClass.OFFICIAL_INSTITUTIONAL in preferred or "official" in lowered:
         return EvidenceStandard.AUTHORITATIVE
@@ -708,9 +796,7 @@ def build_research_contract(
         distinctions.append("already_applicable_vs_future")
     if "transitional" in goal.casefold():
         distinctions.append("transitional_requirements")
-    comparisons = [
-        item.text for item in requirements if item.kind == RequirementKind.COMPARISON
-    ]
+    comparisons = [item.text for item in requirements if item.kind == RequirementKind.COMPARISON]
     quant = [item.text for item in requirements if item.quantification_required]
     distinctions.extend(
         item.text for item in requirements if item.kind == RequirementKind.DISTINCTION
@@ -743,7 +829,9 @@ def derive_report_contract(research: ResearchContract) -> ReportContract:
         title = research.primary_question.strip()[:197] + "..."
 
     sections: list[ReportSectionSpec] = [
-        ReportSectionSpec(section_id="executive_summary", heading="Executive Summary", required=True),
+        ReportSectionSpec(
+            section_id="executive_summary", heading="Executive Summary", required=True
+        ),
         ReportSectionSpec(section_id="analysis", heading="Analysis", required=True),
     ]
     include_chronology = report_type in {
@@ -756,14 +844,18 @@ def derive_report_contract(research: ResearchContract) -> ReportContract:
         ReportType.TECHNICAL_TRADEOFF,
         ReportType.MARKET_ANALYSIS,
     }
-    include_quant = any(item.quantification_required for item in research.requirements) or report_type in {
+    include_quant = any(
+        item.quantification_required for item in research.requirements
+    ) or report_type in {
         ReportType.SCIENTIFIC_REVIEW,
         ReportType.COMPARISON,
         ReportType.TECHNICAL_TRADEOFF,
     }
     if include_chronology:
         sections.append(
-            ReportSectionSpec(section_id="timeline", heading="Timeline and Applicability", required=True)
+            ReportSectionSpec(
+                section_id="timeline", heading="Timeline and Applicability", required=True
+            )
         )
     if include_comparisons:
         sections.append(
@@ -779,7 +871,9 @@ def derive_report_contract(research: ResearchContract) -> ReportContract:
         )
     sections.extend(
         [
-            ReportSectionSpec(section_id="limitations", heading="Limitations and Uncertainty", required=True),
+            ReportSectionSpec(
+                section_id="limitations", heading="Limitations and Uncertainty", required=True
+            ),
             ReportSectionSpec(section_id="sources_cited", heading="Sources Cited", required=True),
         ]
     )

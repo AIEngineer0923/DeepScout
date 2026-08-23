@@ -15,7 +15,7 @@ from uuid import UUID
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import DeploymentMode, Settings
 from deepscout_persistence.identity import get_local_system
-from deepscout_persistence.session import get_session_factory
+from deepscout_persistence.session import dispose_all_engines, get_session_factory
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.demo.catalog import DEMO_CATALOG, curated_demo_budget
 from deepscout_research.demo.export import build_presentation_bundle_from_run
@@ -24,6 +24,7 @@ from deepscout_research.demo.publication import publish_demo
 from deepscout_research.demo.quality import review_demo_candidate
 from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.search.tavily import TavilyWebSearchProvider
+from deepscout_research.workers.checkpointer import reset_worker_checkpointer_cache
 
 _DATA_DIR = (
     Path(__file__).resolve().parents[1]
@@ -145,6 +146,8 @@ def main() -> int:
             )
     finally:
         session.close()
+        reset_worker_checkpointer_cache()
+        dispose_all_engines()
     print(json.dumps({"candidates": results}, indent=2))
     return 0
 

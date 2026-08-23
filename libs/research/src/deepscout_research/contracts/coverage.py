@@ -36,9 +36,31 @@ _UNRESOLVED = {
     RequirementCoverageStatus.UNSUPPORTED,
 }
 _STOPWORDS = {
-    "about", "after", "also", "and", "come", "con", "della", "delle", "degli",
-    "dello", "from", "into", "nella", "nelle", "per", "quali", "that", "the",
-    "their", "these", "those", "what", "when", "which", "with",
+    "about",
+    "after",
+    "also",
+    "and",
+    "come",
+    "con",
+    "della",
+    "delle",
+    "degli",
+    "dello",
+    "from",
+    "into",
+    "nella",
+    "nelle",
+    "per",
+    "quali",
+    "that",
+    "the",
+    "their",
+    "these",
+    "those",
+    "what",
+    "when",
+    "which",
+    "with",
 }
 
 
@@ -124,13 +146,11 @@ def _temporal_supports_requirement(claims: list[TemporalClaim], requirement_id: 
             for claim in claims
         )
     if requirement_id == "R_reg_apply":
-        return _temporal_supports_requirement(claims, "R_reg_now") and _temporal_supports_requirement(
-            claims, "R_reg_later"
-        )
+        return _temporal_supports_requirement(
+            claims, "R_reg_now"
+        ) and _temporal_supports_requirement(claims, "R_reg_later")
     if requirement_id in {"R_reg_time", "R_timeline"}:
-        return any(
-            claim.temporal_relation == TemporalRelation.ENFORCEABLE_FROM for claim in claims
-        )
+        return any(claim.temporal_relation == TemporalRelation.ENFORCEABLE_FROM for claim in claims)
     return False
 
 
@@ -166,14 +186,17 @@ def _comparison_complete(requirement, claims_text: str) -> bool:
         )
     claim_tokens = _tokens(claims_text)
 
-    subject_token_sets = [_tokens(subject) for subject in subjects[:2]]
-    common = subject_token_sets[0] & subject_token_sets[1]
+    subject_token_sets = [_tokens(subject) for subject in subjects]
+    common = set.intersection(*subject_token_sets) if subject_token_sets else set()
 
     def subject_present(subject: str) -> bool:
         subject_tokens = _tokens(subject) - common
         if subject_tokens & claim_tokens:
             return True
         compact = re.sub(r"[^A-Za-z0-9]", "", subject)
+        compact_claims = re.sub(r"[^A-Za-z0-9]", "", claims_text)
+        if len(compact) >= 4 and compact.casefold() in compact_claims.casefold():
+            return True
         if not (2 <= len(compact) <= 8 and compact.isupper()):
             return False
         words = re.findall(r"[a-z]+", claims_text.casefold())
@@ -183,7 +206,7 @@ def _comparison_complete(requirement, claims_text: str) -> bool:
                 return True
         return False
 
-    return all(subject_present(subject) for subject in subjects[:2])
+    return all(subject_present(subject) for subject in subjects)
 
 
 def _requirement_queries(requirement, candidates, trace: list[dict], executions) -> list[str]:
@@ -216,9 +239,7 @@ def _gap_cause_without_support(
 ) -> CoverageGapCause:
     if not searched_queries:
         return (
-            CoverageGapCause.BUDGET_EXHAUSTED
-            if budget_exhausted
-            else CoverageGapCause.NOT_SEARCHED
+            CoverageGapCause.BUDGET_EXHAUSTED if budget_exhausted else CoverageGapCause.NOT_SEARCHED
         )
     if search_failed:
         return CoverageGapCause.SEARCH_EXECUTION_FAILED
@@ -280,12 +301,20 @@ def evaluate_coverage(
         raw_ids = metadata.get("requirement_ids")
         req_ids = [str(item) for item in raw_ids] if isinstance(raw_ids, list) else []
         if not req_ids:
-            req_ids = attribute_requirements(statement=claim.statement, quote=ev.quote, contract=contract)
+            req_ids = attribute_requirements(
+                statement=claim.statement, quote=ev.quote, contract=contract
+            )
         for req_id in req_ids:
             attributed_by_requirement[req_id].append(claim)
 
     temporal_claims = _temporal_claims_from_snapshot(store, run_id)
     has_verified_president = _verified_entity_for_president(store, run_id)
+    tasks = store.list_tasks(run_id)
+    has_valid_dependency_graph = any(
+        task.depends_on
+        and all(any(parent.task_key == key for parent in tasks) for key in task.depends_on)
+        for task in tasks
+    )
     exhausted = _budget_exhausted(row)
     entries: list[CoverageMapEntry] = []
 
@@ -304,8 +333,7 @@ def evaluate_coverage(
         matching_executions = [
             execution
             for execution in executions
-            if execution.tool_name == "web_search"
-            and execution.input_summary in searched_queries
+            if execution.tool_name == "web_search" and execution.input_summary in searched_queries
         ]
         search_failed = bool(matching_executions) and all(
             execution.status.value == "failed" for execution in matching_executions
@@ -320,7 +348,10 @@ def evaluate_coverage(
         relevant_evidence = [item for item in evidence if item.snapshot_id in relevant_snapshot_ids]
         supporting_claims = list(attributed_by_requirement.get(requirement.requirement_id, []))
 
-        if requirement.requirement_id == "R_president" and has_verified_president:
+        if requirement.kind == RequirementKind.DEPENDENCY and has_valid_dependency_graph:
+            status = RequirementCoverageStatus.SUPPORTED
+            note = "The executed research plan contains a valid dependency edge."
+        elif requirement.requirement_id == "R_president" and has_verified_president:
             status = RequirementCoverageStatus.SUPPORTED
             note = "Verified office-holder entity in structured state."
         elif _temporal_supports_requirement(temporal_claims, requirement.requirement_id):
@@ -335,8 +366,14 @@ def evaluate_coverage(
                 status = RequirementCoverageStatus.SUPPORTED
                 note = "The run contains a source class required by the source policy."
             else:
-                status = RequirementCoverageStatus.PARTIAL if sources else RequirementCoverageStatus.UNSUPPORTED
-                note = "The retrieved source portfolio does not satisfy the requested source policy."
+                status = (
+                    RequirementCoverageStatus.PARTIAL
+                    if sources
+                    else RequirementCoverageStatus.UNSUPPORTED
+                )
+                note = (
+                    "The retrieved source portfolio does not satisfy the requested source policy."
+                )
         elif supporting_claims:
             status = RequirementCoverageStatus.SUPPORTED
             note = "Verified evidence was attributed to this requirement."
@@ -358,8 +395,12 @@ def evaluate_coverage(
                 continue
             supporting_text.extend((claim.statement, ev.quote))
             has_numeric = has_numeric or bool(re.search(r"\d", f"{claim.statement} {ev.quote}"))
-            source_classes |= _metadata_enum_values(ev.extraction_metadata, "source_class", SourceClass)
-            evidence_types |= _metadata_enum_values(ev.extraction_metadata, "evidence_type", EvidenceType)
+            source_classes |= _metadata_enum_values(
+                ev.extraction_metadata, "source_class", SourceClass
+            )
+            evidence_types |= _metadata_enum_values(
+                ev.extraction_metadata, "evidence_type", EvidenceType
+            )
             snap = snapshot_by_id.get(ev.snapshot_id)
             source = source_by_id.get(snap.source_id) if snap else None
             if source:
@@ -371,16 +412,26 @@ def evaluate_coverage(
                 )
 
         gap_cause: CoverageGapCause | None = None
-        if status == RequirementCoverageStatus.SUPPORTED and requirement.quantification_required and not has_numeric:
+        if (
+            status == RequirementCoverageStatus.SUPPORTED
+            and requirement.quantification_required
+            and not has_numeric
+        ):
             status = RequirementCoverageStatus.PARTIAL
             gap_cause = CoverageGapCause.NUMERIC_EVIDENCE_MISSING
             note = "Qualitative support was found, but no attributable numeric evidence was found."
-        if status == RequirementCoverageStatus.SUPPORTED and requirement.kind == RequirementKind.COMPARISON:
+        if (
+            status == RequirementCoverageStatus.SUPPORTED
+            and requirement.kind == RequirementKind.COMPARISON
+        ):
             if not _comparison_complete(requirement, " ".join(supporting_text)):
                 status = RequirementCoverageStatus.PARTIAL
                 gap_cause = CoverageGapCause.COMPARISON_INCOMPLETE
                 note = "Evidence does not cover both sides of the requested comparison."
-        if status == RequirementCoverageStatus.SUPPORTED and requirement.kind == RequirementKind.TIMELINE:
+        if (
+            status == RequirementCoverageStatus.SUPPORTED
+            and requirement.kind == RequirementKind.TIMELINE
+        ):
             required_times = set(re.findall(r"\b\d+", requirement.text))
             supported_times = set(re.findall(r"\b\d+", " ".join(supporting_text)))
             if required_times and not required_times <= supported_times:
@@ -392,8 +443,10 @@ def evaluate_coverage(
                 status = RequirementCoverageStatus.PARTIAL
                 gap_cause = CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
                 note = "Attributable evidence lacks the requested evidence type."
-        if status == RequirementCoverageStatus.SUPPORTED and not source_portfolio_is_adequate(
-            requirement, contract, source_classes
+        if (
+            status == RequirementCoverageStatus.SUPPORTED
+            and requirement.kind not in {RequirementKind.SOURCE_POLICY, RequirementKind.DEPENDENCY}
+            and not source_portfolio_is_adequate(requirement, contract, source_classes)
         ):
             status = RequirementCoverageStatus.PARTIAL
             gap_cause = CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
@@ -484,13 +537,18 @@ def evaluate_coverage(
     )
 
 
-def gap_search_queries(contract: ResearchContract, coverage: CoverageMap, *, limit: int = 3) -> list[str]:
+def gap_search_queries(
+    contract: ResearchContract, coverage: CoverageMap, *, limit: int = 3
+) -> list[str]:
     from deepscout_research.contracts.query_planning import gap_queries_for_requirement
 
     queries: list[str] = []
     gap_ids = set(coverage.material_gaps)
     for requirement in contract.requirements:
-        if requirement.requirement_id not in gap_ids or requirement.kind == RequirementKind.OUTPUT_FORMAT:
+        if (
+            requirement.requirement_id not in gap_ids
+            or requirement.kind == RequirementKind.OUTPUT_FORMAT
+        ):
             continue
         queries.extend(gap_queries_for_requirement(requirement, contract, round_number=1))
         if len(queries) >= limit:

@@ -1,77 +1,114 @@
 {
   "version": 1,
   "locale": "en",
-  "run_id": "7df0d57a-6b6d-4ea8-b31c-0588c8f4718b",
+  "run_id": "ecd22866-3df0-499a-91a8-fd53fdcc0a57",
   "goal": "Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI models, distinguishing obligations already applicable from later obligations, and identify authoritative Commission or EU sources supporting each conclusion. Use only official EU institutional sources, including EUR-Lex, European Commission, and EU AI Office publications.",
   "title": "EU AI Act GPAI provider obligations (2026)",
   "summary": "Regulatory synthesis from official EU sources.",
   "why_interesting": "Current institutional web research with provenance.",
   "tasks": {
-    "gpai_legal_timeline_and_transitional_rules": {
-      "objective": "Query official EUR-Lex text of Regulation (EU) 2024/1689 (Articles 111, 113, and Chapter V) to establish the precise entry into application dates and transitional provisions for GPAI models, identifying what applies prior to 2026, during 2026, and after 2026.",
-      "display_name": "W01 · Query official EUR-Lex text"
+    "ai_office_guidance_and_codes": {
+      "objective": "Identify official European Commission and EU AI Office publications, implementation roadmaps, and Code of Practice milestones governing GPAI compliance and systemic risk designation applicable throughout 2026.",
+      "display_name": "W01 · Identify official European Commission"
     },
-    "gpai_substantive_obligations_analysis": {
-      "objective": "Analyze the core substantive obligations imposed on GPAI providers (Articles 51 to 56), differentiating between baseline GPAI obligations (technical documentation, copyright policy, training summary) and systemic-risk GPAI obligations (model evaluation, adversarial testing, systemic risk mitigation, cybersecurity, incident reporting).",
-      "display_name": "W02 · Analyze the core substantive"
+    "gpai_timeline_legal_basis": {
+      "objective": "Retrieve the official provisions from Regulation (EU) 2024/1689 (EUR-Lex) regarding Chapter V (GPAI models, Articles 51-56) and Article 111/113 (entry into force, dates of application, and transitional periods for models placed on the market before/after August 2025).",
+      "display_name": "W02 · Retrieve the official provisions"
+    },
+    "req-r1": {
+      "objective": "site:europa.eu Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI evidence types observations experiments models review",
+      "display_name": "W03 · site:europa.eu Explain the obligations"
+    },
+    "req-r-reg-apply": {
+      "objective": "site:europa.eu Explain the obligations that the EU AI Act Distinguish obligations already applicable from future or transitional requirements evidence types observations experiments models review",
+      "display_name": "W04 · site:europa.eu Explain the obligations"
+    },
+    "req-r-reg-later": {
+      "objective": "site:europa.eu Explain the obligations that the EU AI Act Identify obligations later transitional or future application dates evidence types observations experiments models review",
+      "display_name": "W05 · site:europa.eu Explain the obligations"
+    },
+    "req-r-reg-now": {
+      "objective": "site:europa.eu Explain the obligations that the EU AI Act Identify obligations already applicable or in force before or during the requested period evidence types observations experiments models review",
+      "display_name": "W06 · site:europa.eu Explain the obligations"
+    },
+    "req-r-timeline": {
+      "objective": "site:europa.eu Explain the obligations that the EU AI Act Provide a chronology of key dates and applicability longitudinal follow-up time series measured change",
+      "display_name": "W07 · site:europa.eu Explain the obligations"
     },
     "reg-temporal-1": {
       "objective": "site:eur-lex.europa.eu Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI models, distinguishing obligations already applicable from later obligations, and identify authoritative C application date entered into force article transitional",
-      "display_name": "W03 · site:eur-lex.europa.eu Explain the obligations"
+      "display_name": "W08 · site:eur-lex.europa.eu Explain the obligations"
     },
     "reg-temporal-2": {
       "objective": "site:eur-lex.europa.eu EU AI Act article 51 55 111 GPAI obligations application dates transitional",
-      "display_name": "W04 · site:eur-lex.europa.eu EU AI Act"
-    },
-    "synthesize_2026_gpai_status_and_sources": {
-      "objective": "Synthesize findings into an authoritative 2026 compliance assessment for GPAI providers, distinguishing already-enforceable requirements from transitional allowances and later deadlines, supported by EU AI Office and European Commission official documentation.",
-      "display_name": "W05 · Synthesize findings into an"
+      "display_name": "W09 · site:eur-lex.europa.eu EU AI Act"
     }
   },
   "workers": {
-    "81489080-3242-4aaa-af3f-fbd4c2bb22bf": {
-      "display_name": "W01 · Query official EUR-Lex text",
-      "assigned_task": "Query official EUR-Lex text of Regulation (EU) 2024/1689 (Articles 111, 113, and Chapter V) to establish the precise entry into application dates and transitional provisions for GPAI models, identifying what applies prior to 2026, during 2026, and after 2026."
+    "9943a7ee-23be-4074-bb76-4ca29a84b56e": {
+      "display_name": "W01 · Identify official European Commission",
+      "assigned_task": "Identify official European Commission and EU AI Office publications, implementation roadmaps, and Code of Practice milestones governing GPAI compliance and systemic risk designation applicable throughout 2026."
     },
-    "e9f0a4bc-cfe3-4c05-9260-390025de01d4": {
-      "display_name": "W02 · Analyze the core substantive",
-      "assigned_task": "Analyze the core substantive obligations imposed on GPAI providers (Articles 51 to 56), differentiating between baseline GPAI obligations (technical documentation, copyright policy, training summary) and systemic-risk GPAI obligations (model evaluation, adversarial testing, systemic risk mitigation, cybersecurity, incident reporting)."
+    "95c5c386-d131-4d8e-a68a-12913c20ce9c": {
+      "display_name": "W02 · Retrieve the official provisions",
+      "assigned_task": "Retrieve the official provisions from Regulation (EU) 2024/1689 (EUR-Lex) regarding Chapter V (GPAI models, Articles 51-56) and Article 111/113 (entry into force, dates of application, and transitional periods for models placed on the market before/after August 2025)."
     },
-    "710cc91a-223a-4449-b8d9-7efc4a50f211": {
-      "display_name": "W03 · site:eur-lex.europa.eu Explain the obligations",
+    "1220f8b1-4939-406c-81c7-e63c08191af8": {
+      "display_name": "W03 · site:europa.eu Explain the obligations",
+      "assigned_task": "site:europa.eu Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI evidence types observations experiments models review"
+    },
+    "f538e5d0-30ee-4e90-9e45-3867c85fe39e": {
+      "display_name": "W04 · site:europa.eu Explain the obligations",
+      "assigned_task": "site:europa.eu Explain the obligations that the EU AI Act Distinguish obligations already applicable from future or transitional requirements evidence types observations experiments models review"
+    },
+    "6fba3ccc-3e72-45c5-a6d6-2934b70adfe7": {
+      "display_name": "W05 · site:europa.eu Explain the obligations",
+      "assigned_task": "site:europa.eu Explain the obligations that the EU AI Act Identify obligations later transitional or future application dates evidence types observations experiments models review"
+    },
+    "d215cbb7-67f2-40b7-8123-cc10821680d2": {
+      "display_name": "W06 · site:europa.eu Explain the obligations",
+      "assigned_task": "site:europa.eu Explain the obligations that the EU AI Act Identify obligations already applicable or in force before or during the requested period evidence types observations experiments models review"
+    },
+    "a850a7cc-bf0e-4621-ae35-4993b7e7e0e0": {
+      "display_name": "W07 · site:europa.eu Explain the obligations",
+      "assigned_task": "site:europa.eu Explain the obligations that the EU AI Act Provide a chronology of key dates and applicability longitudinal follow-up time series measured change"
+    },
+    "96221f77-f921-4319-b698-c97e6a0bbb48": {
+      "display_name": "W08 · site:eur-lex.europa.eu Explain the obligations",
       "assigned_task": "site:eur-lex.europa.eu Explain the obligations that the EU AI Act imposes in 2026 on providers of general-purpose AI models, distinguishing obligations already applicable from later obligations, and identify authoritative C application date entered into force article transitional"
     },
-    "6e61e54e-222f-4357-8b45-30b16873a95f": {
-      "display_name": "W04 · site:eur-lex.europa.eu EU AI Act",
+    "4e556a30-f83a-4d43-9e0c-10dc62486037": {
+      "display_name": "W09 · site:eur-lex.europa.eu EU AI Act",
       "assigned_task": "site:eur-lex.europa.eu EU AI Act article 51 55 111 GPAI obligations application dates transitional"
-    },
-    "d913a8d1-64aa-4dc3-b8be-80117d8937c9": {
-      "display_name": "W05 · Synthesize findings into an",
-      "assigned_task": "Synthesize findings into an authoritative 2026 compliance assessment for GPAI providers, distinguishing already-enforceable requirements from transitional allowances and later deadlines, supported by EU AI Office and European Commission official documentation."
     }
   },
   "report": {
-    "title": "EU AI Act and Product Regulatory Framework: 2026 Obligations and Timeline Analysis",
-    "body_markdown": "# Regulatory Analysis: Obligations and Timelines under EU AI and Digital Product Frameworks (2026 Focus)\n\n## Executive Summary\n\nUnder the European Union's digital regulatory architecture, implementation timelines across key legislative instruments—notably the EU Artificial Intelligence framework and complementary digital product cybersecurity rules—are structured in phases leading up to and through 2026 and beyond [1, 2]. According to official European Commission guidance regarding the AI Act implementation timeline, high-risk AI system rules originally scheduled for application on 2 August 2026 face adjustments under proposed standardisation timelines, shifting certain deadlines to 2 December 2027 and 2 August 2028 for embedded systems [1]. In parallel, EU digital product regulations establish harmonised due diligence, vulnerability coordination, and representative action frameworks taking effect across the 2026–2028 window [2].\n\n## Analysis\n\n### Application of Rules and Standardisation Adjustments\n\nOfficial European Commission documentation clarifies the evolving regulatory calendar for European AI rules [1]. The timely availability of harmonised standards is a central factor for full compliance verification:\n\n* **High-Risk AI Systems Application:** The baseline entry into application for high-risk rules was set for 2 August 2026 [1].\n* **Standardisation-Driven Extensions:** Due to delayed standard availability, timeline adjustments extend the application date to 2 December 2027 for standalone high-risk AI systems, and to 2 August 2028 for AI systems embedded in products [1].\n\n### Component Due Diligence and Cybersecurity Obligations\n\nFor digital products and related digital element components across EU frameworks, regulatory obligations establish explicit technical due diligence criteria [2]:\n\n* **Due Diligence and Verification:** Manufacturers and providers must verify conformity (including CE marking where applicable), verify regular security updates history, and ensure components are free from registered vulnerabilities in the European vulnerability database under Directive (EU) 2022/2555 or public databases [2].\n* **Vulnerability Handling:** Coordinated vulnerability disclosure mechanisms govern the handling and disclosure delays of actively exploited vulnerabilities [2].\n* **Conformity Assessments:** Providers and manufacturers must align with applicable conformity procedures pursuant to harmonised European standards (under Regulation (EU) No 1025/2012) and relevant sector regulations [2].\n\n### Representative Actions and Enforcement\n\nEnforcement mechanisms involving collective consumer redress under Directive (EU) 2020/1828 are scheduled to take effect for digital product regulation infringements starting 11 December 2027 [2].\n\n## Timeline and Applicability\n\n* **2 August 2026:** Original entry into application baseline for high-risk AI rules [1].\n* **11 December 2027:** Application date for representative actions under Directive (EU) 2020/1828 for digital product infringements [2].\n* **2 December 2027:** Adjusted implementation timeline for high-risk AI systems under the AI Omnibus proposal to accommodate standardisation [1].\n* **2 August 2028:** Adjusted timeline for AI embedded in products under the AI Omnibus proposal [1].\n\n## Limitations and Uncertainty\n\nThe evidentiary record provides verified primary European Commission and EUR-Lex sources on high-risk AI standardisation timelines, product conformity, vulnerability databases, and representative actions [1, 2]. However, specific text-level provisions specifically codifying general-purpose AI (GPAI) model provider obligations (such as systemic risk thresholds and copyright policy compliance) were not fully present in the verified dataset snapshot and require consulting the consolidated text of Regulation (EU) 2024/1689.\n\n## Sources Cited\n\n[1] European Commission, \"Navigating the AI Act,\" Directorate-General for Communications Networks, Content and Technology, official institutional publication. URL: https://digital-strategy.ec.europa.eu/en/faqs/navigating-ai-act\n\n[2] Official Journal of the European Union, Regulation (EU) 2024/2847, EUR-Lex. URL: https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402847\n"
+    "title": "EU AI Act Obligations for General-Purpose AI (GPAI) Model Providers in 2026",
+    "body_markdown": "## Executive Summary\n\nUnder the European Union Artificial Intelligence Act framework, obligations for providers of General-Purpose AI (GPAI) models operate alongside transparency and risk-management requirements across phased milestones [1], [2]. Official European Commission institutional records establish that primary AI Act obligations specifically applicable to providers of GPAI models entered into application on 2 August 2025 [1]. Consequently, by 2026, baseline GPAI provider requirements are already active and enforceable [1], [3].\n\nIn 2026, additional transparency rules take effect, including obligations under Article 50 applicable from 2 August 2026 concerning the marking, labelling, and transparency of AI-generated and generative content [1], [4], [5]. These rules complement the existing GPAI model obligations [4]. Enforcement and compliance mechanisms in 2026 involve the European AI Office, national market surveillance authorities, the GPAI Code of Practice, and dedicated complaints and whistleblower tools [2], [3], [6].\n\n## Analysis\n\n### Status of GPAI Model Obligations in 2026\n\nAccording to official European Commission milestones, the core AI Act obligations directed at providers of GPAI models took effect on 2 August 2025 following the publication of Commission guidelines and the GPAI Code of Practice in July 2025 [1], [3]. Therefore, throughout 2026, GPAI model providers must maintain compliance with:\n\n- The applicable rules for general-purpose AI models, supported by the European Commission's Guidelines for providers of GPAI models and the GPAI Code of Practice [1], [3].\n- Operational compliance supervision administered under the European AI Office and Commission enforcement mechanisms, including whistleblower and downstream provider complaints channels [3].\n\n### Requirements Taking Effect or Expanding in 2026\n\nIn 2026, regulatory focus broadens to include general and generative AI transparency rules:\n\n- **Transparency Obligations (Article 50):** Applicable from 2 August 2026, transparency obligations for providers and deployers of generative AI systems address risks of deception and manipulation to protect the integrity of the information ecosystem [4], [5]. These requirements explicitly complement the GPAI model rules [4].\n- **Code of Practice and Guidelines:** Commission milestones record the publication of the Code of Practice on marking and labelling AI-generated content (June 2026) and guidelines on transparency obligations (July 2026) [1], [7].\n\n### Enforcement and Penalties\n\nEnforcement for non-compliance with applicable AI Act provisions is carried out by National Market Surveillance Authorities, the European AI Office (for systems under its direct supervision), and the European Data Protection Supervisor (for EU institutions) [6]. Fines for breaches can reach up to €15 million or 3% of global annual turnover for companies, with proportionality considerations applied to small and medium-sized enterprises (SMEs) and small mid-cap companies (SMCs) [6].\n\n## Timeline and Applicability\n\nOfficial EU institutional sources document the regulatory rollout timeline as follows:\n\n- **1 August 2024:** Entry into force of the EU AI Act [6].\n- **10–18 July 2025:** Commission receives the GPAI Code of Practice and publishes guidelines for GPAI providers [1].\n- **2 August 2025:** AI Act obligations for providers of GPAI models enter into application [1].\n- **June–July 2026:** Publication of the Code of Practice on marking and labelling AI-generated content and guidelines on transparency obligations [1], [7].\n- **2 August 2026:** Transparency obligations under Article 50 for providers and deployers of generative AI systems enter into full application [1], [4], [5].\n\n## Limitations and Uncertainty\n\nThis analysis relies exclusively on primary European Commission documentation and institutional portal publications. Detailed sub-article operational standards not quoted directly in the verified source snapshots are bounded by available official institutional guidance.\n\n## Sources Cited\n\n1. [European approach to artificial intelligence](https://digital-strategy.ec.europa.eu/en/policies/european-approach-artificial-intelligence)\n2. [AI Act complaints tool](https://digital-strategy.ec.europa.eu/en/policies/ai-act-complaints-tool)\n3. [Commission starts enforcing AI Act rules and new transparency ...](https://digital-strategy.ec.europa.eu/en/news/commission-starts-enforcing-ai-act-rules-and-new-transparency-requirements-2-august)\n4. [Code of Practice on Transparency of AI-generated Content](https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content)\n5. [Safer and more transparent AI - European Commission](https://commission.europa.eu/news-and-media/news/safer-and-more-transparent-ai-2026-08-02_en)\n6. [Guidelines on transparency obligations for providers and ...](https://digital-strategy.ec.europa.eu/en/policies/guidelines-ai-transparency-obligations)\n"
   },
   "claims": {
-    "0255ae76-964a-47a3-9135-65c053a57552": "es history; verifying that a component is free from vulnerabilities registered in the European vulnerability database established pursuant to Article 12(2) of Directive (EU) 2022/2555 or other publicly accessible vulnerability databases; or carrying out additional security tests.",
-    "f4152b49-026b-4815-b2d7-251a7b5c2923": "The delayed availability of the standards puts in jeopardy the successful entry into application of the high-risk rules on 2 August 2026.The AI Omnibus therefore extends the timeline to 2 December 2027 for high-risk AI systems and 2 August 2028 for AI embedded in products to allow more time for the effective implementation of the rules with clear standards (see Digital Omnibus proposal ).",
-    "8abe1b46-b895-4604-9402-6ccd3570191d": "general obligation: applies_from 2019",
-    "26d94e3b-5738-4f32-b33f-cae1e75f6fa3": "general obligation: transition_until 2022",
-    "27790d09-ea02-4382-b6ab-e1452e78eb32": "general obligation: applies_from 2022",
-    "c83f1388-4187-4ff5-bf0d-4ca61fc54802": "general obligation: applies_from 2023",
-    "bd9109cd-39e6-46d3-b77f-6eeb2ee2fcfd": "general obligation: applies_from 2016",
-    "40ada34d-2f31-46d9-ac10-40e614929735": "general obligation: applies_from 2012",
-    "93e7c2f4-1918-4902-a52f-0d1c80546efc": "general obligation: applies_from 2020",
-    "e87f329e-66ee-4ced-ad05-eae1255a6b8c": "general obligation: applies_from 11 December 2027",
-    "6441f2ac-1104-451a-8a33-8b67aa1ab6b0": "general obligation: enforceable_from 2018",
-    "07d2ae56-3e9d-44d8-8831-2fb7d08b751b": "general obligation: must_comply_by 11 December 2025",
-    "4420ccaf-b0ef-4603-9814-bef506bf2794": "high-risk AI obligation: applies_from 2 August 2026",
-    "7118f4c1-c1aa-40f2-b520-4678cb3cf7e8": "general obligation: applies_from 2 August 2026",
-    "90ab4c2c-9f16-44b3-a5f3-1d33b8ab1f0a": "GPAI provider obligation: applies_from 2 August 2025",
-    "cd1aba7a-a9be-492f-9660-4218d75f6ed9": "high-risk AI obligation: applies_from 19 November 2025",
-    "43af876c-60f6-401b-b8dc-f3f25f2f0386": "general obligation: entered_into_force 27 July 2026",
-    "b1cc99b0-21dd-4680-b325-8b2c31c2cbf4": "general obligation: applies_from 2023"
+    "4d81d78a-2741-4a6e-9189-8575f5737896": "Read more about the Enforcement of the AI Act and the: AI Act complaints tool AI Act Whistleblower Tool Complaints channel for downstream providers using general-purpose AI models Find more information about: Guidelines on Transparency of AI-generated Content General-Purpose AI (GPAI) Code of Practice Guidelines for providers of GPAI models Guidelines on prohibited AI practices Related topics Artificial intelligence Last update 31 July 2026 Print as PDF",
+    "34bc2db1-e9f3-4d64-996f-5f953545521d": "Download the Guidelines on transparency obligations for providers and deployers of AI systems Transparency obligations for AI providers and deployers The rapid development of generative and interactive AI systems is making it increasingly difficult to distinguish AI interactions and AI-generated content from human-created and authentic content.",
+    "a2a53526-33ea-4fca-be77-bcf49ee1351e": "The AI Act was developed to support the development of innovative, trustworthy AI across the EU by providing a common set of risk-based rules for providers and deployers of AI systems.",
+    "9f516dea-9fcf-4bd5-b21d-45f515eba634": "These transparency obligations, applicable from 2 August 2026, complement other rules like those for high-risk AI systems or general-purpose AI models .",
+    "e3aec341-73ec-44fb-86a8-e235ded65d56": "The obligations under Article 50 of the AI Act (transparency obligations for providers and deployers of generative AI systems) address risks of deception and manipulation, fostering the integrity of the information ecosystem.",
+    "8fc2400d-958f-434f-a3c2-324ee037f608": "General obligation entered into force on 2026",
+    "c1a61aa8-3401-4a63-b655-f04ea733733c": "GPAI provider obligation applies from 31 July 2026",
+    "9e490994-ebd8-4430-b5f7-0460a05ef66b": "Transparency obligation entered into force on 1 August 2024",
+    "72cea7c0-7833-4a58-a7b1-64522a82df59": "GPAI provider obligation is enforceable from 31 July 2026",
+    "cdaad18b-af78-4946-837a-7bcde747d827": "General obligation (Article 4) entered into force on 2 February 2025",
+    "966976da-20b8-47e7-a9a0-c2c805d61e5f": "General obligation applies from 3 August 2026",
+    "f7131425-4a7a-4882-a6de-e12fe5ca44b3": "Press release 20 July 2026 Commission publishes guidelines on transparency obligations for providers and deployers of certain AI systems The European Commission has published guidelines to assist providers and deployers of artificial intelligence (AI) systems in meeting the AI Act's transparency obligations, which start to apply on 2 August 2026.",
+    "a3804fc2-cbfa-4463-b383-0ebfead43ecb": "Enforcement of the rules and sanctions National market surveillance authorities , the European AI Office (for systems under its supervision), and the European Data Protection Supervisor (when EU institutions are providers or deployers) are responsible for enforcing the transparency rules and may issue fines up to €15 million, or 3% of global annual turnover, for companies up to €750k for EU institutions, bodies, and agencies with proportionality taken into account for small and medium-sized enterprises (SMEs) and small mid-cap companies (SMCs) The AI Act entered into force on 1 August 2024.",
+    "97997eca-7d45-4b75-b95b-b90338138c37": "General obligation (Article 4) entered into force on 2026",
+    "17e35fa0-8e1b-4c8d-ac9b-e5edb8665d84": "General obligation must be complied with by 2 August 2025",
+    "45e57c52-7b57-4a12-b729-d14b8494d2ec": "General obligation (Article 50) applies from 2 August 2026",
+    "05f6e48c-5e45-482a-a3e8-4d5c22809c4b": "GPAI provider obligation applies from 2 August 2026",
+    "bab00c27-e1be-4c88-923f-52e1ce484b10": "Transparency obligation must be complied with by 27 July 2026",
+    "4bdf9e88-2a12-4574-bc07-d6612cae3864": "General obligation must be complied with by 2 August 2026",
+    "2db33fb5-cda1-4c92-8e1d-e1dbe0b46602": "General obligation has a transition period until 27 July 2026",
+    "2a9d3ef9-c594-4d45-aab9-133cc95c7005": "General obligation (Article 50(2)) applies from 2 August 2026",
+    "1fae616b-c595-4064-80af-f0d4ce33e76f": "General obligation (Article 50) applies from 2 August 2026",
+    "6acb227b-0381-4829-aa36-01f146de5097": "General obligation must be complied with by 2 December 2026"
   }
 }

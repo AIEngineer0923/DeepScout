@@ -17,10 +17,7 @@ from deepscout_research.demo.presentation_validation import (
     validate_demo_presentation_locales,
 )
 
-_SECRET_PATTERNS = (
-    re.compile(r"sk-[a-zA-Z0-9]{10,}"),
-    re.compile(r"\[redacted\]", re.IGNORECASE),
-)
+_SECRET_PATTERNS = (re.compile(r"(?<![a-zA-Z0-9])sk-[a-zA-Z0-9_-]{20,}"),)
 
 
 def _contains_secret_material(text: str) -> bool:
@@ -85,8 +82,7 @@ def review_demo_candidate(
 
     contract = contract_from_snapshot(row.config_snapshot)
     has_only_constraint = contract is not None and any(
-        constraint.mode == SourceConstraintMode.ONLY
-        for constraint in contract.source_constraints
+        constraint.mode == SourceConstraintMode.ONLY for constraint in contract.source_constraints
     )
 
     if has_only_constraint or len(unique_domains) >= min(2, len(sources)):

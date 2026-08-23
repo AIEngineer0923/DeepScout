@@ -747,10 +747,23 @@ class ResearchOrchestrator:
 
         row = self._store.get_run_row(run_id)
         contract = contract_from_snapshot(row.config_snapshot if row else None)
+        from deepscout_research.contracts.evidence_relevance import (
+            is_search_result_relevant,
+        )
+
+        goal = row.goal if row is not None else ""
         prefs = self._store.list_source_preferences(run_id)
         for result in results:
             safe_url = public_http_url_or_none(result.url)
             if safe_url is None:
+                continue
+            if not is_search_result_relevant(
+                title=result.title,
+                snippet=result.snippet,
+                query=query,
+                goal=goal,
+                contract=contract,
+            ):
                 continue
             from deepscout_research.source_policy import is_excluded
 

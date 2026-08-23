@@ -1,46 +1,63 @@
 {
   "version": 1,
   "locale": "en",
-  "run_id": "e10f630c-f164-438f-801a-902cf9aa77d9",
+  "run_id": "f3f18d29-e7c8-43b4-8eac-f9bcf0043ad6",
   "goal": "Compare the current evidence on LFP and high-nickel NMC battery chemistries for passenger EVs, focusing on cycle life, energy density, thermal safety, cost drivers, and how pack-level engineering changes the practical trade-off. Prefer peer-reviewed work, DOE or national lab reports, and credible manufacturer engineering data.",
   "title": "LFP vs NMC evidence for passenger EVs",
   "summary": "Evidence-heavy comparison of battery chemistries.",
   "why_interesting": "Scientific sources with provenance and citations.",
   "tasks": {
-    "cell_electrochem_safety": {
-      "objective": "Gather peer-reviewed and national laboratory data benchmarking cell-level gravimetric/volumetric energy density, cycle and calendar aging mechanisms, and thermal stability/runaway profiles (onset temperature, venting behavior, self-heating rates) for LFP vs high-nickel NMC (NMC 622/811/9.5.5).",
+    "cell_chemistry_benchmarking": {
+      "objective": "Gather peer-reviewed and national lab benchmark data comparing cell-level energy density, cycle life, thermal runaway parameters, and cost fundamentals for LFP vs high-Ni NMC.",
       "display_name": "W01 · Gather peer-reviewed and national"
     },
-    "pack_engineering_cost": {
-      "objective": "Analyze cell-to-pack integration technologies (e.g., BYD Blade, CATL CTP 3.0, structural packs), pack volumetric efficiency ratios, and manufacturing/raw material cost breakdowns ($/kWh at cell and pack level) for LFP and high-nickel NMC systems.",
-      "display_name": "W02 · Analyze cell-to-pack integration technologies"
+    "pack_engineering_analysis": {
+      "objective": "Analyze modern pack-level structural innovations (Cell-to-Pack, Cell-to-Body, module-less blade architectures) and thermal propagation containment strategies across both chemistries.",
+      "display_name": "W02 · Analyze modern pack-level structural"
     },
-    "tradeoff_synthesis": {
-      "objective": "Synthesize cell-level findings and pack-level engineering data into a comprehensive trade-off matrix for EV market segments, detailing how pack engineering bridges the cell density gap and assessing fast-charging, cold-weather penalty, safety certification, and lifecycle economics.",
-      "display_name": "W03 · Synthesize cell-level findings and"
+    "req-r-compare": {
+      "objective": "the current evidence on LFP and high-nickel NMC battery chemistries for passenger EVs focusing on cycle quantitative measurements estimates range dataset methods peer reviewed study research institute report",
+      "display_name": "W03 · the current evidence on"
+    },
+    "req-r-tradeoff": {
+      "objective": "the current evidence on LFP and high-nickel NMC Explain practical trade-offs across the requested dimensions authoritative evidence study report peer reviewed study research institute report",
+      "display_name": "W04 · the current evidence on"
+    },
+    "req-r-method": {
+      "objective": "the current evidence on LFP and high-nickel NMC Explain methodological or structural reasons behind differences in findings study methodology sample design assumptions limitations peer reviewed study research institute report",
+      "display_name": "W05 · the current evidence on"
     }
   },
   "workers": {
-    "eb23f25a-21cd-4bb9-ac1c-f65391811065": {
+    "821c31cb-c26c-426d-8bb6-d356f0a96e97": {
       "display_name": "W01 · Gather peer-reviewed and national",
-      "assigned_task": "Gather peer-reviewed and national laboratory data benchmarking cell-level gravimetric/volumetric energy density, cycle and calendar aging mechanisms, and thermal stability/runaway profiles (onset temperature, venting behavior, self-heating rates) for LFP vs high-nickel NMC (NMC 622/811/9.5.5)."
+      "assigned_task": "Gather peer-reviewed and national lab benchmark data comparing cell-level energy density, cycle life, thermal runaway parameters, and cost fundamentals for LFP vs high-Ni NMC."
     },
-    "bf623bd9-78cb-4182-88dd-c5c310212f72": {
-      "display_name": "W02 · Analyze cell-to-pack integration technologies",
-      "assigned_task": "Analyze cell-to-pack integration technologies (e.g., BYD Blade, CATL CTP 3.0, structural packs), pack volumetric efficiency ratios, and manufacturing/raw material cost breakdowns ($/kWh at cell and pack level) for LFP and high-nickel NMC systems."
+    "ab0eeda8-01d3-484c-96f7-646bf6c9133d": {
+      "display_name": "W02 · Analyze modern pack-level structural",
+      "assigned_task": "Analyze modern pack-level structural innovations (Cell-to-Pack, Cell-to-Body, module-less blade architectures) and thermal propagation containment strategies across both chemistries."
     },
-    "fb1f0ea1-58ee-4738-93c3-38121473d72b": {
-      "display_name": "W03 · Synthesize cell-level findings and",
-      "assigned_task": "Synthesize cell-level findings and pack-level engineering data into a comprehensive trade-off matrix for EV market segments, detailing how pack engineering bridges the cell density gap and assessing fast-charging, cold-weather penalty, safety certification, and lifecycle economics."
+    "6e72d7cb-c68f-4105-856e-e6e19a79c972": {
+      "display_name": "W03 · the current evidence on",
+      "assigned_task": "the current evidence on LFP and high-nickel NMC battery chemistries for passenger EVs focusing on cycle quantitative measurements estimates range dataset methods peer reviewed study research institute report"
+    },
+    "3710dc23-f27e-48d7-96b4-73d33c286e7b": {
+      "display_name": "W04 · the current evidence on",
+      "assigned_task": "the current evidence on LFP and high-nickel NMC Explain practical trade-offs across the requested dimensions authoritative evidence study report peer reviewed study research institute report"
+    },
+    "6ca41949-9eb2-4f68-b9d2-8a219af2b8f9": {
+      "display_name": "W05 · the current evidence on",
+      "assigned_task": "the current evidence on LFP and high-nickel NMC Explain methodological or structural reasons behind differences in findings study methodology sample design assumptions limitations peer reviewed study research institute report"
     }
   },
   "report": {
-    "title": "Comparative Evaluation of LFP and High-Nickel NMC Chemistries for Electric Vehicles",
-    "body_markdown": "# Executive Summary\n\nLithium iron phosphate (LFP) and nickel manganese cobalt (NMC) chemistries represent the two predominant lithium-ion battery formulations evaluated for passenger electric vehicles (EVs) and fleet deployments [1, 2]. While technical evaluations examine key parameters including cycle life, operational safety, energy density, and cost structures [1], specific commercial trade-offs have shifted alongside raw material market dynamics [2]. Evidence indicates that LFP offered clear cost advantages for fleet operators prior to the critical metal price surges observed leading up to 2022 [2]. However, comprehensive quantitative benchmarking of cell-to-pack (CTP) integration, exact degradation kinetics, and specific high-nickel NMC thermal profiles remains constrained by limited granular dataset disclosures in the verified corpus.\n\n# Analysis\n\n### Chemistry Comparison: Safety, Life Cycle, and Energy Metrics\nTechnical evaluations between LFP and NMC batteries center on three core performance domains: cycle life, operational safety, and energy metrics [1]. Operational testing conducted in laboratory settings (such as studies performed by research partners including CEA-Liten) tracks comparative volumetric and specific energy across multiple cell references [2]. LFP chemistries are generally evaluated for robust cycle stability and thermal behavior, whereas NMC variants focus on volumetric and specific energy density optimization [1, 2].\n\n### Economic Drivers and Material Cost Pressures\nEconomic viability has served as a primary driver for chemistry selection. Historical adoption was heavily driven by cost differentials, where LFP presented an affordable alternative for large battery fleet operators [2]. However, the economic balance was notably affected by the surge in critical metal prices observed through 2022, altering the relative total-cost equations between cobalt/nickel-dependent formulations and iron-phosphate chemistries [2].\n\n# Timeline and Applicability\n\n- **Pre-2022 Market Dynamics**: LFP maintained a distinct affordability advantage for fleet battery deployments [2].\n- **2022 Critical Metal Inflation**: The sharp rise in raw and critical battery metal prices in 2022 shifted cost dynamics across both LFP and NMC supply chains [2].\n- **Applicability**: Findings apply directly to commercial passenger EV platforms and fleet battery management strategies balancing cost against specific volumetric energy demands [1, 2].\n\n# Limitations and Uncertainty\n\n- **Granular Laboratory Metrics**: Specific numerical values for volumetric energy density (Wh/L), specific energy (Wh/kg), and exact thermal runaway onset temperatures are not fully itemized in the available evidence quotes.\n- **Pack-Level Integration Data**: Quantitative data regarding cell-to-pack (CTP) structural efficiencies and thermal barrier trade-offs are limited in the verified source corpus.\n- **Long-Term Cycling Models**: Detailed degradation curves across ambient versus extreme operational temperatures require further peer-reviewed empirical evidence.\n\n# Sources Cited\n\n[1] BSLBATT. *LFP Vs NMC Battery: A Technical Comparison Of Cycle Life, Safety, And Cost*. https://bslbatt.com/blogs/lfp-vs-nmc-lithium-battery-comparison\n\n[2] PowerUp Technology. *NMC vs LFP: safety and performance in operation*. https://powerup-technology.com/nmc-vs-lfp-safety-and-performance-in-operation\n\n## Sources Cited\n\n1. [LFP Vs NMC Battery: A Technical Comparison Of Cycle Life ...](https://bslbatt.com/blogs/lfp-vs-nmc-lithium-battery-comparison)\n2. [NMC vs LFP: safety and performance in operation - PowerUp Technology](https://powerup-technology.com/nmc-vs-lfp-safety-and-performance-in-operation)\n"
+    "title": "Comparative Scientific Review of LFP and High-Nickel NMC Battery Chemistries for Electric Vehicles",
+    "body_markdown": "## Executive Summary\n\nLithium-ion battery chemistries for passenger electric vehicles (EVs) predominantly rely on layered transition metal oxides (such as high-nickel NMC/NCM) and olivine-structured lithium iron phosphate (LFP) [2, 3]. Empirical and peer-reviewed literature indicates distinct physical, chemical, and operational trade-offs between these cathode paradigms. LFP exhibits superior thermal runaway resistance, categorized as significantly less hazardous than high-nickel formulations such as NCM811 under peak temperature and maximum heat release rate metrics [1]. Furthermore, LFP demonstrates high cycle life and a stable operating voltage platform [2]. High-nickel layered oxides (e.g., NCM811) offer structural mechanisms tailored for high performance, though both chemistries require targeted mitigation—such as surface coating and elemental doping—to counteract cycle life degradation mechanisms including active lithium loss, gas generation, and structural transition damage [2]. Specific granular metrics (including nominal cell-level Wh/kg, pack-level volumetric energy density, exact runaway onset temperatures in degrees Celsius, and cost metrics in $/kWh) were not retrieved in the verified evidence corpus and represent unresolved research dimensions.\n\n## Analysis\n\nState-of-the-art cathode chemistry research centers on distinct crystalline families: olivine-type LFP and layered transition metal oxides (including NMC/NCM, NCA, LCO, and LNO), paired with carbonaceous (graphite, graphene), silicon-based, or composite anodes [3].\n\n### Degradation and Cycle Life\nCathode degradation across both LFP and NCM involves active lithium loss, internal gas generation, and mechanical/structural damage during extended cycling [2]. LFP is documented to exhibit extremely high cycle life characteristics supported by a stable voltage platform [2]. To stabilize high-nickel NCM and LFP cathode systems against structural degradation and capacity fade, current engineering practices rely heavily on surface coatings and element-doping modifications [2].\n\n### Thermal Safety\nThermal behavior during abusive or failure conditions differs substantially across cathode structures. Empirical evaluations of maximum temperature ($T_{\\text{max}}$) and normalized maximum heat release rate ($HR_{\\text{max, nominal}}$) demonstrate a clear hierarchy of thermal runaway hazard: $\\text{LCO} > \\text{NCA} > \\text{NCM811} \\gg \\text{LFP}$ [1]. The olivine framework of LFP exhibits inherently lower thermal runaway severity compared to high-nickel layered NCM811 cathodes [1].\n\n## Comparison\n\n| Dimension | Olivine LFP | High-Nickel Layered NMC (NCM811) |\n| :--- | :--- | :--- |\n| **Crystal Structure Family** | Olivine framework [3] | Layered transition metal oxide [3] |\n| **Relative Thermal Runaway Hazard** | Lowest among major commercial cathodes ($\\text{NCM811} \\gg \\text{LFP}$) [1] | Higher thermal hazard based on $T_{\\text{max}}$ and $HR_{\\text{max, nominal}}$ [1] |\n| **Cycle Life & Voltage Stability** | Extremely high cycle life with a stable voltage platform [2] | Subject to cycle life attenuation requiring surface coating and elemental doping [2] |\n| **Primary Degradation Modes** | Active lithium loss, gas generation, structural damage [2] | Active lithium loss, gas generation, structural damage [2] |\n\n## Quantitative Results\n\n- **Thermal Runaway Hierarchy**: Comparative safety evaluations rank thermal runaway danger by peak thermal parameters as $\\text{LCO} > \\text{NCA} > \\text{NCM811} \\gg \\text{LFP}$ based on relative $T_{\\text{max}}$ and $HR_{\\text{max, nominal}}$ measurements [1].\n- *Unresolved Quantitative Values*: Specific numerical values for gravimetric energy density (Wh/kg), volumetric energy density (Wh/L), exact cycle counts to 80% state-of-health (SOH), numerical thermal onset thresholds in °C, and dollar-per-kilowatt-hour ($/kWh) pack costs were not present in the retrieved verified dataset.\n\n## Limitations and Uncertainty\n\n- **Missing Data Requirements**: The available verified dataset does not include direct numerical comparisons for gravimetric/volumetric energy densities, exact runaway onset temperatures, cell-to-pack (CTP) structural architectural efficiency metrics, or specific raw material cost drivers.\n- **Methodological Scope**: Methodological differences across testing standards (e.g., accelerating rate calorimetry vs. standard differential scanning calorimetry) were not detailed in the retrieved evidence.\n\n## Sources Cited\n\n1. [Influence of cathode materials on thermal characteristics ...](https://www.frontiersin.org/journals/chemistry/articles/10.3389/fchem.2024.1324840/full)\n2. [Lithium Iron Phosphate and Layered Transition Metal Oxide ...](https://pmc.ncbi.nlm.nih.gov/articles/PMC10488970)\n3. [A review of construction and sustainable recycling strategies ...](https://pmc.ncbi.nlm.nih.gov/articles/PMC12466332)\n"
   },
   "claims": {
-    "86e0af02-c92a-4dc2-9bac-3dc9b4bfafaa": "LFP Vs NMC Battery: A Technical Comparison Of Cycle Life, Safety, And Cost - BSLBATT",
-    "19dfa832-f7fe-401d-a67a-9e44dd6f78bd": "The figure below presents the measurements of volumetric and specific energy measured on a large number of cell references tested in laboratories by our long-standing technical partner CEA-Liten 1 .",
-    "33157387-7ee4-42fe-a719-555f54a3e09b": "general obligation: transition_until 2022"
+    "5df4ae49-303f-45f5-a1d9-5c20256ccf07": "The thermal runaway danger level of these batteries can be ranked as LCO > NCA > NCM811 >> LFP by judging from the values of T max and HR max, nominal .",
+    "8042b572-5846-4071-aabf-78f8f8fda710": "As shown in Table 1 , LFP shows extremely high cycle life and a stable voltage platform, which can effectively reduce battery weight and ensure the acceleration ability of electric vehicles.",
+    "07451bcb-d082-4dfc-aa98-3ee1a410e501": "In this review, the performance characteristics, cycle life attenuation mechanism (including structural damage, gas generation, and active lithium loss, etc.), and improvement methods (including surface coating and element-doping modification) of LFP and NCM batteries are reviewed.",
+    "9e6e4f56-fbec-44ff-87cd-b757d53994a9": "The current state-of-the-art extensively focuses on three major types of cathodes, including layered structure types (lithium nickel oxide-LNO, lithium cobalt oxide-LCO, lithium nickel manganese cobalt oxide-NMC, NCA), spinel (lithium manganese oxide-LMO), and olivine (lithium iron phosphate-LFP), combining with different forms of anodes such as carbon forms (graphite, graphene), Si-based, and other possible carbon composites."
   }
 }

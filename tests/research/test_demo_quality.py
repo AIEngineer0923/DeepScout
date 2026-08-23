@@ -7,10 +7,17 @@ from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
-from deepscout_research.demo.quality import review_demo_candidate
+from deepscout_research.demo.quality import _contains_secret_material, review_demo_candidate
 from tests.db_helpers import database_url
 
 pytestmark = pytest.mark.postgres
+
+
+def test_secret_gate_does_not_match_ordinary_hyphenated_words():
+    assert not _contains_secret_material("risk-management requirements")
+    assert not _contains_secret_material("The value was [redacted] before publication.")
+    fake_key = "credential " + "sk" + "-" + ("a" * 32)
+    assert _contains_secret_material(fake_key)
 
 
 def test_quality_fails_sparse_sources(postgres_ready):

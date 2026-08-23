@@ -18,18 +18,136 @@ _NOISE_HINTS = (
 )
 
 _SUBJECT_STOPWORDS = {
+    "analysis",
+    "analizza",
+    "and",
     "assess",
+    "authoritative",
+    "available",
+    "comparison",
+    "compare",
+    "con",
+    "confronta",
+    "credible",
+    "current",
+    "data",
     "determine",
+    "documentation",
+    "evidence",
     "evaluate",
+    "evaluation",
     "explain",
     "find",
+    "for",
+    "framework",
+    "from",
     "how",
+    "identify",
+    "including",
+    "information",
+    "into",
+    "method",
+    "methods",
+    "model",
+    "models",
+    "new",
+    "official",
+    "or",
+    "original",
+    "paper",
+    "papers",
+    "prefer",
+    "production",
     "research",
+    "result",
+    "results",
+    "source",
+    "sources",
+    "strategy",
+    "study",
+    "system",
+    "systems",
+    "that",
+    "their",
     "the",
+    "this",
+    "trade",
     "valuta",
+    "vendor",
+    "versus",
+    "while",
     "what",
     "whether",
+    "with",
 }
+
+
+def _topic_anchors(text: str) -> set[str]:
+    """Return subject-bearing tokens, excluding research-instruction vocabulary."""
+    return {
+        token
+        for token in _tokens(text) - _SUBJECT_STOPWORDS
+        if len(token) >= 3 and not token.isdigit()
+    }
+
+
+def _explicit_identifiers(text: str) -> set[str]:
+    identifiers = re.findall(
+        r"\b(?:[A-Z][A-Z0-9]{2,}|[A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]*)+)\b",
+        text,
+    )
+    return set().union(*(_tokens(item) for item in identifiers)) if identifiers else set()
+
+
+def _has_subject_match(*, haystack: set[str], subject: str) -> bool:
+    anchors = _topic_anchors(subject)
+    overlap = haystack & anchors
+    if overlap & _explicit_identifiers(subject):
+        return True
+    return len(overlap) >= min(2, len(anchors))
+
+
+def _subject_text(contract: ResearchContract | None, goal: str) -> str:
+    primary = contract.primary_question if contract is not None else goal
+    subject = re.split(r"[.?!\n]", primary, maxsplit=1)[0]
+    subject = re.split(
+        r"\b(?:focusing on|evaluate|assess|distinguishing|including|and explain why)\b",
+        subject,
+        maxsplit=1,
+        flags=re.I,
+    )[0]
+    if re.match(r"^\s*(?:compare|confronta)\b", subject, re.I):
+        before_workload = re.split(r"\bfor (?:a|an|the)\b", subject, maxsplit=1, flags=re.I)[0]
+        if len(_topic_anchors(before_workload)) >= 3:
+            subject = before_workload
+    return subject.strip(" ,;:-")
+
+
+def is_search_result_relevant(
+    *,
+    title: str,
+    snippet: str,
+    query: str,
+    goal: str,
+    contract: ResearchContract | None = None,
+) -> bool:
+    """Reject search hits with no lexical connection to the assigned subject.
+
+    Search-provider ranking is useful but not an admission decision.  The title
+    and snippet must carry either a subject anchor from the user goal or two
+    scoped query anchors.  Requiring two query anchors prevents generic words
+    such as "evaluation" or "study" from admitting an unrelated paper, while
+    still allowing bilingual/reformulated worker queries to bridge languages.
+    """
+    haystack = _tokens(f"{title} {snippet}")
+    if not haystack:
+        return False
+    subject = _subject_text(contract, goal)
+    subject_anchors = _topic_anchors(subject)
+    if subject_anchors:
+        return _has_subject_match(haystack=haystack, subject=subject)
+    query_overlap = haystack & _topic_anchors(query)
+    return len(query_overlap) >= 2
 
 
 def _tokens(text: str) -> set[str]:
@@ -47,12 +165,14 @@ def relevance_score(
     for hint in _NOISE_HINTS:
         if hint in text and hint not in goal.casefold():
             return 0
-    target = _tokens(" ".join(filter(None, [goal, query, requirement.text if requirement else ""])))
+    target = _topic_anchors(
+        " ".join(filter(None, [goal, query, requirement.text if requirement else ""]))
+    )
     quote_tokens = _tokens(quote)
     if not target:
         return 0
     score = len(target & quote_tokens)
-    for token in _tokens(query):
+    for token in _topic_anchors(query):
         if len(token) >= 3 and token in text:
             score += 1
     return score
@@ -75,21 +195,9 @@ def is_evidence_relevant(
         quote_tokens = _tokens(quote)
         if goal_tokens and len(goal_tokens & quote_tokens) == 0 and score < 3:
             return False
-        subject = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0]
-        subject_tokens = {
-            token
-            for token in _tokens(subject) - _SUBJECT_STOPWORDS
-            if len(token) >= 5
-        }
-        required_overlap = min(1, len(subject_tokens))
-        # Cross-language research may not share literal primary-question
-        # tokens. A strong requirement/query-context match is an acceptable
-        # substitute; weak matches still need explicit subject overlap.
-        if (
-            required_overlap
-            and len(subject_tokens & quote_tokens) < required_overlap
-            and score < 4
-        ):
+        subject = _subject_text(contract, goal)
+        subject_tokens = _topic_anchors(subject)
+        if subject_tokens and not _has_subject_match(haystack=quote_tokens, subject=subject):
             return False
     return True
 

@@ -94,18 +94,20 @@ export function KnowledgeRunScreen() {
           ) : (
             <p className="empty">{t("knowledge.noGraph")}</p>
           )}
-          <table className="data">
-            <thead><tr><th>{t("knowledge.from")}</th><th>{t("knowledge.to")}</th><th>{t("table.method")}</th></tr></thead>
-            <tbody>
-              {(graph?.edges ?? []).slice(0, 20).map((edge, index) => (
-                <tr key={index}>
-                  <td className="wrap-text">{edge.from}</td>
-                  <td className="wrap-text">{edge.to}</td>
-                  <td>{presentKnowledgeRelation(edge.type, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data">
+              <thead><tr><th>{t("knowledge.from")}</th><th>{t("knowledge.to")}</th><th>{t("table.method")}</th></tr></thead>
+              <tbody>
+                {(graph?.edges ?? []).slice(0, 20).map((edge, index) => (
+                  <tr key={index}>
+                    <td className="wrap-text">{edge.from}</td>
+                    <td className="wrap-text">{edge.to}</td>
+                    <td>{presentKnowledgeRelation(edge.type, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </div>

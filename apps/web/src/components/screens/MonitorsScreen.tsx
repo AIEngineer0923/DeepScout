@@ -86,7 +86,7 @@ export function MonitorsScreen() {
             {rows.map((row) => (
               <tr key={row.id}>
                 <td>
-                  <Link href={`/monitors/${row.id}`}>{row.name}</Link>
+                  <Link href={`/monitors/${row.id}`}><ClampedText>{row.name}</ClampedText></Link>
                   <ClampedText className="muted">{row.goal}</ClampedText>
                 </td>
                 <td>
