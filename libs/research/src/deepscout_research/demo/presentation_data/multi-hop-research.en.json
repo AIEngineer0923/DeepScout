@@ -1,61 +1,120 @@
 {
   "version": 1,
   "locale": "en",
-  "run_id": "6d8abda3-3ca3-4ed3-b869-c54c4a1a4aad",
+  "run_id": "bc352037-d23c-4c7e-8cb4-c627a03535fe",
   "goal": "Identify who currently serves as President of the European Commission, then determine what concrete general-purpose AI model obligations the European Commission has published guidance on for providers in 2026. The second task must depend on correctly identifying the office holder in the first task. Use only official EU institutional sources.",
   "title": "True multi-hop EU institutional research",
   "summary": "Semantic dependency between identification and policy research tasks.",
   "why_interesting": "Demonstrates planner DAG with depends_on edges.",
   "tasks": {
+    "ec_president_identification": {
+      "objective": "Identify and verify the current President of the European Commission using official EU institutional sources.",
+      "display_name": "W01 · Identify and verify the"
+    },
     "entity-office-holder": {
       "objective": "site:europa.eu President of the European Commission official biography leadership",
-      "display_name": "W01 · site:europa.eu President of the"
+      "display_name": "W02 · site:europa.eu President of the"
     },
-    "identify_ec_president": {
-      "objective": "Identify the current President of the European Commission using official European Union institutional sources.",
-      "display_name": "W02 · Identify the current President"
+    "gap_r1_r-gpai-guidance-1": {
+      "objective": "site:europa.eu Document GPAI provider guidance published by the European Commission for 2026 official guidance obligations providers",
+      "display_name": "W03 · site:europa.eu Document GPAI provider"
     },
-    "determine_gpai_obligations_2026": {
-      "objective": "Determine what concrete general-purpose AI model obligations the European Commission has published guidance on for providers in 2026, building upon confirmed European Commission leadership context.",
-      "display_name": "W03 · Determine what concrete general-purpose"
+    "gap_r1_r-gpai-guidance-2": {
+      "objective": "site:eur-lex.europa.eu Document GPAI provider guidance published by the European Commission for 2026 official guidance obligations providers",
+      "display_name": "W04 · site:eur-lex.europa.eu Document GPAI provider"
+    },
+    "req-r1": {
+      "objective": "site:europa.eu Identify who currently serves as President of the European Commission then what concrete general-purpose AI model primary legislation full text",
+      "display_name": "W05 · site:europa.eu Identify who currently"
+    },
+    "req-r2": {
+      "objective": "site:europa.eu Identify who currently serves as President of the The second task must depend on correctly identifying the office holder in the first task authoritative evidence study report",
+      "display_name": "W06 · site:europa.eu Identify who currently"
+    },
+    "req-r-dep": {
+      "objective": "site:europa.eu Identify who currently serves as President of the Resolve dependent sub-questions in order before downstream conclusions authoritative evidence study report",
+      "display_name": "W07 · site:europa.eu Identify who currently"
+    },
+    "req-r-gpai-guidance": {
+      "objective": "site:europa.eu Identify who currently serves as President of the Document GPAI provider guidance published by the European Commission for 2026 authoritative evidence study report",
+      "display_name": "W08 · site:europa.eu Identify who currently"
+    },
+    "req-r-president": {
+      "objective": "site:europa.eu Identify who currently serves as President of the Identify the current office-holder from authoritative sources authoritative evidence study report",
+      "display_name": "W09 · site:europa.eu Identify who currently"
     },
     "entity-dependent-guidance": {
       "objective": "site:europa.eu GPAI provider guidance obligations 2026 official guidance obligations providers",
-      "display_name": "W04 · site:europa.eu GPAI provider guidance"
+      "display_name": "W10 · site:europa.eu GPAI provider guidance"
+    },
+    "gpai_obligations_2026_guidance": {
+      "objective": "Determine the concrete general-purpose AI (GPAI) model obligations and guidance published by the European Commission for AI model providers relevant to the 2026 timeline under the EU AI Act framework.",
+      "display_name": "W11 · Determine the concrete general-purpose"
     }
   },
   "workers": {
-    "f2311dba-1555-4d7d-8fbe-e82a79a83a26": {
-      "display_name": "W01 · site:europa.eu President of the",
+    "c1d15193-c497-4a69-9bee-64e616e039ed": {
+      "display_name": "W01 · Identify and verify the",
+      "assigned_task": "Identify and verify the current President of the European Commission using official EU institutional sources."
+    },
+    "471e427d-dc18-4d9e-84d2-9cd0d2ef301e": {
+      "display_name": "W02 · site:europa.eu President of the",
       "assigned_task": "site:europa.eu President of the European Commission official biography leadership"
     },
-    "2ea3c10f-4fc2-4daa-a36c-df4f06873a15": {
-      "display_name": "W02 · Identify the current President",
-      "assigned_task": "Identify the current President of the European Commission using official European Union institutional sources."
+    "1044cb27-310e-426e-a0ea-feee52206e95": {
+      "display_name": "W03 · site:europa.eu Document GPAI provider",
+      "assigned_task": "site:europa.eu Document GPAI provider guidance published by the European Commission for 2026 official guidance obligations providers"
     },
-    "ddac9c45-4f67-4ac9-97a6-ece633b39830": {
-      "display_name": "W03 · Determine what concrete general-purpose",
-      "assigned_task": "Determine what concrete general-purpose AI model obligations the European Commission has published guidance on for providers in 2026, building upon confirmed European Commission leadership context."
+    "d97628b5-6ffd-4c9e-b7c8-aaa3fbee132b": {
+      "display_name": "W04 · site:eur-lex.europa.eu Document GPAI provider",
+      "assigned_task": "site:eur-lex.europa.eu Document GPAI provider guidance published by the European Commission for 2026 official guidance obligations providers"
+    },
+    "d569448b-ff63-4fec-baf5-604a0760ef87": {
+      "display_name": "W05 · site:europa.eu Identify who currently",
+      "assigned_task": "site:europa.eu Identify who currently serves as President of the European Commission then what concrete general-purpose AI model primary legislation full text"
+    },
+    "f55c7283-cbe1-4613-a92f-7ab2ba9c34a3": {
+      "display_name": "W06 · site:europa.eu Identify who currently",
+      "assigned_task": "site:europa.eu Identify who currently serves as President of the The second task must depend on correctly identifying the office holder in the first task authoritative evidence study report"
+    },
+    "3dd566a1-b3d4-4eff-9e98-e6b7fec61370": {
+      "display_name": "W07 · site:europa.eu Identify who currently",
+      "assigned_task": "site:europa.eu Identify who currently serves as President of the Resolve dependent sub-questions in order before downstream conclusions authoritative evidence study report"
+    },
+    "a4aa949d-f716-41ec-a8eb-87a42a71c3bc": {
+      "display_name": "W08 · site:europa.eu Identify who currently",
+      "assigned_task": "site:europa.eu Identify who currently serves as President of the Document GPAI provider guidance published by the European Commission for 2026 authoritative evidence study report"
+    },
+    "f8ef7cdb-98a4-4bb4-abca-c4ae1230cd8d": {
+      "display_name": "W09 · site:europa.eu Identify who currently",
+      "assigned_task": "site:europa.eu Identify who currently serves as President of the Identify the current office-holder from authoritative sources authoritative evidence study report"
+    },
+    "93a409b4-c787-4738-b870-da48e3740eb1": {
+      "display_name": "W10 · site:europa.eu GPAI provider guidance",
+      "assigned_task": "site:europa.eu GPAI provider guidance obligations 2026 official guidance obligations providers"
+    },
+    "ab6313ca-e65a-42e8-9ded-d6a68669cf84": {
+      "display_name": "W11 · Determine the concrete general-purpose",
+      "assigned_task": "Determine the concrete general-purpose AI (GPAI) model obligations and guidance published by the European Commission for AI model providers relevant to the 2026 timeline under the EU AI Act framework."
     }
   },
   "report": {
-    "title": "Regulatory Analysis: Leadership of the European Commission and Published 2026 Guidance on AI Model Obligations",
-    "body_markdown": "# Regulatory Analysis: Leadership of the European Commission and Published 2026 Guidance on AI Model Obligations\n\n## Executive Summary\n\nThis regulatory analysis addresses the leadership of the European Commission and evaluates the official guidance and regulatory developments published in 2026 concerning obligations for artificial intelligence (AI) providers, specifically relating to general-purpose AI (GPAI) and broader AI Act compliance [1][3].\n\nFirst, authoritative institutional records confirm that **Ursula von der Leyen** serves as the President of the European Commission, having been elected to a second mandate running through 2029 [1]. \n\nSecond, following the initial application of GPAI model provider obligations on 2 August 2025 and earlier GPAI guidelines published on 18 July 2025, the Commission and the AI Office rolled out concrete implementing guidance and regulatory instruments in 2026 [3]. Key 2026 guidance and regulatory milestones include the publication of the **Code of Practice on marking and labelling AI-generated content** (10 June 2026), official **guidelines on transparency obligations for providers and deployers of certain AI systems** (20 July 2026), and Digital Omnibus amendments adjusting AI literacy obligations under Article 4 [2][3][4]. Full enforcement of these transparency and AI Act provisions took effect from 2 August 2026 [2][3].\n\n---\n\n## Analysis\n\n### 1. European Commission Leadership\nOfficial European Commission institutional documentation confirms that **President Ursula von der Leyen** currently leads the European Commission [1]. Following her election to a second mandate by the European Parliament in July 2024, she serves as President through the European elections in 2029 [1].\n\n### 2. General-Purpose AI and AI Act Provider Obligations & 2026 Published Guidance\nUnder the European Union regulatory framework established by the AI Act and administered by the European Commission and the European AI Office, provider obligations have evolved through a structured timeline:\n\n- **GPAI Foundation Baseline (2025):** The Commission received the General-Purpose AI Code of Practice on 10 July 2025, published dedicated guidelines for providers of General-Purpose AI on 18 July 2025, and GPAI model provider obligations formally entered into application on 2 August 2025 [3].\n- **Marking and Labelling Guidance (June 2026):** On 10 June 2026, the Commission published the *Code of Practice on marking and labelling AI-generated content*, establishing implementation guidance for identifying and labelling synthetic/AI-generated outputs [3].\n- **Transparency Obligations Guidance (July 2026):** On 20 July 2026, the Commission published comprehensive *guidelines on transparency obligations for providers and deployers of certain AI systems*, supported by quick facts and dedicated FAQ resources [2][3].\n- **AI Literacy Clarifications under Digital Omnibus (July 2026):** Amendments under the Digital Omnibus entered into force on 27 July 2026. Under revised Article 4(1), ensuring AI literacy remains a statutory obligation for providers and deployers of AI systems, though no specific or 'sufficient' mandatory threshold is prescribed [3][4]. Compliance is supported via examples published on the Single Information Platform and recommendations from the AI Board [4].\n- **Enforcement Framework:** From 2 August 2026, the European AI Office and national market surveillance authorities commenced active enforcement [2][3]. Penalties for non-compliance with transparency requirements include administrative fines of up to €15 million or 3% of global annual turnover for enterprises (up to €750,000 for EU institutions), with proportionality adjustments applied for SMEs and small mid-caps [2].\n\n---\n\n## Timeline and Applicability\n\n| Date | Milestone / Regulatory Guidance | Applicability & Scope |\n| :--- | :--- | :--- |\n| **1 August 2024** | Entry into force of the AI Act | Foundational legal framework across the EU [2]. |\n| **2 February 2025** | Application of Article 4 | Initial requirement for providers and deployers to support staff AI literacy [4]. |\n| **10 July 2025** | Commission receives GPAI Code of Practice | GPAI compliance benchmark delivered to Commission [3]. |\n| **18 July 2025** | Guidelines for GPAI Providers | Commission publishes GPAI provider guidance [3]. |\n| **2 August 2025** | Application of GPAI Obligations | AI Act obligations for GPAI model providers enter into full application [3]. |\n| **10 June 2026** | Publication of Code of Practice | Guidance on marking and labelling AI-generated content [3]. |\n| **20 July 2026** | Transparency Guidelines Published | Commission guidance on transparency rules for providers/deployers [2][3]. |\n| **27 July 2026** | Entry into Force of AI / Digital Omnibus | Revisions to Article 4 AI literacy framework take effect [3][4]. |\n| **2 August 2026** | Active AI Act Enforcement Commences | AI Office and national authorities enforce rules, including transparency sanctions [2][3]. |\n| **3 August 2026** | Supervision and Enforcement Rules Apply | Supervision and enforcement rules applicable onwards [4]. |\n\n---\n\n## Limitations and Uncertainty\n\n1. **GPAI Specific Guidance Distinction:** While substantive GPAI model provider obligations took effect on 2 August 2025 following the 18 July 2025 GPAI guidelines, 2026 guidance publications focused prominently on complementary cross-cutting requirements—specifically content marking/labelling, AI literacy obligations under the Digital Omnibus, and system transparency rules.\n2. **National Level Variations:** Certain operational requirements (e.g., specific national supervisory structures adopted by Member States) remain subject to national transpositions that were due by 2 August 2025 [4].\n\n---\n\n## Sources Cited\n\n1. **European Commission**, *Institutional Profile: President von der Leyen*, `https://commission.europa.eu/about/organisation/president_en`\n2. **European Commission (Directorate-General for Communication)**, *Safer and more transparent AI (2 August 2026)*, `https://commission.europa.eu/news-and-media/news/safer-and-more-transparent-ai-2026-08-02_en`\n3. **European Commission (Directorate-General for Communications Networks, Content and Technology)**, *European Approach to Artificial Intelligence*, `https://digital-strategy.ec.europa.eu/en/policies/european-approach-artificial-intelligence`\n4. **European Commission**, *AI Literacy - Questions & Answers*, `https://digital-strategy.ec.europa.eu/en/faqs/ai-literacy-questions-answers`\n"
+    "title": "Regulatory Analysis: European Commission Leadership and 2026 General-Purpose AI Model Obligations",
+    "body_markdown": "## Executive Summary\n\nThis regulatory analysis assesses the institutional leadership of the European Commission and the concrete guidance and obligations published for general-purpose AI (GPAI) model providers in 2026. Official institutional sources from the European Commission document the College of Commissioners' executive structure—including references to the President of the European Commission and high-level college members such as Executive Vice-President Virkkunen, High Representative/Vice-President Kallas, and Commissioner McGrath [1, 2]. Under this institutional framework, the European Commission has established a comprehensive AI governance architecture [3], issuing dedicated guidance instruments, compliance codes, and enforcement tools specifically addressing general-purpose AI models and transparency obligations [4, 5, 6, 7].\n\n## Analysis\n\n### Institutional Context and European Commission Leadership\nOfficial European Commission documentation establishes the institutional governance structure of the College of Commissioners under the President of the European Commission [1, 2]. Published official records detail the portfolio structure, including Executive Vice-President Virkkunen, Commissioner Michael McGrath (covering digital agenda developments), and High Representative/Vice-President Kallas [1, 2]. These institutional leadership offices steer the European approach to artificial intelligence, which has evolved into a comprehensive regulatory governance framework encompassing capability-building, adoption, and direct regulation [3].\n\n### Concrete General-Purpose AI (GPAI) Model Obligations and Guidance\nIn 2026, the European Commission and the European AI Office established specific guidance, codes, and enforcement mechanisms for AI providers, with particular focus on General-Purpose AI (GPAI) models and transparency requirements:\n\n1. **GPAI Code of Practice and Model Guidelines**: The Commission established the **General-Purpose AI (GPAI) Code of Practice** and specific **Guidelines for providers of GPAI models** to operationalize provider duties under the AI Act framework [7].\n2. **Transparency Obligations**: The Commission published formal **Guidelines on transparency obligations for providers and deployers of AI systems** to address challenges in distinguishing AI interactions and AI-generated content from human-created content [4]. Furthermore, a dedicated **Code of Practice on transparency of AI-generated content** was operationalized, with an initial list of more than 180 signatory organisations published by the Commission [5].\n3. **Dedicated Complaints and Whistleblower Channels**: To enforce compliance among upstream model providers, the Commission implemented specialized regulatory tools, including a dedicated **Complaints channel for downstream providers using general-purpose AI models**, an **AI Act complaints tool**, and an **AI Act Whistleblower Tool** [7].\n4. **Guidelines on Prohibited AI Practices**: Alongside GPAI guidance, institutional guidance was finalized regarding prohibited practices under the AI Act framework [7].\n\n## Timeline and Applicability\n\n- **Entry into Force**: The overarching AI Act entered into force on **1 August 2024** [6].\n- **Regulatory Guidance Updates (2026)**: As of **31 July 2026**, the European Commission published and updated its implementation package containing the GPAI Code of Practice, Guidelines for providers of GPAI models, Transparency Guidelines, and enforcement channels [7].\n- **Enforcement Authorities and Sanctions Framework**:\n  - **Supervisory Bodies**: Enforcement of rules and transparency obligations is shared among **national market surveillance authorities**, the **European AI Office** (for systems and GPAI models under its direct supervision), and the **European Data Protection Supervisor (EDPS)** for EU institutions [6].\n  - **Penalties**: Non-compliance may lead to administrative fines of up to **€15 million, or 3% of global annual turnover** for undertakings, and up to **€750,000 for EU institutions, bodies, and agencies**, with explicit proportionality considerations applied to small and medium-sized enterprises (SMEs) and small mid-cap companies (SMCs) [6].\n\n## Limitations and Uncertainty\n\n- **Presidential Identification**: While official Commission college directories confirm the administrative office and cabinet structure of the President of the European Commission alongside named college members (such as Executive Vice-President Virkkunen and Commissioner McGrath) [1, 2], full biographical profiling of the President within the specific dataset extracts is limited to college-level structural documentation.\n- **Downstream Technical Thresholds**: Detailed technical metric thresholds for systemic-risk classification of GPAI models are operationalized through the published GPAI Code of Practice and supervisory notices [7].\n\n## Sources Cited\n\n1. [Michael McGrath - European Commission](https://commission.europa.eu/about/organisation/college-commissioners/michael-mcgrath_en)\n2. [World Humanitarian Day: EU answering to growing global humanitarian needs](https://commission.europa.eu/news-and-media/news/world-humanitarian-day-eu-answering-growing-global-humanitarian-needs-2026-08-19_en)\n3. [European approach to artificial intelligence](https://digital-strategy.ec.europa.eu/en/policies/european-approach-artificial-intelligence)\n4. [Guidelines on transparency obligations for providers and ...](https://digital-strategy.ec.europa.eu/en/policies/guidelines-ai-transparency-obligations)\n5. [Commission starts enforcing AI Act rules and new transparency ...](https://digital-strategy.ec.europa.eu/en/news/commission-starts-enforcing-ai-act-rules-and-new-transparency-requirements-2-august)\n6. [Safer and more transparent AI - European Commission](https://commission.europa.eu/news-and-media/news/safer-and-more-transparent-ai-2026-08-02_en)\n"
   },
   "claims": {
-    "31a34878-0641-497b-a293-f8a7698248a2": "For more information Press release: Commission starts enforcing AI Act rules Press release: Guidelines on transparency obligations Frequently asked questions: Transparency obligations Quick facts: Transparency rules for AI systems Making artificial intelligence work for people Artificial intelligence Publication date 2 August 2026 Author Directorate-General for Communication",
-    "c64571b8-ad1a-42a9-a871-aa60e24fdbb5": "general obligation: transition_until 2024",
-    "98e42366-3d67-41e8-ba85-f074b1369470": "President von der Leyen — President of the European Commission",
-    "80be33eb-6d1b-4bb8-8174-94c86269f597": "For more information Joint statement — President of the European Commission",
-    "e54ad3c7-c8d1-46b7-a363-3a5e2b1407b4": "general obligation: applies_from 2 August 2026",
-    "b91b3c39-9705-45cb-8f79-c76e0c651546": "general obligation: entered_into_force 2026",
-    "c0cbab3b-6217-44dd-b378-76ac085dfc99": "GPAI provider obligation: applies_from 31 July 2026",
-    "0a89c228-778b-4586-9d71-7efbafacaa26": "general obligation: entered_into_force 2 February 2025",
-    "6e246032-3b20-4ad5-ba0e-9d47c367c9a3": "general obligation: applies_from 3 August 2026",
-    "cd2443b1-9c92-4939-879c-5168b8f647fc": "general obligation: entered_into_force 2026",
-    "acf55e1f-2e9a-413a-aa5a-6221bb15567e": "general obligation: must_comply_by 2 August 2025",
-    "5ffb97a8-3f0d-4d2d-8e9a-2575aa91001f": "transparency obligation: entered_into_force 1 August 2024",
-    "0f3b2654-b2d8-4cfb-a181-f4812856cfcb": "President von der Leyen | European Commission Play Pause My view is that our era’s greatest challenges – from security to climate change to competitiveness - can only be solved through joint action.",
-    "dde273d1-50fc-4624-bf42-2da3a1a3aebd": "The Commission will publish guidelines on the application of the requirements and obligations referred to in Articles 8 to 15 and in Article 25 AI Act, and these guidelines will also touch upon issues of literacy, when discussing for example human-oversight or ri[redacted]."
+    "39a4c3ce-05cc-40de-bd1b-ffdc78e655b0": "Contacts Team supporting him in — President of the European Commission",
+    "b30fbde8-6113-4dcf-9c2b-a6cbfcc549a8": "To achieve this, Europe’s AI policy approach has been evolving for nearly a decade, resulting in the development of a comprehensive governance framework for AI and a set of concrete instruments covering regulation, capability-building and adoption.",
+    "2f8ab49e-99a8-4be6-817c-759767664260": "We stress the urgent need to implement all obligations under the NPT, as well as commitments made during previous Review Conferences, including the need for concrete progress towards full implementation of Article VI, with the ultimate goal of total elimination of nuclear weapons.",
+    "db8b24de-aaaf-425f-a6e1-ddda6618ccd3": "For more information Joint statement — President of the European Commission",
+    "ab4987c8-4000-4735-bc4d-17bde70bb087": "Download the Guidelines on transparency obligations for providers and deployers of AI systems Transparency obligations for AI providers and deployers The rapid development of generative and interactive AI systems is making it increasingly difficult to distinguish AI interactions and AI-generated content from human-created and authentic content.",
+    "5e3e5458-85d2-470c-ad33-a7ee30aae649": "The Commission published a first list of more than 180 organisations that have signed the Code of Practice on transparency of AI-generated content that operationalises the rules on transparency of AI-generated content.",
+    "d1168b9e-30e9-46ca-9dca-5e4b4f102bfb": "Enforcement of the rules and sanctions National market surveillance authorities , the European AI Office (for systems under its supervision), and the European Data Protection Supervisor (when EU institutions are providers or deployers) are responsible for enforcing the transparency rules and may issue fines up to €15 million, or 3% of global annual turnover, for companies up to €750k for EU institutions, bodies, and agencies with proportionality taken into account for small and medium-sized enterprises (SMEs) and small mid-cap companies (SMCs) The AI Act entered into force on 1 August 2024.",
+    "b0312c3d-fd11-44a0-96b6-145e3887b877": "Read more about the Enforcement of the AI Act and the: AI Act complaints tool AI Act Whistleblower Tool Complaints channel for downstream providers using general-purpose AI models Find more information about: Guidelines on Transparency of AI-generated Content General-Purpose AI (GPAI) Code of Practice Guidelines for providers of GPAI models Guidelines on prohibited AI practices Related topics Artificial intelligence Last update 31 July 2026 Print as PDF",
+    "3d43d22f-62f4-4fb8-9963-e464d318edcb": "President von der Leyen — President of the European Commission",
+    "c67574f3-37ba-44ba-9e63-edd76dfca7c8": "These transparency obligations, applicable from 2 August 2026, complement other rules like those for high-risk AI systems or general-purpose AI models .",
+    "d5badbb8-c614-4dab-b84e-22d88de8d697": "President von der Leyen | European Commission Play Pause My view is that our era’s greatest challenges – from security to climate change to competitiveness - can only be solved through joint action.",
+    "cbdc7d67-127b-4720-8e8f-6979c6068d6c": "Weekly agenda 27 August 2026 Paris Speech at the annual conference La Rencontre des Entrepreneurs de France 2026 See the full agenda Follow us Transparency > News 17 July 2026 \"Ukraine has become a net security provider for Europe\": President von der Leyen unveils new defence partnership with Kyiv 3 min read 15 July 2026 “We in Europe believe that parents bring up our kids, and not predatory algorithms”, says President von der Leyen.",
+    "a36a5873-6c43-4376-866f-b5abc3eb99fe": "Press release 20 July 2026 Commission publishes guidelines on transparency obligations for providers and deployers of certain AI systems The European Commission has published guidelines to assist providers and deployers of artificial intelligence (AI) systems in meeting the AI Act's transparency obligations, which start to apply on 2 August 2026."
   }
 }

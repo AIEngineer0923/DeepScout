@@ -4,6 +4,7 @@ from deepscout_research.contracts.coverage import evaluate_coverage, gap_search_
 from deepscout_research.contracts.evidence_relevance import (
     claim_specificity_allowed,
     is_evidence_relevant,
+    is_search_result_relevant,
     relevance_score,
 )
 from deepscout_research.contracts.extract import (
@@ -31,6 +32,7 @@ __all__ = [
     "evaluate_coverage",
     "gap_search_queries",
     "is_evidence_relevant",
+    "is_search_result_relevant",
     "is_source_admissible",
     "report_contract_from_snapshot",
     "relevance_score",

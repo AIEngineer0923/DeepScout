@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { LayoutSelector } from "@/components/LayoutSelector";
@@ -12,6 +12,13 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 export const metadata: Metadata = {
   title: "Deep Scout",
   description: "Evidence-backed autonomous research with provenance you can inspect.",
+};
+
+// viewportFit: "cover" is what makes env(safe-area-inset-*) resolve to non-zero on iOS.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

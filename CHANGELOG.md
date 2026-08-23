@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Long research goals now use compact responsive titles, wrapping metadata/tables, and clamped card
+  copy consistently across authenticated and public-demo screens.
+- Research contracts use token-aware regulatory/evidence-type detection, validate requested task
+  ordering against the executed DAG, and route named RAG architectures to primary vendor docs.
+- Search and extraction reject off-topic results and page furniture unless the captured evidence
+  independently names the research subject.
 - New Research UX: functional geo/freshness/exclusions, separate template save dialog, provider readiness on hosted
 - Hosted `/settings` and `/overview` provider status reflects user BYOK vault when authenticated
 - Production CSP `connect-src` no longer includes localhost

@@ -137,6 +137,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
+      - name: Install uv for cross-runtime contract tests
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install core contract package
+        run: uv sync --package deepscout-core
+
       - name: Install, audit, test, and build
         working-directory: apps/web
         run: |

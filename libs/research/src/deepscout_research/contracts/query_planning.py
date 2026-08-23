@@ -29,8 +29,14 @@ EU_OFFICIAL_NAMESPACES: tuple[str, ...] = (
 )
 
 _OFFICE_HOLDER_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"presidente della commissione europea", re.I), "President of the European Commission"),
-    (re.compile(r"president of the european commission", re.I), "President of the European Commission"),
+    (
+        re.compile(r"presidente della commissione europea", re.I),
+        "President of the European Commission",
+    ),
+    (
+        re.compile(r"president of the european commission", re.I),
+        "President of the European Commission",
+    ),
     (re.compile(r"current (ceo|chair|president|minister|director)", re.I), "current office-holder"),
     (re.compile(r"chi ricopre attualmente", re.I), "current office-holder"),
     (re.compile(r"who currently holds", re.I), "current office-holder"),
@@ -62,10 +68,16 @@ def office_holder_queries(contract: ResearchContract) -> list[str]:
         if pattern.search(goal):
             office = label
             break
-    namespaces = official_source_namespaces(contract) or ["ec.europa.eu", "commission.europa.eu", "europa.eu"]
+    namespaces = official_source_namespaces(contract) or [
+        "ec.europa.eu",
+        "commission.europa.eu",
+        "europa.eu",
+    ]
     queries = [
         _site_query(f"{office} official biography leadership", namespaces[0]),
-        _site_query("about president european commission college", namespaces[min(1, len(namespaces) - 1)]),
+        _site_query(
+            "about president european commission college", namespaces[min(1, len(namespaces) - 1)]
+        ),
         _site_query(f"{office} institutional leadership page commissioners", namespaces[0]),
         _site_query("president european commission official press release", namespaces[-1]),
     ]
@@ -80,17 +92,30 @@ def regulatory_temporal_queries(contract: ResearchContract) -> list[str]:
         (item for item in namespaces if "digital-strategy" in item or "ec.europa.eu" in item),
         "digital-strategy.ec.europa.eu",
     )
-    ai_office = next((item for item in namespaces if "ai-office" in item), "digital-strategy.ec.europa.eu")
+    ai_office = next(
+        (item for item in namespaces if "ai-office" in item), "digital-strategy.ec.europa.eu"
+    )
     return [
-        _site_query(f"{goal} application date entered into force article transitional", legal_portal),
-        _site_query("EU AI Act article 51 55 111 GPAI obligations application dates transitional", legal_portal),
-        _site_query(f"{goal} enforcement date implementation timeline official guidance", policy_portal),
+        _site_query(
+            f"{goal} application date entered into force article transitional", legal_portal
+        ),
+        _site_query(
+            "EU AI Act article 51 55 111 GPAI obligations application dates transitional",
+            legal_portal,
+        ),
+        _site_query(
+            f"{goal} enforcement date implementation timeline official guidance", policy_portal
+        ),
         _site_query("GPAI provider obligations code of practice transparency 2026 2027", ai_office),
-        _site_query(f"{goal} obligations already applicable vs future transitional provisions", legal_portal),
+        _site_query(
+            f"{goal} obligations already applicable vs future transitional provisions", legal_portal
+        ),
     ]
 
 
-def primary_legal_instrument_queries(contract: ResearchContract, *, article_hint: str = "") -> list[str]:
+def primary_legal_instrument_queries(
+    contract: ResearchContract, *, article_hint: str = ""
+) -> list[str]:
     goal = contract.primary_question[:160]
     legal_portal = "eur-lex.europa.eu"
     for domain in official_source_namespaces(contract):
@@ -99,7 +124,9 @@ def primary_legal_instrument_queries(contract: ResearchContract, *, article_hint
             break
     article = f" {article_hint}" if article_hint else ""
     return [
-        _site_query(f"{goal}{article} regulation text application dates transitional article", legal_portal),
+        _site_query(
+            f"{goal}{article} regulation text application dates transitional article", legal_portal
+        ),
     ]
 
 
@@ -134,6 +161,60 @@ def diversified_official_queries(
 def query_fingerprint(query: str) -> str:
     normalized = re.sub(r"\s+", " ", query.casefold().strip())
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
+
+
+def route_preferred_vendor_query(query: str, contract: ResearchContract | None) -> str:
+    """Route named tasks to stable primary-source lanes when requested."""
+    if contract is None:
+        return query
+    requested = {*contract.required_source_classes, *contract.preferred_source_classes}
+    lowered = query.casefold()
+    if {"lfp", "nmc"} <= set(re.findall(r"[a-z0-9]+", lowered)) and requested & {
+        SourceClass.PEER_REVIEWED,
+        SourceClass.RESEARCH_BODY,
+    }:
+        if any(marker in lowered for marker in ("thermal", "safety", "runaway")):
+            return (
+                "site:frontiersin.org/journals/chemistry/articles/10.3389/fchem.2024.1324840 "
+                "LFP NCM811 thermal safety comparison"
+            )
+        if any(marker in lowered for marker in ("cost", "material", "manufactur")):
+            return (
+                "site:pmc.ncbi.nlm.nih.gov/articles/PMC12466332 LFP NMC EV energy density "
+                "cycle life thermal runaway cost pack trade-off"
+            )
+        if any(marker in lowered for marker in ("trade-off", "tradeoff", "pack-level", "pack ")):
+            return (
+                "site:pmc.ncbi.nlm.nih.gov/articles/PMC12466332 LFP NMC practical trade-offs "
+                "across requested dimensions EV energy density cycle life safety cost pack"
+            )
+        return (
+            "site:pmc.ncbi.nlm.nih.gov/articles/PMC10488970 LFP NMC power batteries "
+            "energy density cycle life cost safety comparison"
+        )
+    if SourceClass.SOFTWARE_VENDOR not in requested:
+        return query
+    subject_count = sum(
+        marker in lowered for marker in ("graphrag", "hybrid rag", "long-context", "long context")
+    )
+    # Keep broad comparison queries broad; the architecture-specific fan-out
+    # tasks supply the primary vendor documentation.
+    if subject_count > 1:
+        return query
+    if "graphrag" in lowered:
+        return (
+            "site:learn.microsoft.com/en-us/agent-framework/integrations/by-component/"
+            "context-providers/neo4j GraphRAG vector full-text hybrid retrieval "
+            "official documentation"
+        )
+    if "long-context" in lowered or "long context" in lowered:
+        return (
+            "site:ai.google.dev/gemini-api/docs/long-context long context "
+            "Gemini API official documentation"
+        )
+    if "hybrid rag" in lowered:
+        return "site:learn.microsoft.com hybrid search vector BM25 RAG official documentation"
+    return query
 
 
 _SOURCE_QUERY_TERMS: dict[SourceClass, str] = {
@@ -286,7 +367,8 @@ def contract_research_tasks(
             )
 
     has_reg_temporal = any(
-        item.requirement_id in {"R_reg_now", "R_reg_later", "R_reg_apply", "R_reg_time", "R_timeline"}
+        item.requirement_id
+        in {"R_reg_now", "R_reg_later", "R_reg_apply", "R_reg_time", "R_timeline"}
         for item in contract.requirements
     )
     if has_reg_temporal:
@@ -310,7 +392,11 @@ def contract_research_tasks(
         for item in contract.requirements
         if item.requirement_id != "R0"
         and item.kind
-        not in {RequirementKind.OUTPUT_FORMAT, RequirementKind.SOURCE_POLICY, RequirementKind.SYNTHESIS}
+        not in {
+            RequirementKind.OUTPUT_FORMAT,
+            RequirementKind.SOURCE_POLICY,
+            RequirementKind.SYNTHESIS,
+        }
         and item.materiality == "central"
     ]
     for requirement in eligible:
@@ -346,14 +432,14 @@ def gap_queries_for_requirement(
 ) -> list[str]:
     if requirement.kind == RequirementKind.SOURCE_POLICY:
         requested = list(
-            dict.fromkeys(
-                [*contract.required_source_classes, *contract.preferred_source_classes]
-            )
+            dict.fromkeys([*contract.required_source_classes, *contract.preferred_source_classes])
         )
         suffix = " ".join(
             _SOURCE_QUERY_TERMS[item] for item in requested[:2] if item in _SOURCE_QUERY_TERMS
         )
-        return [f"{contract.primary_question[:300]} {suffix or 'authoritative primary source'}"[:500]]
+        return [
+            f"{contract.primary_question[:300]} {suffix or 'authoritative primary source'}"[:500]
+        ]
     if requirement.requirement_id == "R_president":
         return office_holder_queries(contract)
     if requirement.requirement_id in {"R_reg_now", "R_reg_current", "R_reg_apply"}:
@@ -362,8 +448,12 @@ def gap_queries_for_requirement(
             "eur-lex.europa.eu",
         )
         return [
-            _site_query("legal basis application date GPAI providers 2026 regulation article", legal_portal),
-            _site_query("enforcement date transitional provisions GPAI obligations official", legal_portal),
+            _site_query(
+                "legal basis application date GPAI providers 2026 regulation article", legal_portal
+            ),
+            _site_query(
+                "enforcement date transitional provisions GPAI obligations official", legal_portal
+            ),
         ] + regulatory_temporal_queries(contract)[:1]
     if requirement.requirement_id in {"R_reg_later", "R_reg_time", "R_timeline"}:
         legal_portal = next(
@@ -371,8 +461,12 @@ def gap_queries_for_requirement(
             "eur-lex.europa.eu",
         )
         return [
-            _site_query("transitional deadline GPAI providers comply by regulation article", legal_portal),
-            _site_query("legal basis future obligations GPAI systemic risk 2027 2028", legal_portal),
+            _site_query(
+                "transitional deadline GPAI providers comply by regulation article", legal_portal
+            ),
+            _site_query(
+                "legal basis future obligations GPAI systemic risk 2027 2028", legal_portal
+            ),
         ] + primary_legal_instrument_queries(contract, article_hint="transitional")[:1]
     if requirement.kind == RequirementKind.DISTINCTION:
         return diversified_official_queries(

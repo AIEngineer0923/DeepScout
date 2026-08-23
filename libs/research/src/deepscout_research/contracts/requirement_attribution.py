@@ -27,7 +27,7 @@ def attribute_requirements(
         if req_id == "R0":
             continue
         if req_id == "R_compare":
-            if _comparison_requirement_satisfied(combined, requirement):
+            if _comparison_requirement_relevant(combined, requirement):
                 matched.append(req_id)
             continue
         if req_id in {"R_president"}:
@@ -37,8 +37,11 @@ def attribute_requirements(
                 matched.append(req_id)
             continue
         if req_id == "R_gpai_guidance":
-            if any(t in combined for t in ("gpai", "general purpose", "ai act", "modelli di ia")) and any(
-                t in combined for t in ("guideline", "linee guida", "obligation", "obbligh", "transparency")
+            if any(
+                t in combined for t in ("gpai", "general purpose", "ai act", "modelli di ia")
+            ) and any(
+                t in combined
+                for t in ("guideline", "linee guida", "obligation", "obbligh", "transparency")
             ):
                 matched.append(req_id)
             continue
@@ -58,8 +61,10 @@ def attribute_requirements(
             if evidence_supports_enforcement_timing(statement=statement, quote=quote):
                 matched.append(req_id)
             continue
-        if requirement.kind == RequirementKind.QUANTIFICATION and re.search(r"\d", quote) and _token_overlap(
-            statement, requirement.text
+        if (
+            requirement.kind == RequirementKind.QUANTIFICATION
+            and re.search(r"\d", quote)
+            and _token_overlap(statement, requirement.text)
         ):
             matched.append(req_id)
             continue
@@ -68,8 +73,10 @@ def attribute_requirements(
         ):
             matched.append(req_id)
             continue
-        if requirement.kind == RequirementKind.TRADEOFF and any(
-            token in combined for token in ("tradeoff", "trade-off", "vs", "compared", "confront")
+        if requirement.kind == RequirementKind.TRADEOFF and re.search(
+            r"\b(?:trade-?offs?|vs|versus|compared|comparison|confront\w*|whereas|higher|"
+            r"lower|advantages?|disadvantages?|benefits?|drawbacks?)\b",
+            combined,
         ):
             matched.append(req_id)
             continue
@@ -162,6 +169,9 @@ def _subject_present(
     if tokens & combined_tokens:
         return True
     compact = re.sub(r"[^A-Za-z0-9]", "", subject)
+    compact_combined = re.sub(r"[^A-Za-z0-9]", "", combined)
+    if len(compact) >= 4 and compact.casefold() in compact_combined.casefold():
+        return True
     if not (2 <= len(compact) <= 8 and compact.isupper()):
         return False
     words = re.findall(r"[a-z]+", combined.casefold())
@@ -174,14 +184,23 @@ def _subject_present(
     return False
 
 
+def _comparison_requirement_relevant(combined: str, requirement) -> bool:
+    """Attribute per-subject evidence; aggregate completeness is checked later."""
+    subjects = requirement.comparison_subjects
+    if len(subjects) < 2:
+        return _comparison_requirement_satisfied(combined, requirement)
+    token_sets = [_meaningful_tokens(subject) for subject in subjects]
+    common = set.intersection(*token_sets) if token_sets else set()
+    return any(_subject_present(combined, subject, excluded_tokens=common) for subject in subjects)
+
+
 def _comparison_requirement_satisfied(combined: str, requirement) -> bool:
     subjects = requirement.comparison_subjects
     if len(subjects) >= 2:
         token_sets = [_meaningful_tokens(subject) for subject in subjects[:2]]
         common = token_sets[0] & token_sets[1]
         return all(
-            _subject_present(combined, subject, excluded_tokens=common)
-            for subject in subjects[:2]
+            _subject_present(combined, subject, excluded_tokens=common) for subject in subjects[:2]
         ) and bool(
             re.search(
                 r"\bvs\b|\bversus\b|compared|comparison|confront|relative to|than\b|whereas|while",

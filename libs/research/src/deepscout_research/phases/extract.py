@@ -13,6 +13,7 @@ from langsmith import traceable
 from deepscout_research.contracts.text_normalize import normalized_research_tokens
 from deepscout_research.fetch.content_text import split_sentences
 from deepscout_research.fetch.url_normalize import normalize_source_url
+from deepscout_research.phases.claim_candidate import is_claim_candidate
 from deepscout_research.phases.text_utils import locate_quote_in_content
 from deepscout_research.retrieval.chunking import estimate_tokens
 from deepscout_research.retrieval.models import RetrievalQuery
@@ -47,6 +48,8 @@ def _select_snapshot_sentence(
         return specialized
     best: tuple[int, str] | None = None
     for sentence in split_sentences(snapshot_text):
+        if not is_claim_candidate(sentence):
+            continue
         score = _score_sentence(sentence, query=query, hint=hint)
         if score < min_score:
             continue
@@ -67,6 +70,10 @@ def _select_snapshot_sentences(
     ranked: list[tuple[int, int, str]] = []
     specialized = _select_specialized_sentence(snapshot_text, query=query)
     for index, sentence in enumerate(split_sentences(snapshot_text)):
+        # Navigation bars and headlines are dense in topical nouns, so keyword
+        # overlap alone ranks them highly. Shape has to be checked first.
+        if not is_claim_candidate(sentence):
+            continue
         score = _score_sentence(sentence, query=query, hint=hint)
         if score >= min_score:
             ranked.append((score, -index, sentence))
@@ -258,10 +265,10 @@ def extract_claims_for_run(
                 continue
             if not is_evidence_relevant(
                 quote=quote,
-                # Search snippets/titles provide a generic cross-language
-                # bridge when the user query and fetched source differ in
-                # language. The quote must still resolve to the snapshot.
-                query=f"{query} {hint}"[:4000],
+                # The assigned query may bridge languages; the provider snippet
+                # may not.  Feeding a snippet back into relevance lets an
+                # off-topic result validate its own page text.
+                query=query,
                 goal=goal,
                 contract=contract,
             ):

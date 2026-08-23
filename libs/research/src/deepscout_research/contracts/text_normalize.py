@@ -6,14 +6,19 @@ import re
 import unicodedata
 
 _PREFIX_ALIASES = {
+    "architect": "architecture",
+    "alluvion": "flood",
+    "arretrament": "retreat",
     "anni": "year",
     "biodivers": "biodiversity",
     "compar": "compare",
     "composiz": "composition",
     "contribut": "contribution",
+    "costier": "coastal",
     "densit": "density",
     "esperiment": "experiment",
     "global": "global",
+    "gestit": "managed",
     "incerte": "uncertainty",
     "limit": "limitation",
     "misur": "measurement",
@@ -22,6 +27,7 @@ _PREFIX_ALIASES = {
     "osserv": "observed",
     "recuper": "recovery",
     "recover": "recovery",
+    "retriev": "retrieval",
     "risultat": "result",
     "sedimentaz": "sedimentation",
     "stud": "study",

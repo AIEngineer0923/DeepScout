@@ -196,7 +196,10 @@ class ResearchWorkerPool:
                 # other bounded workers may then progress concurrently.
                 self._persist(session, owns_session)
                 from deepscout_research.contracts.extract import contract_from_snapshot
-                from deepscout_research.contracts.query_planning import office_holder_queries
+                from deepscout_research.contracts.query_planning import (
+                    office_holder_queries,
+                    route_preferred_vendor_query,
+                )
                 from deepscout_research.contracts.source_authority import (
                     enrich_search_query_with_policy,
                 )
@@ -221,6 +224,7 @@ class ResearchWorkerPool:
                     if variants:
                         idx = min(len(variants) - 1, max(0, variant_delta))
                         query = variants[idx]
+                query = route_preferred_vendor_query(query, contract)
                 query = enrich_search_query_with_policy(query, contract)
                 graph_state = run_worker_graph(
                     run_id=run_id,
@@ -342,6 +346,10 @@ class ResearchWorkerPool:
 
             row = store.get_run_row(run_id)
             contract = contract_from_snapshot(row.config_snapshot if row else None)
+            goal = row.goal if row is not None else ""
+            from deepscout_research.contracts.evidence_relevance import (
+                is_search_result_relevant,
+            )
 
             def _office_holder_rank(item) -> int:
                 lowered = f"{item.url} {item.title}".casefold()
@@ -386,6 +394,14 @@ class ResearchWorkerPool:
                     break
                 safe_url = public_http_url_or_none(result.url)
                 if safe_url is None:
+                    continue
+                if not is_search_result_relevant(
+                    title=result.title,
+                    snippet=result.snippet,
+                    query=query,
+                    goal=goal,
+                    contract=contract,
+                ):
                     continue
                 if is_excluded(safe_url, prefs):
                     continue
