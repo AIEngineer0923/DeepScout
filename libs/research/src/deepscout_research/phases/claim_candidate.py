@@ -35,6 +35,12 @@ _CHROME_MARKERS = (
     "cookie",
     "key takeaways",
     "tl;dr",
+    # Recommendation widgets read as prose, so no structural rule catches them.
+    "similar content being viewed by others",
+    "recommended for you",
+    "related articles",
+    "you might also like",
+    "most read",
 )
 
 _MIN_WORDS = 8

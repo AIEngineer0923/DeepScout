@@ -51,6 +51,11 @@ REJECTED: list[tuple[str, str]] = [
         "LFP Vs NMC Battery: A Technical Comparison Of Cycle Life, Safety, And Cost - BSLBATT",
     ),
     (
+        "page_chrome",
+        "Similar content being viewed by others Introducing untargeted data-independent "
+        "acquisition for metaproteomics of complex microbial samples",
+    ),
+    (
         "headline_case",
         "RAG AI Development for Enterprise Applications: 2026 Guide Decoding The Concept "
         "of Outsourcing Software Development: A Complete Guide The Complete Guide",
