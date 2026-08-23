@@ -285,7 +285,6 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
-      packages: write
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -294,18 +293,14 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - name: Make repository packages public
+      - name: Verify packages are publicly readable
         run: |
           set -euo pipefail
+          docker_config="$(mktemp -d)"
           for package in deepscout-api deepscout-web; do
-            gh api --method PATCH \
-              "users/$GITHUB_REPOSITORY_OWNER/packages/container/$package" \
-              -f visibility=public >/dev/null
-            visibility="$(gh api \
-              "users/$GITHUB_REPOSITORY_OWNER/packages/container/$package" \
-              --jq .visibility)"
-            echo "$package: $visibility"
-            test "$visibility" = "public"
+            image="$REGISTRY/$GITHUB_REPOSITORY_OWNER/$package:${{ needs.validate.outputs.version }}"
+            DOCKER_CONFIG="$docker_config" docker manifest inspect "$image" >/dev/null
+            echo "$package: public"
           done
 
       - name: Create or update release
