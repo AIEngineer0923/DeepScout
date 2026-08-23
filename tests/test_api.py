@@ -1,8 +1,14 @@
+from importlib.metadata import version
+
 from deepscout_core.settings import Settings, get_settings
 from deepscout_core.types import ProviderKind
 from fastapi.testclient import TestClient
 
 from deepscout_api.app import app
+
+
+def test_api_version_matches_package_version() -> None:
+    assert app.version == version("deepscout-api")
 
 
 def test_health_endpoint() -> None:

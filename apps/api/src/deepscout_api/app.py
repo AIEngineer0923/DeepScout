@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from deepscout_core.settings import Settings, get_settings
 from deepscout_persistence.session import dispose_all_engines
@@ -34,7 +35,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DeepScout API",
-    version="0.2.0",
+    version=version("deepscout-api"),
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,

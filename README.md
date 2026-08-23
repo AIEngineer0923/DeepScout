@@ -49,9 +49,31 @@ DeepScout is maintained as a personal open-source project. Planning, retrieval, 
 | [**Explore demo**](https://deep-scout-plum.vercel.app/demo) | Five completed research runs, read-only, no signup, no provider spend while browsing |
 | [**Sign in**](https://deep-scout-plum.vercel.app/login) | GitHub OAuth (Google when configured on the instance) |
 | **Clone & run locally** | MODE A: no login, keys in `.env` — see [Local development](docs/local-development.md) |
+| **Run released containers** | Public GHCR images with API, worker, web, Postgres, and migrations — see [Docker](docs/docker.md) |
 | **Deploy your own** | [Self-hosting guide](docs/DEPLOYMENT.md) |
 
 The public deployment splits **Vercel** (Next.js frontend) and a **persistent API + worker** (Railway in the reference setup) plus **PostgreSQL + pgvector**. One-click Vercel-only deploy is not supported — the worker and database are required.
+
+## Releases and containers
+
+- [Latest GitHub Release](https://github.com/francescoveryra-dot/deepscout/releases/latest)
+- [`deepscout-api` package](https://github.com/francescoveryra-dot/deepscout/pkgs/container/deepscout-api) — API, worker, and migration roles
+- [`deepscout-web` package](https://github.com/francescoveryra-dot/deepscout/pkgs/container/deepscout-web) — Next.js runtime for the release compose stack
+
+Tagged releases publish `linux/amd64` and `linux/arm64` images with exact version, minor,
+immutable SHA, and `latest` tags. Runtime credentials remain external.
+
+```bash
+git clone --branch v0.1.0 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+cd deepscout
+cp .env.example .env
+docker compose -f infra/docker/docker-compose.release.yml pull
+docker compose -f infra/docker/docker-compose.release.yml up -d
+```
+
+This starts a local MODE A stack and applies Alembic migrations once before the API and worker.
+Provider credentials are only required when executing research. See [Docker](docs/docker.md) for
+verification, shutdown, and source-build commands.
 
 ## Implemented workflow
 
@@ -148,6 +170,7 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | Document | Description |
 |----------|-------------|
 | [docs/local-development.md](docs/local-development.md) | Prerequisites, env, DB, migrations, run, test |
+| [docs/docker.md](docs/docker.md) | Source-built and released-container Compose paths |
 | [docs/configuration.md](docs/configuration.md) | Environment variables |
 | [docs/providers.md](docs/providers.md) | LLM/search keys, BYOK on hosted instances |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | MODE A/B, Vercel, Railway, migrations |

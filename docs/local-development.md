@@ -9,7 +9,7 @@ Get DeepScout running on your machine in MODE A (no login).
 | Git | any recent |
 | Docker | for Postgres + Redis |
 | Python | 3.12+ |
-| Node.js | 20 LTS |
+| Node.js | 22 LTS |
 | [uv](https://docs.astral.sh/uv/) | Python package manager |
 
 ## Clone and install
@@ -46,7 +46,7 @@ uv run alembic upgrade head
 cd ../..
 ```
 
-Confirm: `uv run alembic current` should show head (e.g. `012`).
+Confirm: `uv run alembic current` should show head (`016` for DeepScout v0.1.0).
 
 ## Run the stack
 

@@ -44,9 +44,17 @@ const securityHeaders = [
 
 const repoRoot = path.join(__dirname, "../..");
 const inMonorepo = fs.existsSync(path.join(repoRoot, "pyproject.toml"));
+const packageVersion = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "package.json"), "utf8"),
+) as { version: string };
+const projectVersion = process.env.DEEPSCOUT_VERSION || packageVersion.version;
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_DEEPSCOUT_VERSION:
+      process.env.NEXT_PUBLIC_DEEPSCOUT_VERSION || projectVersion,
+  },
   ...(inMonorepo ? { outputFileTracingRoot: repoRoot } : {}),
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

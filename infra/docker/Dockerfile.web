@@ -1,23 +1,45 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS builder
+
+ARG VERSION=development
+ARG REVISION=unknown
+ARG API_REWRITE_ORIGIN=http://api:8000
 
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_DEEPSCOUT_VERSION="$VERSION" \
+    GIT_SHA="$REVISION" \
+    API_REWRITE_ORIGIN="$API_REWRITE_ORIGIN"
 RUN apk upgrade --no-cache
 COPY apps/web/package.json apps/web/package-lock.json ./apps/web/
 RUN cd apps/web && npm ci
 COPY apps/web ./apps/web
 RUN mkdir -p /app/apps/web/public && cd apps/web && npm run build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runner
+ARG VERSION=development
+ARG REVISION=unknown
+ARG SOURCE=https://github.com/francescoveryra-dot/deepscout
+
+LABEL org.opencontainers.image.title="DeepScout Web" \
+    org.opencontainers.image.description="DeepScout Next.js web application for self-hosted deployments" \
+    org.opencontainers.image.source="$SOURCE" \
+    org.opencontainers.image.version="$VERSION" \
+    org.opencontainers.image.revision="$REVISION" \
+    org.opencontainers.image.licenses="Apache-2.0"
+
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_DEEPSCOUT_VERSION="$VERSION" \
+    GIT_SHA="$REVISION"
 RUN apk upgrade --no-cache \
     && addgroup -S deepscout && adduser -S deepscout -G deepscout \
     && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=builder --chown=deepscout:deepscout /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=deepscout:deepscout /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=deepscout:deepscout /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=deepscout:deepscout /app/apps/web/.next/static ./.next/static
+COPY --from=builder --chown=deepscout:deepscout /app/apps/web/public ./public
 USER deepscout
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "apps/web/server.js"]
+  CMD node -e "fetch('http://' + process.env.HOSTNAME + ':3000').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server.js"]
