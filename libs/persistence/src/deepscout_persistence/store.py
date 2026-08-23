@@ -115,6 +115,17 @@ class ResearchStore:
         self._session = session
         self._pending_notifies: set[uuid.UUID] = set()
 
+    def _lock_run_for_write(self, run_id: uuid.UUID) -> uuid.UUID:
+        """Serialize concurrent child writes before they acquire FK key locks."""
+        locked_run_id = self._session.scalar(
+            select(ResearchRunRow.id)
+            .where(ResearchRunRow.id == run_id)
+            .with_for_update()
+        )
+        if locked_run_id is None:
+            raise LookupError(f"ResearchRun {run_id} not found")
+        return locked_run_id
+
     def create_run(
         self,
         payload: ResearchRunCreate,
@@ -378,7 +389,7 @@ class ResearchStore:
         run_id: uuid.UUID,
         payload: SearchCandidateWrite,
     ) -> list[SearchCandidateRow]:
-        self._require_run(run_id)
+        self._lock_run_for_write(run_id)
         rows: list[SearchCandidateRow] = []
         for result in payload.results:
             existing = self._session.scalar(
@@ -407,7 +418,7 @@ class ResearchStore:
         return rows
 
     def add_source(self, run_id: uuid.UUID, source: SourceWrite) -> tuple[SourceRow, bool]:
-        self._require_run(run_id)
+        self._lock_run_for_write(run_id)
         existing = self._session.scalar(
             select(SourceRow).where(
                 SourceRow.research_run_id == run_id,
@@ -1929,7 +1940,7 @@ class ResearchStore:
     def save_tool_execution(
         self, run_id: uuid.UUID, payload: ToolExecutionWrite
     ) -> ToolExecutionRow:
-        self._require_run(run_id)
+        self._lock_run_for_write(run_id)
         row = ToolExecutionRow(
             research_run_id=run_id,
             tool_name=payload.tool_name,
@@ -2169,7 +2180,10 @@ class ResearchStore:
         event_type: str,
         payload: dict | None = None,
     ) -> RunEventRow:
-        self._require_run(run_id)
+        # Event sequence numbers are scoped to a run. Serialize allocation on
+        # the parent row so concurrent research workers cannot choose the same
+        # MAX(sequence) + 1 and deadlock on the unique index.
+        self._lock_run_for_write(run_id)
         next_sequence = self._session.scalar(
             select(func.coalesce(func.max(RunEventRow.sequence), 0)).where(
                 RunEventRow.research_run_id == run_id
@@ -2208,6 +2222,13 @@ class ResearchStore:
         cost_status: CostReportStatus | None = None,
     ) -> None:
         resolved_cost_status = cost_status or CostReportStatus.UNKNOWN
+        run = self._session.scalar(
+            select(ResearchRunRow)
+            .where(ResearchRunRow.id == usage.research_run_id)
+            .with_for_update()
+        )
+        if run is None:
+            raise LookupError(f"ResearchRun {usage.research_run_id} not found")
         row = TokenUsageRecordRow(
             research_run_id=usage.research_run_id,
             phase=usage.phase.value,
@@ -2229,7 +2250,6 @@ class ResearchStore:
             pricing_version=pricing_version,
         )
         self._session.add(row)
-        run = self._require_run(usage.research_run_id)
         if usage.total_tokens is not None and usage.agent_role.value != "evaluator":
             current = run.consumed_total_tokens or 0
             run.consumed_total_tokens = current + usage.total_tokens
