@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from deepscout_core.domain.schemas import SourcePreferenceRead
+from deepscout_research.preferences.search_context import RunScopedSearchProvider
+from deepscout_research.source_fabric.strategy import DiscoveryRequest
 from deepscout_research.source_policy import (
     effective_action,
     is_excluded,
@@ -50,3 +52,31 @@ def test_exclude_wins_over_pin_for_same_identity() -> None:
     assert effective_action("https://www.example.com/a", prefs) == "exclude"
     assert is_excluded("https://example.com/a", prefs)
     assert is_pinned("https://example.com/a", prefs)
+
+
+def test_run_scoped_discovery_preserves_planned_query_language() -> None:
+    class Row:
+        goal = "Verifica dati ufficiali italiani"
+        config_snapshot: dict = {}
+
+    class Store:
+        def get_run_row(self, _run_id):
+            return Row()
+
+    class Provider:
+        provider_name = "test"
+
+        def __init__(self) -> None:
+            self.request = None
+
+        def discover(self, request):
+            self.request = request
+            return []
+
+    inner = Provider()
+    scoped = RunScopedSearchProvider(inner, Store(), uuid4())
+
+    scoped.discover(DiscoveryRequest(query="popolazione residente", query_language="it"))
+
+    assert inner.request is not None
+    assert inner.request.query_language == "it"
