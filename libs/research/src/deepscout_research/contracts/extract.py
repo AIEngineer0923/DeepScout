@@ -191,8 +191,12 @@ _ONLY_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str], list[SourceClass]
 
 _PREFER_SOURCE_PATTERNS: tuple[tuple[re.Pattern[str], list[str]], ...] = (
     (re.compile(r"\bprefer\b[^.]{0,120}", re.I), []),
-    (re.compile(r"\bprioriti[sz]e\b[^.]{0,120}", re.I), []),
+    (re.compile(r"\bprioriti[sz](?:e|ing)\b[^.]{0,120}", re.I), []),
+    (re.compile(r"\bprioritariamente\b[^.]{0,120}", re.I), []),
+    (re.compile(r"\bdai\s+priorit[aà]\b[^.]{0,120}", re.I), []),
     (re.compile(r"\bpreferire\b[^.]{0,120}", re.I), []),
+    (re.compile(r"\bprivil[ée]gi\w*\b[^.]{0,120}", re.I), []),
+    (re.compile(r"\bbevorzug\w*\b[^.]{0,120}", re.I), []),
 )
 
 _CLASS_KEYWORDS: tuple[tuple[str, SourceClass], ...] = (
@@ -202,6 +206,14 @@ _CLASS_KEYWORDS: tuple[tuple[str, SourceClass], ...] = (
     ("framework documentation", SourceClass.SOFTWARE_VENDOR),
     ("vendor documentation", SourceClass.SOFTWARE_VENDOR),
     ("official documentation", SourceClass.SOFTWARE_VENDOR),
+    ("documentazione ufficiale", SourceClass.SOFTWARE_VENDOR),
+    ("documentation officielle", SourceClass.SOFTWARE_VENDOR),
+    ("offizielle dokumentation", SourceClass.SOFTWARE_VENDOR),
+    ("documentación oficial", SourceClass.SOFTWARE_VENDOR),
+    ("fonti ufficiali", SourceClass.OFFICIAL_INSTITUTIONAL),
+    ("sources officielles", SourceClass.OFFICIAL_INSTITUTIONAL),
+    ("offizielle quellen", SourceClass.OFFICIAL_INSTITUTIONAL),
+    ("fuentes oficiales", SourceClass.OFFICIAL_INSTITUTIONAL),
     ("national lab", SourceClass.RESEARCH_BODY),
     ("doe", SourceClass.RESEARCH_BODY),
     ("icct", SourceClass.RESEARCH_BODY),

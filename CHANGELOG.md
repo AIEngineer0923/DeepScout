@@ -15,6 +15,10 @@ No unreleased changes yet.
 - HTML acquisition now keeps the document body when a non-empty `<title>` precedes `<main>` or
   `<article>`. This restores evidence snapshots for Sphinx and other documentation sites while
   continuing to exclude scripts, navigation, and other non-content regions.
+- Technical uses of the word `build` no longer turn explanatory research into an entity-set
+  deliverable, while imperative portfolio construction remains structured and validated.
+- Native multilingual discovery queries now retain deterministic official/primary-source policy;
+  Italian, French, German, and Spanish official-documentation wording is recognized directly.
 
 ## [0.1.3] - 2026-08-24
 

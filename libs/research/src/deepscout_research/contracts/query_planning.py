@@ -435,7 +435,11 @@ def search_discovery_requests(
         )
         if native_variant is None:
             query = route_preferred_vendor_query(query, contract)
-        if contract is not None and native_variant is None:
+        # A model-proposed native-language variant still has to honor the
+        # deterministic user source policy. Previously this enrichment only
+        # applied to generated fallbacks, so multilingual variants could drop
+        # an explicit preference for official or peer-reviewed sources.
+        if contract is not None:
             from deepscout_research.contracts.source_authority import (
                 enrich_search_query_with_policy,
             )

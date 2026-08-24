@@ -10,6 +10,7 @@ from deepscout_core.domain.contracts import (
     ResearchLanguageStrategy,
 )
 from deepscout_research.contracts.evidence_relevance import is_search_result_relevant
+from deepscout_research.contracts.extract import _preferred_classes
 from deepscout_research.contracts.query_planning import search_discovery_requests
 from deepscout_research.fetch.secure import FetchResult
 from deepscout_research.language import detect_language, normalize_language_tag
@@ -85,6 +86,30 @@ def test_quick_multilingual_queries_are_native_bounded_and_goal_conditioned() ->
     assert [item.request.query_language for item in requests] == ["de", "en"]
     assert requests[0].request.query.startswith("Herstellergarantie")
     assert "authoritative primary source evidence" not in requests[0].request.query
+
+
+def test_native_multilingual_queries_keep_deterministic_source_policy() -> None:
+    contract = _contract().model_copy(
+        update={"preferred_source_classes": ["software_vendor"]}
+    )
+    requests = search_discovery_requests(
+        "Verifica la garanzia nella documentazione ufficiale",
+        contract,
+        research_mode="quick",
+        max_variants=7,
+    )
+
+    assert "official technical documentation" in requests[0].request.query
+    assert requests[0].request.query_language == "de"
+
+
+def test_multilingual_official_documentation_intent_maps_to_vendor_sources() -> None:
+    for goal in (
+        "Usa prioritariamente documentazione ufficiale.",
+        "Utilisez de préférence la documentation officielle.",
+        "Bevorzugen Sie die offizielle Dokumentation.",
+    ):
+        assert "software_vendor" in {item.value for item in _preferred_classes(goal)}
 
 
 def test_cross_language_admission_uses_native_query_without_goal_language_overlap() -> None:

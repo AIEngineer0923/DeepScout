@@ -22,8 +22,12 @@ from deepscout_core.domain.contracts import (
 )
 
 _SELECTION_HINTS = re.compile(
-    r"\b(?:build|choose|select|shortlist|rank|allocate|portfolio|basket|roster|list|"
+    r"\b(?:choose|select|shortlist|rank|allocate|portfolio|basket|roster|list|"
     r"costruisci|scegli|seleziona|proponi|classifica|alloca|rosa|elenco|lista|itinerar\w*)\b",
+    re.I,
+)
+_IMPERATIVE_BUILD_HINT = re.compile(
+    r"(?:^|[.!?]\s+)build\s+(?:a|an|the|me\s+an?)\b",
     re.I,
 )
 _ALLOCATION_HINTS = re.compile(
@@ -175,16 +179,19 @@ def infer_deliverable_spec(
         entity_type = _clean_label(exact_match.group("label")).split(" ")[0][:120] or "item"
 
     lowered = goal.casefold()
+    selection_requested = bool(
+        _SELECTION_HINTS.search(goal) or _IMPERATIVE_BUILD_HINT.search(goal)
+    )
     kind = DeliverableKind.NARRATIVE
     if "itinerar" in lowered:
         kind = DeliverableKind.ITINERARY
     elif quotas and _ALLOCATION_HINTS.search(goal):
         kind = DeliverableKind.ALLOCATION
-    elif _SELECTION_HINTS.search(goal) and _ALLOCATION_HINTS.search(goal):
+    elif selection_requested and _ALLOCATION_HINTS.search(goal):
         kind = DeliverableKind.PORTFOLIO
-    elif _SELECTION_HINTS.search(goal) and _RANKING_HINTS.search(goal):
+    elif selection_requested and _RANKING_HINTS.search(goal):
         kind = DeliverableKind.RANKING
-    elif _SELECTION_HINTS.search(goal):
+    elif selection_requested:
         kind = DeliverableKind.ENTITY_SET
     elif any(req.kind == RequirementKind.COMPARISON for req in requirements):
         kind = DeliverableKind.COMPARISON
