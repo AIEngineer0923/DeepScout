@@ -8,6 +8,7 @@ from deepscout_core.domain.contracts import (
     LanguageQueryVariant,
     ResearchContract,
     ResearchLanguageStrategy,
+    SourceClass,
 )
 from deepscout_research.contracts.evidence_relevance import is_search_result_relevant
 from deepscout_research.contracts.extract import _preferred_classes
@@ -110,6 +111,47 @@ def test_multilingual_official_documentation_intent_maps_to_vendor_sources() -> 
         "Bevorzugen Sie die offizielle Dokumentation.",
     ):
         assert "software_vendor" in {item.value for item in _preferred_classes(goal)}
+
+
+def test_quick_single_language_reserves_a_relaxed_fallback_query() -> None:
+    base = _contract()
+    english_only = base.language_strategy.model_copy(
+        update={
+            "primary_query_language": "en",
+            "additional_query_languages": [],
+            "query_variants": [
+                LanguageQueryVariant(
+                    language="en",
+                    query=(
+                        'site:docs.python.org/3.13 "free-threaded" OR '
+                        '"free threading" "PEP 703" disable-gil'
+                    ),
+                    requirement_ids=["R0"],
+                    expected_primary_source=True,
+                ),
+            ],
+        }
+    )
+    contract = base.model_copy(
+        update={
+            "language_strategy": english_only,
+            "preferred_source_classes": [SourceClass.SOFTWARE_VENDOR],
+        }
+    )
+
+    requests = search_discovery_requests(
+        "Spiega il free-threading di Python 3.13",
+        contract,
+        research_mode="quick",
+        max_variants=2,
+    )
+
+    assert len(requests) == 2
+    assert requests[0].request.query.startswith("site:docs.python.org ")
+    assert '"' not in requests[0].request.query
+    assert " OR " not in requests[0].request.query
+    assert requests[1].request.query != requests[0].request.query
+    assert "official technical documentation" in requests[1].request.query
 
 
 def test_cross_language_admission_uses_native_query_without_goal_language_overlap() -> None:
