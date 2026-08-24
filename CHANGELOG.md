@@ -19,6 +19,8 @@ No unreleased changes yet.
   deliverable, while imperative portfolio construction remains structured and validated.
 - Native multilingual discovery queries now retain deterministic official/primary-source policy;
   Italian, French, German, and Spanish official-documentation wording is recognized directly.
+- Quick discovery now reserves one bounded deterministic fallback when only one query language is
+  planned, and relaxes brittle quoted/site-path syntax without discarding the requested domain.
 
 ## [0.1.3] - 2026-08-24
 

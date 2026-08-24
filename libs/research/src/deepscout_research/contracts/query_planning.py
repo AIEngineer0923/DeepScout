@@ -313,6 +313,19 @@ def primary_subject_context(contract: ResearchContract, *, limit: int = 20) -> s
     return _compact_search_text(primary, limit=limit)
 
 
+def _relax_native_search_query(query: str) -> str:
+    """Keep native terminology while removing brittle search-engine syntax."""
+    relaxed = re.sub(
+        r"\bsite:([a-z0-9.-]+)(?:/[^\s\"')]+)?",
+        r"site:\1",
+        query,
+        flags=re.I,
+    )
+    relaxed = relaxed.replace('"', " ")
+    relaxed = re.sub(r"\bOR\b", " ", relaxed, flags=re.I)
+    return re.sub(r"\s+", " ", relaxed).strip()
+
+
 def search_query_variants(
     objective: str,
     contract: ResearchContract | None,
@@ -379,6 +392,7 @@ def search_discovery_requests(
 
     mode_language_cap = {"quick": 2, "standard": 3, "deep": 5}.get(research_mode or "standard", 3)
     multilingual_variants = []
+    native_lead_count = 0
     if contract is not None:
         from deepscout_research.contracts.requirement_attribution import (
             requirements_for_query,
@@ -411,20 +425,31 @@ def search_discovery_requests(
             )
             if variants:
                 multilingual_variants.append(variants[0])
+        native_lead_count = len(multilingual_variants)
         multilingual_variants.extend(
             item for item in candidate_variants if item not in multilingual_variants
         )
+    # Preserve one native query per planned language first, then reserve one
+    # family for a deterministic relaxed reformulation before spending bounded
+    # attempts on additional same-language variants. This matters most in Quick
+    # mode, where two over-constrained model variants previously consumed the
+    # entire search budget without a fallback.
+    multilingual_schedule = [
+        *multilingual_variants[:native_lead_count],
+        None,
+        *multilingual_variants[native_lead_count:],
+    ]
     output: list[PlannedDiscoveryQuery] = []
     seen: set[str] = set()
     for family_index, family in enumerate(source_strategy.query_families):
         suffix = query_suffix(family)
         native_variant = (
-            multilingual_variants[family_index]
-            if family_index < len(multilingual_variants)
+            multilingual_schedule[family_index]
+            if family_index < len(multilingual_schedule)
             else None
         )
         query = (
-            native_variant.query.strip()[:500]
+            _relax_native_search_query(native_variant.query)[:500]
             if native_variant is not None
             else f"{base} {suffix}".strip()[:500]
         )
