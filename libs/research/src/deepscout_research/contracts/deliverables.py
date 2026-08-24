@@ -67,6 +67,13 @@ _NON_CATEGORY_LABELS = {
     "anni",
     "participants",
     "partecipanti",
+    "point",
+    "points",
+    "punto",
+    "punti",
+    "goal",
+    "goals",
+    "gol",
 }
 
 
@@ -218,7 +225,22 @@ def infer_deliverable_spec(
     comparisons: list[str] = []
     for req in requirements:
         for subject in req.comparison_subjects:
-            if subject and subject not in comparisons:
+            # The requirement parser may retain surrounding instruction prose
+            # for compound comparisons. Only concrete, bounded subjects belong
+            # in the deterministic report-presence gate; full-clause coverage
+            # remains the responsibility of requirement attribution.
+            words = subject.split()
+            instruction_fragment = re.match(
+                r"^(?:show|provide|include|explain|compare|mostra|fornisci|includi|spiega|confronta)\b",
+                subject,
+                re.I,
+            )
+            if (
+                subject
+                and len(words) <= 8
+                and instruction_fragment is None
+                and subject not in comparisons
+            ):
                 comparisons.append(subject)
 
     return DeliverableSpec(
