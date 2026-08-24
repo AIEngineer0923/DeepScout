@@ -8,6 +8,14 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.4] - 2026-08-24
+
+### Fixed
+
+- HTML acquisition now keeps the document body when a non-empty `<title>` precedes `<main>` or
+  `<article>`. This restores evidence snapshots for Sphinx and other documentation sites while
+  continuing to exclude scripts, navigation, and other non-content regions.
+
 ## [0.1.3] - 2026-08-24
 
 ### Added
@@ -132,7 +140,8 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.0...v0.1.1
