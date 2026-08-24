@@ -47,6 +47,37 @@ def observe_and_persist_terminal_run(store: ResearchStore, run_id: UUID) -> UUID
     evaluation_rows = store.list_evaluation_results(run_id)
     if not evaluation_rows:
         return None
+    candidates = store.list_search_candidates(run_id)
+    sources = store.list_sources(run_id)
+    tasks = store.list_tasks(run_id)
+    events = store.list_run_events(run_id)
+    from deepscout_research.contracts.source_portfolio import source_family
+
+    fetch_failures = [
+        str((event.payload or {}).get("reason") or "unknown")
+        for event in events
+        if event.event_type == "source.fetch_failed"
+    ]
+    publisher_families = {
+        source_family(source.canonical_url) for source in sources if source.canonical_url
+    }
+    runtime_diagnostics: dict[str, object] = {
+        "search_candidate_count": len(candidates),
+        "source_count": len(sources),
+        "blocked_task_count": sum(1 for task in tasks if task.status.value == "blocked"),
+        "false_completion_count": sum(
+            1
+            for event in events
+            if event.event_type == "worker.completed"
+            and int((event.payload or {}).get("sources_added") or 0) <= 0
+        ),
+        "source_fetch_failure_count": len(fetch_failures),
+        "source_fetch_failure_classes": sorted(set(fetch_failures))[:10],
+        "independent_publisher_count": len(publisher_families),
+        "duplicate_publisher_source_count": max(0, len(sources) - len(publisher_families)),
+    }
+    if candidates and not sources:
+        runtime_diagnostics["retrieval_failure_class"] = "search_did_not_surface_source"
     case = observe_from_evaluations(
         case_id=f"run-{run_id}",
         evaluation_rows=evaluation_rows,
@@ -55,6 +86,7 @@ def observe_and_persist_terminal_run(store: ResearchStore, run_id: UUID) -> UUID
         owner_principal_id=row.owner_principal_id,
         origin=RegressionOrigin.PRODUCTION_CANDIDATE,
         is_public_demo=bool(row.public_slug),
+        runtime_diagnostics=runtime_diagnostics,
     )
     case_id: UUID | None = None
     if case is not None:

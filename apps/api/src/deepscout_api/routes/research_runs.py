@@ -46,7 +46,11 @@ def _snapshot(
     from deepscout_research.runtime.config_snapshot import build_config_snapshot
 
     base = build_config_snapshot(settings)
-    if store is not None and hasattr(store, "learning_tables_available") and store.learning_tables_available():
+    if (
+        store is not None
+        and hasattr(store, "learning_tables_available")
+        and store.learning_tables_available()
+    ):
         try:
             from deepscout_evaluation.learning.policy_resolver import (
                 resolve_effective_runtime_policy,
@@ -609,7 +613,11 @@ def follow_up_research_run(
     )
     parent_row = store.get_run_row(run_id)
     root_id = (parent_row.root_run_id or run_id) if parent_row else run_id
-    snapshot = _snapshot(settings, store=store, owner_principal_id=parent_row.owner_principal_id if parent_row else None)
+    snapshot = _snapshot(
+        settings,
+        store=store,
+        owner_principal_id=parent_row.owner_principal_id if parent_row else None,
+    )
     snapshot["followup_context"] = select_followup_context(store, run_id, payload.goal)
     snapshot["lineage"] = {"kind": "followup", "parent_run_id": str(run_id)}
     created = store.create_run(
@@ -768,7 +776,16 @@ def export_research_run(
         return {"run_id": str(run_id), "evaluations": workspace["evaluations"]}
     if format == "evals-csv":
         body = render_csv(
-            ["evaluator_id", "version", "category", "method", "applicability", "status", "value", "reason"],
+            [
+                "evaluator_id",
+                "version",
+                "category",
+                "method",
+                "applicability",
+                "status",
+                "value",
+                "reason",
+            ],
             [
                 [
                     item["evaluator_id"],
@@ -794,12 +811,31 @@ def export_research_run(
         )
     if format == "csv" or format == "sources-csv":
         body = render_csv(
-            ["title", "domain", "url", "status", "claims", "evidence"],
+            [
+                "title",
+                "publisher",
+                "domain",
+                "url",
+                "source_kind",
+                "authority_class",
+                "evidence_role",
+                "publication_date",
+                "connector",
+                "status",
+                "claims",
+                "evidence",
+            ],
             [
                 [
                     source["title"],
+                    source.get("publisher") or "",
                     source["domain"],
                     source["url"],
+                    source.get("source_kind") or "",
+                    source.get("authority_class") or "",
+                    source.get("evidence_role") or "",
+                    source.get("publication_date") or "",
+                    source.get("connector") or "",
                     source["fetch_state"],
                     source["claim_count"],
                     source["evidence_count"],
@@ -919,7 +955,11 @@ def _report_pdf(title: str, body: str) -> bytes:
     while index < len(lines):
         raw = lines[index]
         stripped = raw.strip()
-        if stripped.startswith("|") and index + 1 < len(lines) and _is_table_separator(lines[index + 1]):
+        if (
+            stripped.startswith("|")
+            and index + 1 < len(lines)
+            and _is_table_separator(lines[index + 1])
+        ):
             table_rows: list[list[str]] = []
             while index < len(lines):
                 row = lines[index].strip()

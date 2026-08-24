@@ -75,6 +75,7 @@ TERMINAL_RESEARCH_TASK_STATUSES: frozenset[ResearchTaskStatus] = frozenset(
         ResearchTaskStatus.COMPLETED,
         ResearchTaskStatus.FAILED,
         ResearchTaskStatus.CANCELLED,
+        ResearchTaskStatus.BLOCKED,
     }
 )
 

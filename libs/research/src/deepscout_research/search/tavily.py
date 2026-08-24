@@ -58,6 +58,7 @@ class TavilyWebSearchProvider:
                     title=str(item.get("title", "")),
                     snippet=str(item.get("content", ""))[:8000],
                     score=float(item["score"]) if item.get("score") is not None else None,
+                    discovery_provider=self.provider_name,
                 )
             )
         return [result for result in results if result.url]

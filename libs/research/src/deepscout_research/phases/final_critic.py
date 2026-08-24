@@ -23,6 +23,7 @@ from deepscout_research.contracts.extract import (
     contract_from_snapshot,
     report_contract_from_snapshot,
 )
+from deepscout_research.contracts.numeric_constraints import markdown_allocation_errors
 from deepscout_research.contracts.source_authority import (
     is_source_admissible,
     violates_only_constraint,
@@ -34,9 +35,7 @@ _TASK_LEAK_PATTERNS = (
     re.compile(r"\banswer provided\b", re.I),
     re.compile(r"\bMarkdown final research report\b", re.I),
 )
-_BIBLIOGRAPHY_HEADING = re.compile(
-    r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$"
-)
+_BIBLIOGRAPHY_HEADING = re.compile(r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$")
 _ACTIONABLE_GAPS = {
     CoverageGapCause.NOT_SEARCHED,
     CoverageGapCause.SEARCH_EXECUTION_FAILED,
@@ -95,10 +94,27 @@ def run_final_answer_critic(
         reason_codes.append("DUPLICATE_OR_MISSING_BIBLIOGRAPHY")
 
     if contract is not None:
+        for conflict in contract.constraint_conflicts:
+            values = re.findall(r"\d+(?:[.,]\d+)?", conflict)
+            conflict_disclosed = bool(
+                re.search(r"conflict|contradd|incompatib|ambig", body, re.I)
+                and all(value in body for value in values)
+            )
+            if not conflict_disclosed:
+                issues.append(f"Conflicting user constraint was not disclosed: {conflict}")
+                reason_codes.append("USER_CONSTRAINT_CONFLICT_HIDDEN")
+        arithmetic_errors = markdown_allocation_errors(body)
+        if arithmetic_errors:
+            issues.append("Allocation table arithmetic does not match its stated total")
+            reason_codes.append("ARITHMETIC_CONSTRAINT_MISMATCH")
         cov = coverage or evaluate_coverage(store, run_id, contract)
         for entry in cov.entries:
             req = next(
-                (item for item in contract.requirements if item.requirement_id == entry.requirement_id),
+                (
+                    item
+                    for item in contract.requirements
+                    if item.requirement_id == entry.requirement_id
+                ),
                 None,
             )
             if req is None or not req.critical:
@@ -114,7 +130,9 @@ def run_final_answer_critic(
             }:
                 unresolved.append(req.requirement_id)
                 if entry.gap_cause == CoverageGapCause.NUMERIC_EVIDENCE_MISSING:
-                    issues.append(f"Quantitative requirement only partially supported: {req.text[:120]}")
+                    issues.append(
+                        f"Quantitative requirement only partially supported: {req.text[:120]}"
+                    )
                     reason_codes.append("UNSUPPORTED_NUMERIC_CLAIM")
                 elif entry.gap_cause == CoverageGapCause.COMPARISON_INCOMPLETE:
                     issues.append(f"Requested comparison is incomplete: {req.text[:120]}")
@@ -165,17 +183,25 @@ def run_final_answer_critic(
         aliases = {
             "Executive Summary": ("Executive Summary", "Sintesi esecutiva"),
             "Analysis": ("Analysis", "Analisi"),
-            "Timeline and Applicability": ("Timeline and Applicability", "Cronologia e applicabilità"),
+            "Timeline and Applicability": (
+                "Timeline and Applicability",
+                "Cronologia e applicabilità",
+            ),
             "Comparison": ("Comparison", "Confronto"),
             "Quantitative Results": ("Quantitative Results", "Risultati quantitativi"),
-            "Limitations and Uncertainty": ("Limitations and Uncertainty", "Limitazioni e incertezza"),
+            "Limitations and Uncertainty": (
+                "Limitations and Uncertainty",
+                "Limitazioni e incertezza",
+            ),
             "Sources Cited": ("Sources Cited", "Fonti citate"),
         }
         for section in report_spec.sections:
             if not section.required:
                 continue
             headings = aliases.get(section.heading, (section.heading,))
-            if not any(re.search(rf"(?im)^#{{1,6}}\s+{re.escape(item)}\s*$", body) for item in headings):
+            if not any(
+                re.search(rf"(?im)^#{{1,6}}\s+{re.escape(item)}\s*$", body) for item in headings
+            ):
                 issues.append(f"Required report section missing: {section.heading}")
                 reason_codes.append("REPORT_SECTION_MISMATCH")
 
@@ -193,19 +219,22 @@ def run_final_answer_critic(
     if unresolved:
         profile = research_profile(row.research_mode if row else None)
         run = store.get_run(run_id)
-        budget_available = bool(
-            run
-            and not store.get_consumption(run_id).is_exhausted(run.budget)
-        )
+        budget_available = bool(run and not store.get_consumption(run_id).is_exhausted(run.budget))
         rounds_used = int((snapshot or {}).get("coverage_research_rounds") or 0)
-        round_limit = int((snapshot or {}).get("coverage_round_limit") or profile.max_coverage_rounds)
+        round_limit = int(
+            (snapshot or {}).get("coverage_round_limit") or profile.max_coverage_rounds
+        )
         entry_by_id = {entry.requirement_id: entry for entry in cov.entries}
-        can_research = budget_available and rounds_used < round_limit and any(
-            entry_by_id[req_id].gap_cause in _ACTIONABLE_GAPS
-            and entry_by_id[req_id].gap_cause != CoverageGapCause.BUDGET_EXHAUSTED
-            and entry_by_id[req_id].corrective_attempts < profile.max_coverage_rounds
-            for req_id in unresolved
-            if req_id in entry_by_id
+        can_research = (
+            budget_available
+            and rounds_used < round_limit
+            and any(
+                entry_by_id[req_id].gap_cause in _ACTIONABLE_GAPS
+                and entry_by_id[req_id].gap_cause != CoverageGapCause.BUDGET_EXHAUSTED
+                and entry_by_id[req_id].corrective_attempts < profile.max_coverage_rounds
+                for req_id in unresolved
+                if req_id in entry_by_id
+            )
         )
         if can_research:
             return FinalCriticResult(

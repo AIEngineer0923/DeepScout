@@ -46,16 +46,18 @@ def _search(state: WorkerGraphState, config) -> WorkerGraphState:
         return {**state, "status": "failed", "error": "search_provider_missing"}
     query = state.get("query", "")
     try:
-        results = search_provider.search(
-            query,
-            max_results=max(1, int(configurable.get("max_results") or 3)),
-        )
+        discovery_request = configurable.get("discovery_request")
+        discover = getattr(search_provider, "discover", None)
+        if discovery_request is not None and discover is not None:
+            results = discover(discovery_request)
+        else:
+            results = search_provider.search(
+                query,
+                max_results=max(1, int(configurable.get("max_results") or 3)),
+            )
         if configurable.get("cancelled"):
             return {**state, "status": "failed", "error": "run_cancelled"}
-        serialized = [
-            {"url": item.url, "title": item.title, "snippet": item.snippet, "score": item.score}
-            for item in results
-        ]
+        serialized = [item.model_dump(mode="json") for item in results]
         return {
             **state,
             "search_results": serialized,
@@ -123,6 +125,7 @@ def run_worker_graph(
     cancelled: bool = False,
     max_results: int = 3,
     interrupt_after: list[str] | None = None,
+    discovery_request=None,
 ) -> WorkerGraphState:
     app = compile_research_worker(
         with_checkpoint=True,
@@ -137,6 +140,7 @@ def run_worker_graph(
             "search_provider": search_provider,
             "cancelled": cancelled,
             "max_results": max_results,
+            "discovery_request": discovery_request,
         }
     }
     durability = "sync" if durable_checkpoint else None

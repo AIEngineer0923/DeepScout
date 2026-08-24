@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-CONTRACT_SCHEMA_VERSION = "1"
+CONTRACT_SCHEMA_VERSION = "2"
 
 
 class SourceConstraintMode(StrEnum):
@@ -36,6 +36,24 @@ class AuthorityClass(StrEnum):
     PRIMARY = "primary"
     SECONDARY = "secondary"
     TERTIARY = "tertiary"
+    UNKNOWN = "unknown"
+
+
+class SourceKind(StrEnum):
+    """Content/source shape, intentionally separate from authority and relevance."""
+
+    WEB_PAGE = "web_page"
+    OFFICIAL_SOURCE = "official_source"
+    ACADEMIC_PAPER = "academic_paper"
+    NEWS_ARTICLE = "news_article"
+    VIDEO = "video"
+    COMMUNITY_DISCUSSION = "community_discussion"
+    REPOSITORY = "repository"
+    TECHNICAL_DOCUMENTATION = "technical_documentation"
+    DATASET = "dataset"
+    DOCUMENT = "document"
+    FEED = "feed"
+    STRUCTURED_API = "structured_api"
     UNKNOWN = "unknown"
 
 
@@ -218,6 +236,17 @@ class SourceConstraint(BaseModel):
     reason: str = Field(default="", max_length=500)
 
 
+class NumericConstraint(BaseModel):
+    """A deterministic numeric condition explicitly stated by the user."""
+
+    constraint_id: str = Field(min_length=1, max_length=64)
+    metric: str = Field(min_length=1, max_length=64)
+    relation: Literal["equal", "minimum", "maximum"] = "equal"
+    value: str = Field(min_length=1, max_length=64)
+    unit: str = Field(default="", max_length=32)
+    source_text: str = Field(default="", max_length=500)
+
+
 class AnswerRequirement(BaseModel):
     requirement_id: str = Field(min_length=1, max_length=32)
     text: str = Field(min_length=1, max_length=2000)
@@ -241,6 +270,8 @@ class ResearchContract(BaseModel):
     evidence_standard: EvidenceStandard = EvidenceStandard.CREDIBLE
     requirements: list[AnswerRequirement] = Field(default_factory=list, max_length=30)
     source_constraints: list[SourceConstraint] = Field(default_factory=list, max_length=20)
+    numeric_constraints: list[NumericConstraint] = Field(default_factory=list, max_length=30)
+    constraint_conflicts: list[str] = Field(default_factory=list, max_length=20)
     preferred_source_classes: list[SourceClass] = Field(default_factory=list, max_length=10)
     required_source_classes: list[SourceClass] = Field(default_factory=list, max_length=10)
     forbidden_source_classes: list[SourceClass] = Field(default_factory=list, max_length=10)
@@ -278,6 +309,7 @@ class ReportContract(BaseModel):
 
 
 class SourceAuthorityMetadata(BaseModel):
+    source_kind: SourceKind = SourceKind.UNKNOWN
     source_class: SourceClass = SourceClass.UNKNOWN
     authority_class: AuthorityClass = AuthorityClass.UNKNOWN
     primary_vs_secondary: Literal["primary", "secondary", "unknown"] = "unknown"

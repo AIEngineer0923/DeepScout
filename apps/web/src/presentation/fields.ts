@@ -20,14 +20,67 @@ export function presentOutputLanguage(code: string | null | undefined, locale: L
 
 export function presentSourceType(sourceType: string | null | undefined, locale: Locale): string {
   if (!sourceType) return "—";
-  const key = `sourceType.${sourceType}`;
   const labels: Record<string, Record<Locale, string>> = {
     web: { en: "Web page", it: "Pagina web" },
+    web_page: { en: "Web page", it: "Pagina web" },
+    official_source: { en: "Official source", it: "Fonte ufficiale" },
+    academic_paper: { en: "Academic paper", it: "Paper accademico" },
+    news_article: { en: "News article", it: "Articolo di notizie" },
+    video: { en: "Video", it: "Video" },
+    community_discussion: { en: "Community discussion", it: "Discussione della community" },
+    repository: { en: "Repository", it: "Repository" },
+    technical_documentation: { en: "Technical documentation", it: "Documentazione tecnica" },
+    dataset: { en: "Dataset", it: "Dataset" },
+    feed: { en: "RSS / Atom feed", it: "Feed RSS / Atom" },
+    structured_api: { en: "Structured public data", it: "Dati pubblici strutturati" },
     pdf: { en: "PDF document", it: "Documento PDF" },
     article: { en: "Article", it: "Articolo" },
     document: { en: "Document", it: "Documento" },
   };
   return labels[sourceType]?.[locale] ?? sourceType;
+}
+
+export function presentSourceAuthority(
+  authority: string | null | undefined,
+  locale: Locale,
+): string {
+  if (!authority) return "—";
+  const labels: Record<string, Record<Locale, string>> = {
+    primary: { en: "Primary source", it: "Fonte primaria" },
+    secondary: { en: "Secondary source", it: "Fonte secondaria" },
+    tertiary: { en: "Tertiary source", it: "Fonte terziaria" },
+    community: { en: "Community source", it: "Fonte della community" },
+    unknown: { en: "Authority not established", it: "Autorevolezza non determinata" },
+  };
+  return labels[authority]?.[locale] ?? authority.replaceAll("_", " ");
+}
+
+export function presentEvidenceRole(
+  role: string | null | undefined,
+  locale: Locale,
+): string {
+  if (!role) return "—";
+  const labels: Record<string, Record<Locale, string>> = {
+    official_factual_record: { en: "Official factual record", it: "Riscontro ufficiale" },
+    scholarly_evidence: { en: "Scholarly evidence", it: "Evidenza scientifica" },
+    current_reporting: { en: "Current reporting", it: "Cronaca attuale" },
+    audiovisual_primary_or_commentary: {
+      en: "Audiovisual evidence or commentary",
+      it: "Evidenza audiovisiva o commento",
+    },
+    user_experience_or_sentiment: {
+      en: "User experience or sentiment",
+      it: "Esperienza o opinione degli utenti",
+    },
+    software_implementation: { en: "Software implementation", it: "Implementazione software" },
+    technical_specification: { en: "Technical specification", it: "Specifica tecnica" },
+    quantitative_data: { en: "Quantitative data", it: "Dati quantitativi" },
+    documentary_evidence: { en: "Documentary evidence", it: "Evidenza documentale" },
+    freshness_discovery: { en: "Freshness and discovery", it: "Attualità e scoperta" },
+    structured_factual_record: { en: "Structured factual record", it: "Riscontro strutturato" },
+    general_evidence: { en: "General evidence", it: "Evidenza generale" },
+  };
+  return labels[role]?.[locale] ?? role.replaceAll("_", " ");
 }
 
 export function presentPreference(

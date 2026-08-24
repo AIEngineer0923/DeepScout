@@ -72,3 +72,37 @@ class RunScopedSearchProvider:
             max_results=max_results,
             timeout_s=timeout_s,
         )
+
+    def discover(self, request):
+        """Apply run policy while preserving an explicit source-strategy request."""
+        row = self._store.get_run_row(self._run_id)
+        goal = row.goal if row is not None else ""
+        resolved = preferences_from_snapshot(row.config_snapshot if row else None, goal=goal)
+        enriched = enrich_search_query(request.query, resolved)
+        from deepscout_research.contracts.extract import contract_from_snapshot
+        from deepscout_research.contracts.source_authority import enrich_search_query_with_policy
+
+        contract = contract_from_snapshot(row.config_snapshot if row else None)
+        enriched = enrich_search_query_with_policy(enriched, contract)
+        opts = search_provider_options(resolved)
+        routed = request.__class__(
+            query=enriched,
+            max_results=request.max_results,
+            strategy=request.strategy,
+            source_kinds=request.source_kinds,
+            freshness_days=request.freshness_days or opts.get("days"),
+            topic=request.topic or opts.get("topic"),
+        )
+        discover = getattr(self._inner, "discover", None)
+        if discover is None:
+            return self._inner.search(
+                enriched,
+                max_results=request.max_results,
+                days=routed.freshness_days,
+                topic=routed.topic,
+            )
+        return discover(routed)
+
+    @property
+    def last_attempts(self):
+        return getattr(self._inner, "last_attempts", ())

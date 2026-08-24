@@ -97,6 +97,16 @@ def _render_coverage_section(
     language: str,
 ) -> list[str]:
     lines = ["", f"## {_section_heading('Limitations and Uncertainty', language)}"]
+    for conflict in contract.constraint_conflicts:
+        if language.startswith("it"):
+            lines.append(
+                f"- **Vincolo utente contraddittorio**: {conflict}. "
+                "Non è stato scelto arbitrariamente un valore."
+            )
+        else:
+            lines.append(
+                f"- **Conflicting user constraint**: {conflict}. No value was selected arbitrarily."
+            )
     for entry in coverage.entries:
         req = next(
             (item for item in contract.requirements if item.requirement_id == entry.requirement_id),
@@ -162,9 +172,7 @@ def _evidence_ids_for_claims(store: ResearchStore, run_id: uuid.UUID, claim_ids:
 
 
 def _append_sources_cited(body: str, cited_sources, language: str) -> str:
-    bibliography = re.compile(
-        r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$"
-    )
+    bibliography = re.compile(r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$")
     match = bibliography.search(body)
     if match:
         body = body[: match.start()].rstrip()
@@ -311,9 +319,13 @@ def generate_report(
             ]
             if related:
                 if language.startswith("it"):
-                    lines.append("- Risposta parziale o completa disponibile nell'analisi sottostante.")
+                    lines.append(
+                        "- Risposta parziale o completa disponibile nell'analisi sottostante."
+                    )
                 else:
-                    lines.append("- A partial or complete answer is available in the analysis below.")
+                    lines.append(
+                        "- A partial or complete answer is available in the analysis below."
+                    )
             else:
                 if language.startswith("it"):
                     lines.append("- Evidenza verificata insufficiente per questa domanda.")
@@ -349,7 +361,15 @@ def generate_report(
             for claim in claims
             if any(
                 token in claim.statement.casefold()
-                for token in ("2024", "2025", "2026", "2027", "applicable", "enforcement", "transitional")
+                for token in (
+                    "2024",
+                    "2025",
+                    "2026",
+                    "2027",
+                    "applicable",
+                    "enforcement",
+                    "transitional",
+                )
             )
         ][:8]
         if timeline_claims:

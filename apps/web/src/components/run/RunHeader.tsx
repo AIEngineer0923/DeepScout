@@ -19,7 +19,15 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
   const { locale } = useI18n();
   const demoReadOnly = useDemoReadOnly();
   const running = ["running", "pending"].includes(workspace.status);
-  const completed = ["completed", "failed", "cancelled"].includes(workspace.status);
+  const completed = [
+    "completed",
+    "failed",
+    "cancelled",
+    "budget_exhausted",
+  ].includes(workspace.status);
+  const terminalOutcome = workspace.terminal_outcome ?? workspace.status;
+  const outcomeKey = `outcome.${terminalOutcome}`;
+  const outcomeMessage = t(outcomeKey);
 
   async function cancel() {
     const { api } = await import("@/lib/api");
@@ -42,7 +50,10 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
             </span>
             <span className="muted">
               {completed
-                ? formatDuration(workspace.started_at ?? workspace.created_at, workspace.completed_at)
+                ? formatDuration(
+                    workspace.started_at ?? workspace.created_at,
+                    workspace.completed_at,
+                  )
                 : elapsed(workspace.started_at ?? workspace.created_at)}
             </span>
             {workspace.research_mode ? (
@@ -58,7 +69,9 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
                 <span className="meta-dot" aria-hidden="true">
                   ·
                 </span>
-                <span>{presentOutputLanguage(workspace.output_language, locale)}</span>
+                <span>
+                  {presentOutputLanguage(workspace.output_language, locale)}
+                </span>
               </>
             ) : null}
           </div>
@@ -78,9 +91,18 @@ export function RunHeader({ workspace }: { workspace: Workspace }) {
           }
         />
       ) : (
-        <div className="info-banner">{t("live.banner")}</div>
+        <div className={`info-banner outcome-${terminalOutcome}`}>
+          {completed && outcomeMessage !== outcomeKey
+            ? outcomeMessage
+            : t("live.banner")}
+        </div>
       )}
-      {!completed ? <PhaseStepper completed={workspace.completed_phases} status={workspace.status} /> : null}
+      {!completed ? (
+        <PhaseStepper
+          completed={workspace.completed_phases}
+          status={workspace.status}
+        />
+      ) : null}
       <TechnicalDetails workspace={workspace} />
     </header>
   );

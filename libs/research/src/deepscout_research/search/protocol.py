@@ -1,4 +1,4 @@
-"""Web search provider protocol."""
+"""Backward-compatible discovery provider protocol."""
 
 from typing import Protocol
 

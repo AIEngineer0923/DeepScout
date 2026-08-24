@@ -38,6 +38,8 @@ def test_evidence_blocked_critic_prevents_completed_terminal_status() -> None:
     store.get_run_row.return_value = SimpleNamespace(
         config_snapshot={"final_critic": {"verdict": "blocked_by_evidence"}}
     )
+    store.list_evidence.return_value = []
+    store.list_sources.return_value = []
     decision = TerminationDecision(
         should_stop=True,
         reason="no_active_tasks",
@@ -47,7 +49,25 @@ def test_evidence_blocked_critic_prevents_completed_terminal_status() -> None:
     gated = _apply_final_critic_terminal_gate(store, uuid.uuid4(), decision)
 
     assert gated.terminal_status == ResearchRunStatus.FAILED
-    assert gated.reason == "final_critic_blocked_by_evidence"
+    assert gated.reason == "systemic_no_admissible_sources"
+
+
+def test_evidence_backed_partial_run_completes_with_explicit_limitations() -> None:
+    store = MagicMock()
+    store.get_run_row.return_value = SimpleNamespace(
+        config_snapshot={"final_critic": {"verdict": "research_gap"}}
+    )
+    store.list_evidence.return_value = [SimpleNamespace()]
+    decision = TerminationDecision(
+        should_stop=True,
+        reason="no_active_tasks",
+        terminal_status=ResearchRunStatus.COMPLETED,
+    )
+
+    gated = _apply_final_critic_terminal_gate(store, uuid.uuid4(), decision)
+
+    assert gated.terminal_status == ResearchRunStatus.COMPLETED
+    assert gated.reason == "completed_with_limitations"
 
 
 def test_provider_health_is_thread_safe_and_isolates_providers() -> None:

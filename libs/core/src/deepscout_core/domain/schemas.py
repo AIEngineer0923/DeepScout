@@ -1,7 +1,7 @@
 """Pydantic domain/API schemas (LangChain-independent)."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -144,12 +144,22 @@ class PlannerOutput(BaseModel):
 
 
 class SearchResult(BaseModel):
-    """Normalized web search candidate — not a Source or SourceSnapshot."""
+    """Normalized discovery candidate — not yet an admitted Source."""
 
     url: str = Field(min_length=1, max_length=2048)
     title: str = Field(default="", max_length=512)
     snippet: str = Field(default="", max_length=8000)
     score: float | None = Field(default=None, ge=0.0, le=1.0)
+    discovery_provider: str = Field(default="", max_length=64)
+    source_kind: str = Field(default="unknown", max_length=64)
+    publisher: str = Field(default="", max_length=255)
+    published_at: str = Field(default="", max_length=64)
+    query_strategy: str = Field(default="general", max_length=64)
+    evidence_role: str = Field(default="general_evidence", max_length=64)
+    fetch_url: str = Field(default="", max_length=2048)
+    structured_content: str = Field(default="", max_length=500_000)
+    structured_mime_type: str = Field(default="application/json", max_length=128)
+    provenance: dict[str, Any] = Field(default_factory=dict)
 
 
 class SearchCandidateWrite(BaseModel):
@@ -179,6 +189,7 @@ class ResearchTaskRead(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     retry_count: int = 0
+    error_message: str | None = None
 
 
 class SourceWrite(BaseModel):

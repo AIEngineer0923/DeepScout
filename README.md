@@ -4,7 +4,7 @@
 [![CodeQL](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml/badge.svg)](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**Version 0.1.0** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
+**Version 0.1.1** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
 
 DeepScout is an open-source system for structured, evidence-based research. It turns a research goal into an explicit workflow: requirements, a task plan, source collection, evidence extraction, coverage checks, a cited report, and persisted evaluations.
 
@@ -64,7 +64,7 @@ Tagged releases publish `linux/amd64` and `linux/arm64` images with exact versio
 immutable SHA, and `latest` tags. Runtime credentials remain external.
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.1 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 docker compose -f infra/docker/docker-compose.release.yml pull
@@ -81,7 +81,9 @@ verification, shutdown, and source-build commands.
 2. **Planning** — Semantic planner produces a task DAG with dependencies.
 3. **Orchestration** — Python state machine runs phases under a hard `ResearchBudget`.
 4. **Research workers** — bounded LangGraph search workers under the application-owned orchestrator; structured LLM calls assist planner, synthesis, and report phases.
-5. **Source discovery & fetch** — Tavily web search (v1 adapter); SSRF-safe HTTP fetch; HTML → text snapshots.
+5. **Source discovery & fetch** — capability-aware router over indexed web, OpenAlex, and GitHub public
+   discovery; portfolio/diversity stopping; SSRF-safe acquisition for HTML, text, JSON, XML,
+   RSS/Atom, PDF, and accessible public video metadata/captions.
 6. **Retrieval** — Run-scoped hybrid RAG: dense pgvector + Postgres FTS, fused with RRF, deterministic rerank.
 7. **Claims & evidence** — Claims linked to snapshot quotes; provenance chain to sources.
 8. **Quality** — Evidence-backed material requirement coverage, bounded corrective research, contradiction detection, and a contract-aware final critic.
@@ -122,7 +124,7 @@ Not included as production backends today: SPLADE, Neo4j GraphRAG, community Gra
 | Database | PostgreSQL 16 + pgvector; Alembic migrations |
 | Retrieval | BM25 + Postgres FTS + dense pgvector → 3-way RRF → deterministic rerank |
 | Auth (hosted) | GitHub/Google OAuth, session cookies, AES-GCM BYOK vault |
-| Search | Tavily adapter (pluggable interface) |
+| Source discovery | Capability registry + router: Tavily indexed web, OpenAlex, GitHub public API |
 | LLMs | Google Gemini, OpenAI, Anthropic via provider factory |
 | Observability | LangSmith (opt-in; off by default for hosted users) |
 | CI | GitHub Actions, CodeQL, Semgrep, Dependabot |
@@ -143,7 +145,8 @@ ResearchRun → Planner (structured LLM) → task DAG in Postgres
 
 - **LangChain** — chat models, structured outputs, embeddings. Not the workflow engine.
 - **LangGraph** — durable worker search subgraph + checkpoints. Postgres owns domain state.
-- **Tools** — `web_search` only on workers today; allowlisted in code, not model-granted.
+- **Tools** — workers receive one allowlisted read-network discovery capability; the application
+  routes it across compatible registered connectors, never model-selected arbitrary code.
 
 Details: [docs/agent-runtime.md](docs/agent-runtime.md)
 
@@ -173,6 +176,7 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | [docs/docker.md](docs/docker.md) | Source-built and released-container Compose paths |
 | [docs/configuration.md](docs/configuration.md) | Environment variables |
 | [docs/providers.md](docs/providers.md) | LLM/search keys, BYOK on hosted instances |
+| [docs/source-discovery.md](docs/source-discovery.md) | Source registry, portfolio policy, formats, fallbacks and access limits |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | MODE A/B, Vercel, Railway, migrations |
 | [docs/public-instance.md](docs/public-instance.md) | Hosted app, demo, BYOK |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems |

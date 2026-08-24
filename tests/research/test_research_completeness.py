@@ -28,6 +28,7 @@ from deepscout_core.domain.schemas import (
     EvidenceWrite,
     PlannerOutput,
     PlannerQuestion,
+    PlannerTask,
     ResearchPlanWrite,
     ResearchRunCreate,
     SearchCandidateWrite,
@@ -40,7 +41,14 @@ from deepscout_evaluation.persist import persist_research_evaluations
 from deepscout_persistence.models import LearningExperimentJobRow
 from deepscout_research.contracts.coverage import evaluate_coverage
 from deepscout_research.contracts.extract import build_research_contract, derive_report_contract
-from deepscout_research.contracts.query_planning import contract_research_tasks
+from deepscout_research.contracts.numeric_constraints import (
+    extract_numeric_constraints,
+    markdown_allocation_errors,
+)
+from deepscout_research.contracts.query_planning import (
+    contract_research_tasks,
+    search_query_variants,
+)
 from deepscout_research.contracts.requirement_attribution import requirements_for_query
 from deepscout_research.phases.final_critic import run_final_answer_critic
 from deepscout_research.phases.report import _append_sources_cited
@@ -403,6 +411,48 @@ def test_requirement_queries_retain_primary_subject_context() -> None:
     assert "construction methods" in task.objective
 
 
+def test_long_conversational_goal_keeps_named_subject_in_reformulation() -> None:
+    contract = ResearchContract(
+        primary_question=(
+            "Devo preparare oggi un fantacalcio Serie A a 8 partecipanti con modificatore. "
+            "Confronta titolarità, rigori, infortuni e calendario prima dell'asta."
+        )
+    )
+    variants = search_query_variants(
+        "probabilità reale di titolarità e disponibilità",
+        contract,
+        max_variants=3,
+    )
+    assert variants
+    assert all("fantacalcio" in query.casefold() for query in variants)
+    assert all("titolarità" in query.casefold() for query in variants)
+
+
+def test_valid_semantic_plan_is_not_expanded_one_task_per_bullet() -> None:
+    contract = _contract(
+        AnswerRequirement(requirement_id="R1", text="Quantify reliability"),
+        AnswerRequirement(requirement_id="R2", text="Compare total cost"),
+    )
+    existing = [
+        PlannerTask(
+            task_key="system_tradeoffs",
+            objective="Compare reliability and total cost of the named systems",
+        )
+    ]
+    assert contract_research_tasks(contract, existing_tasks=existing) == []
+
+
+def test_conflicting_budget_constraints_and_table_arithmetic_are_deterministic() -> None:
+    constraints, conflicts = extract_numeric_constraints(
+        "Use a total budget of 1000 credits. The total budget must be 500 credits."
+    )
+    assert {item.value for item in constraints} == {"500", "1000"}
+    assert conflicts == ["budget_total: 1000, 500 credits"]
+    assert markdown_allocation_errors(
+        "| Item | Budget |\n|---|---:|\n| A | 60 |\n| B | 30 |\n| Total | 100 |"
+    ) == ["allocation_sum_mismatch:90!=100"]
+
+
 def test_requirement_query_provenance_survives_cross_language_evidence() -> None:
     contract = ResearchContract(
         primary_question="Valuta il recupero dell'ecosistema costiero.",
@@ -566,16 +616,17 @@ def test_terminal_completeness_failure_creates_case_candidate_and_experiment(
     ]
     assert cases and cases[0]["root_cause_class"] == "coverage_failure"
     candidates = store.list_improvement_candidates(owner_principal_id=None)
-    candidate = next(
-        item for item in candidates if item["candidate_type"] == "coverage_policy"
-    )
+    candidate = next(item for item in candidates if item["candidate_type"] == "coverage_policy")
     job = store._session.scalar(  # noqa: SLF001 - integration assertion on durable queue
         select(LearningExperimentJobRow).where(
             LearningExperimentJobRow.candidate_id == candidate["id"]
         )
     )
     assert job is not None and job.status == "pending"
-    assert store.get_active_learning_policy(
-        policy_key="global.corrective_research",
-        owner_principal_id=None,
-    ) == active_before
+    assert (
+        store.get_active_learning_policy(
+            policy_key="global.corrective_research",
+            owner_principal_id=None,
+        )
+        == active_before
+    )

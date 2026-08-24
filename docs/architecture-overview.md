@@ -1,6 +1,6 @@
 # Architecture overview
 
-High-level map of how DeepScout works today (v0.1.0). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
+High-level map of how DeepScout works today (v0.1.1). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## Request flow
 
@@ -11,7 +11,11 @@ flowchart LR
   A --> S[(PostgreSQL + pgvector)]
   A --> Q[research_jobs queue]
   Q --> K[Worker orchestrator]
-  K --> P[Providers LLM / Tavily]
+  K --> P[LLM providers]
+  K --> D[Source discovery router]
+  D --> T[Indexed web]
+  D --> O[OpenAlex]
+  D --> G[GitHub public API]
   K --> S
 ```
 
@@ -24,7 +28,7 @@ Goal submitted
   → Research run created (budget, mode, language)
   → Effective runtime policy resolved + frozen in config_snapshot
   → Worker: PLAN (semantic planner → task DAG)
-  → RESEARCH (agents + web search + fetch)
+  → RESEARCH (agents + source strategy + multi-provider discovery)
   → COLLECT / INDEX (chunks + embeddings per run)
   → EXTRACT (claims + evidence quotes)
   → VERIFY
@@ -82,6 +86,8 @@ See [RAG_PIPELINE.md](architecture/RAG_PIPELINE.md) and [ADR-013](architecture/a
 | LangSmith | **Integrated, opt-in** | Tracing spans; hosted users default OFF |
 | Multi-provider LLM | **Implemented** | Factory in `libs/providers` |
 | Evaluation persistence | **Implemented** | `evaluation_results` table, migration 012 |
+| Multi-source discovery fabric | **Implemented** | Capability registry, Tavily web, OpenAlex and GitHub public discovery |
+| Multi-format acquisition | **Implemented** | HTML/text/JSON/XML/RSS/Atom/PDF and public video metadata/captions |
 
 Default retrieval mode: `hybrid` with deterministic rerank (`RETRIEVAL_MODE` env: `lexical`, `dense`, `hybrid`).
 
@@ -129,3 +135,4 @@ For detailed design on orchestration, LangChain/LangGraph boundaries, prompts, a
 - [PROVIDER_ARCHITECTURE.md](architecture/PROVIDER_ARCHITECTURE.md) — LLM factory
 - [011-mode-b-hosted.md](adr/011-mode-b-hosted.md) — hosted auth and BYOK
 - [evaluations.md](evaluations.md) — evaluator semantics
+- [source-discovery.md](source-discovery.md) — connector registry, portfolio policy, formats and access limits
