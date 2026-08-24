@@ -6,7 +6,7 @@ from deepscout_research.contracts.deliverables import (
 )
 from deepscout_research.contracts.numeric_constraints import extract_numeric_constraints
 from deepscout_research.followup import classify_followup
-from deepscout_research.phases.entity_matrix import _entity_names
+from deepscout_research.phases.entity_matrix import _entity_names, _entity_signal
 
 
 def test_allocation_contract_extracts_generic_quotas_and_conflicting_budgets() -> None:
@@ -113,6 +113,7 @@ def test_shortlist_of_exactly_count_and_excluded_alternative_are_not_confused() 
 def test_entity_matrix_discards_table_headings_and_measurements() -> None:
     text = (
         "Pros and Cons Category Key Advantages Considerations Budget Range. "
+        "Category HP ProBook 450 compares several devices. "
         "Dell Pro 14 Premium weighs 1.21 kg. Lenovo ThinkPad T14 Gen 5 has 16 GB RAM. "
         "About HP Laptop Prices in Italy."
     )
@@ -123,7 +124,9 @@ def test_entity_matrix_discards_table_headings_and_measurements() -> None:
     assert "Lenovo ThinkPad T14 Gen" in names
     assert not any(name.startswith("Pros and Cons") for name in names)
     assert not any(name.startswith("About HP") for name in names)
+    assert not any(name.startswith("Category HP") for name in names)
     assert not any(name.startswith("16 GB") for name in names)
+    assert _entity_signal("Lenovo ThinkPad T14 Gen") > _entity_signal("Lenovo")
 
 
 def test_quick_profile_is_one_task_and_followups_have_explicit_intent() -> None:
