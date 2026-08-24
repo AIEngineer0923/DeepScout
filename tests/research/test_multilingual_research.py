@@ -172,6 +172,22 @@ def test_cross_language_admission_uses_native_query_without_goal_language_overla
     )
 
 
+def test_cross_language_bridge_survives_policy_enrichment() -> None:
+    contract = _contract()
+    enriched_query = (
+        "Herstellergarantie Batteriesystem Dauer offizielle Garantiebedingungen "
+        "official technical documentation"
+    )
+
+    assert is_search_result_relevant(
+        title="Offizielle Herstellergarantie für Batteriesysteme",
+        snippet="Die Garantiebedingungen nennen Dauer und Kilometergrenzen.",
+        query=enriched_query,
+        goal=contract.primary_question,
+        contract=contract,
+    )
+
+
 def test_html_declared_language_is_preserved_for_content_level_detection() -> None:
     normalized = normalize_fetch_result(
         FetchResult(

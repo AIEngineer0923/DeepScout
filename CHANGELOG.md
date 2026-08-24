@@ -21,6 +21,8 @@ No unreleased changes yet.
   Italian, French, German, and Spanish official-documentation wording is recognized directly.
 - Quick discovery now reserves one bounded deterministic fallback when only one query language is
   planned, and relaxes brittle quoted/site-path syntax without discarding the requested domain.
+- Search-result relevance keeps dotted version/decimal identifiers intact and recognizes planned
+  multilingual variants after deterministic source-policy enrichment.
 
 ## [0.1.3] - 2026-08-24
 

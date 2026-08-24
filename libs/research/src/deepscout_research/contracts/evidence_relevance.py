@@ -115,7 +115,10 @@ def _has_subject_match(*, haystack: set[str], subject: str) -> bool:
 
 def _subject_text(contract: ResearchContract | None, goal: str) -> str:
     primary = contract.primary_question if contract is not None else goal
-    subject = re.split(r"[.?!\n]", primary, maxsplit=1)[0]
+    # A period between digits is part of a version/decimal (Python 3.13,
+    # Regulation 2024.1689), not a sentence boundary. Splitting there removed
+    # the material subject tokens and rejected otherwise exact search hits.
+    subject = re.split(r"(?<!\d)\.|\.(?!\d)|[?!\n]", primary, maxsplit=1)[0]
     subject = re.split(
         r"\b(?:focusing on|evaluate|assess|distinguishing|including|and explain why)\b",
         subject,
@@ -127,6 +130,29 @@ def _subject_text(contract: ResearchContract | None, goal: str) -> str:
         if len(_topic_anchors(before_workload)) >= 3:
             subject = before_workload
     return subject.strip(" ,;:-")
+
+
+def _planned_query_language(query: str, contract: ResearchContract | None) -> str:
+    from deepscout_research.language import detect_language, normalize_language_tag
+
+    normalized = " ".join(query.casefold().split())
+    if contract is not None:
+        query_tokens = _topic_anchors(query)
+        best: tuple[float, str] | None = None
+        for item in contract.language_strategy.query_variants:
+            planned = " ".join(item.query.casefold().split())
+            if planned == normalized:
+                return normalize_language_tag(item.language)
+            planned_tokens = _topic_anchors(item.query)
+            smaller = min(len(query_tokens), len(planned_tokens))
+            overlap = len(query_tokens & planned_tokens)
+            if smaller and overlap >= 2:
+                score = overlap / smaller
+                if score >= 0.6 and (best is None or score > best[0]):
+                    best = (score, normalize_language_tag(item.language))
+        if best is not None:
+            return best[1]
+    return detect_language(query).language
 
 
 def is_search_result_relevant(
@@ -157,16 +183,9 @@ def is_search_result_relevant(
         # Native-language planner queries are an explicit semantic bridge.
         # Preserve identifier/entity safety while avoiding a goal-language-only
         # admission gate before dense retrieval can run.
-        from deepscout_research.language import detect_language, normalize_language_tag
+        from deepscout_research.language import detect_language
 
-        planned_language = next(
-            (
-                normalize_language_tag(item.language)
-                for item in (contract.language_strategy.query_variants if contract else [])
-                if " ".join(item.query.casefold().split()) == " ".join(query.casefold().split())
-            ),
-            detect_language(query).language,
-        )
+        planned_language = _planned_query_language(query, contract)
         if planned_language != detect_language(goal).language:
             return len(query_overlap) >= 2 or bool(
                 haystack & (_explicit_identifiers(query) | _explicit_identifiers(subject))
@@ -218,16 +237,9 @@ def is_evidence_relevant(
     if contract is not None:
         goal_tokens = _tokens(contract.primary_question)
         quote_tokens = _tokens(quote)
-        from deepscout_research.language import detect_language, normalize_language_tag
+        from deepscout_research.language import detect_language
 
-        planned_language = next(
-            (
-                normalize_language_tag(item.language)
-                for item in contract.language_strategy.query_variants
-                if " ".join(item.query.casefold().split()) == " ".join(query.casefold().split())
-            ),
-            detect_language(query).language,
-        )
+        planned_language = _planned_query_language(query, contract)
         cross_language = planned_language != detect_language(goal).language
         if (
             goal_tokens
