@@ -11,6 +11,13 @@ from deepscout_persistence.store import ResearchStore
 from deepscout_research.tasks.graph import TaskGraph
 
 _ENTITY_TASK_KEYS = frozenset({"entity-office-holder"})
+_UNSATISFIED_TERMINAL = frozenset(
+    {
+        ResearchTaskStatus.BLOCKED,
+        ResearchTaskStatus.CANCELLED,
+        ResearchTaskStatus.FAILED,
+    }
+)
 
 
 def verified_entities(snapshot: dict | None) -> dict[str, dict]:
@@ -46,6 +53,40 @@ def ready_tasks_with_verified_deps(
     by_key = graph.by_key()
     ready: list[ResearchTaskRead] = []
     for task in graph.ready_tasks():
-        if all(dependency_satisfied(dep_key=dep, by_key=by_key, verified=verified) for dep in task.depends_on):
+        if all(
+            dependency_satisfied(dep_key=dep, by_key=by_key, verified=verified)
+            for dep in task.depends_on
+        ):
             ready.append(task)
     return ready
+
+
+def block_tasks_with_terminal_dependencies(
+    store: ResearchStore,
+    tasks: list[ResearchTaskRead],
+) -> int:
+    """Propagate an unsatisfied terminal dependency through the DAG."""
+    by_key = {task.task_key: task for task in tasks}
+    blocked = 0
+    changed = True
+    while changed:
+        changed = False
+        for task in tasks:
+            if task.status not in {ResearchTaskStatus.PENDING, ResearchTaskStatus.READY}:
+                continue
+            terminal_deps = [
+                key
+                for key in task.depends_on
+                if key in by_key and by_key[key].status in _UNSATISFIED_TERMINAL
+            ]
+            if not terminal_deps:
+                continue
+            store.update_task_status(
+                task.id,
+                ResearchTaskStatus.BLOCKED,
+                error_message=f"blocked_by_dependency:{','.join(terminal_deps)}",
+            )
+            task.status = ResearchTaskStatus.BLOCKED
+            blocked += 1
+            changed = True
+    return blocked

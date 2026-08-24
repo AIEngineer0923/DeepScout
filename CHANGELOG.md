@@ -8,6 +8,39 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.1] - 2026-08-24
+
+### Added
+
+- General-purpose source fabric with a capability registry, goal-conditioned query families,
+  capability-aware fallback routing, OpenAlex scholarly discovery, and GitHub public
+  repository/README discovery alongside indexed web search.
+- Multi-source portfolio stopping based on independent publishers, source-kind diversity,
+  contradiction search, low marginal yield, mode budgets, and explicit user source constraints.
+- Bounded normalization and provenance for HTML, text, JSON, XML, RSS/Atom, PDFs, and public video
+  metadata/captions when accessible, plus source-aware frontend labels and portfolio evaluations.
+
+### Fixed
+
+- Workers now retry zero-yield or irrelevant searches with bounded, subject-preserving generic
+  reformulations and account for every attempt against tool budgets.
+- Research tasks require an actual admissible-source contribution before becoming completed;
+  zero-yield tasks become blocked and terminal dependency failures propagate through the DAG.
+- Semantic planner DAGs are no longer fragmented into one mechanical task per long-request bullet.
+- Stale checkpoints can no longer convert `sources_added: 0` into a successful task.
+- Terminal events, evaluation results, learning diagnosis, and localized frontend outcomes now agree
+  on completed, partial, evidence-blocked, budget-exhausted, and technical-failure states.
+- Numeric user constraints are persisted in contract schema v2; conflicting totals are disclosed and
+  allocation-table arithmetic is checked deterministically.
+
+### Security
+
+- Existing tenant isolation, BYOK, SSRF, public-demo read-only, tool allowlist, and budget invariants
+  remain unchanged and are covered by the full security suite.
+- Structured connector responses, document downloads, XML entity declarations, PDF page traversal,
+  redirects, and public-video transcript acquisition are bounded and reuse the existing public-URL
+  and DNS-pinning controls.
+
 ## [0.1.0] - 2026-08-24
 
 First public, versioned DeepScout release.
@@ -41,5 +74,6 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/francescoveryra-dot/deepscout/releases/tag/v0.1.0

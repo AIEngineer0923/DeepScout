@@ -38,11 +38,17 @@ Local compose default is in `.env.example` (lab password only).
 | `ANTHROPIC_API_KEY` | Anthropic |
 | `LLM_PROVIDER` / per-run overrides | Factory default |
 
-## Search
+## Source discovery
 
 | Variable | Description |
 |----------|-------------|
-| `TAVILY_API_KEY` | Web search v1 adapter |
+| `TAVILY_API_KEY` | Baseline indexed-web discovery adapter; local env or owner BYOK vault |
+
+OpenAlex scholarly discovery and public GitHub repository discovery require no key in the baseline
+implementation and are rate-limited by those public services. HTML/text/JSON/XML/feed/PDF acquisition
+uses direct public HTTP and requires no connector credential. See
+[source-discovery.md](source-discovery.md). Optional authenticated/private platform connectors are
+not bundled and DeepScout never treats OAuth login as permission to research a user's private data.
 
 ## Hosted auth (MODE B)
 

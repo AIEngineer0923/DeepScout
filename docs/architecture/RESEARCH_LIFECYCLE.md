@@ -34,6 +34,17 @@ The **orchestrator** (`libs/research/orchestrator.py`, Phase 1+) enforces:
 
 LangChain agent inner loops cannot extend the outer run beyond budget.
 
+Task terminal states distinguish successful contribution from a bounded evidence gap:
+
+- `COMPLETED`: the worker added an admissible source for its scoped objective.
+- `BLOCKED`: bounded query reformulations produced no new admissible source, or a terminal
+  dependency could not be satisfied.
+- `FAILED`: a technical/tool execution failed.
+
+Run outcomes are likewise explicit: complete, complete with limitations, budget exhausted,
+evidence-blocked/no admissible sources, cancelled, or technical failure. SSE emits distinct terminal
+events; the frontend localizes outcome messages instead of rendering backend reason strings.
+
 ## Iteration rule
 
 New research iteration allowed only when:

@@ -30,6 +30,7 @@ def test_tavily_normalizes_results() -> None:
             title="Example",
             snippet="snippet text",
             score=0.91,
+            discovery_provider="tavily",
         )
     ]
     payload = post.call_args.kwargs["json"]

@@ -101,17 +101,20 @@ def build_synthesis_context(
                     list((ev.extraction_metadata or {}).get("requirement_ids") or []) if ev else []
                 ),
                 "evidence_type": (
-                    (ev.extraction_metadata or {}).get("evidence_type", "unknown") if ev else "unknown"
+                    (ev.extraction_metadata or {}).get("evidence_type", "unknown")
+                    if ev
+                    else "unknown"
                 ),
                 "source_class": (
-                    (ev.extraction_metadata or {}).get("source_class", "unknown") if ev else "unknown"
+                    (ev.extraction_metadata or {}).get("source_class", "unknown")
+                    if ev
+                    else "unknown"
                 ),
             }
         )
 
     contradictions = [
-        {"description": row.description[:500]}
-        for row in store.list_contradictions(run_id)[:8]
+        {"description": row.description[:500]} for row in store.list_contradictions(run_id)[:8]
     ]
     return {
         "primary_question": research.primary_question,
@@ -146,6 +149,10 @@ def build_synthesis_context(
             }
             for req in research.requirements[:15]
         ],
+        "numeric_constraints": [
+            item.model_dump(mode="json") for item in research.numeric_constraints
+        ],
+        "constraint_conflicts": research.constraint_conflicts,
         "verified_claims": claim_blocks,
         "contradictions": contradictions,
         "unresolved_requirements": coverage.critical_unresolved[:10],
@@ -204,6 +211,8 @@ def synthesize_goal_conditioned_report(
         "Include quantitative results only when the numbers support the requested scientific, "
         "technical, market, or historical quantity—not incidental administrative numbers. "
         "If a comparison is requested, compare the named subjects on the requested dimensions only. "
+        "Respect the supplied numeric constraints and show deterministic allocation arithmetic. "
+        "If user constraints conflict, state the ambiguity and do not silently choose one. "
         "Do not add a Sources Cited or Fonti citate section; the renderer appends one canonical list. "
         "Never emit internal task text, planner objectives, task keys, or debug scaffolding. "
         "Do not invent numbers not supported by evidence quotes. "

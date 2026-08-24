@@ -13,11 +13,13 @@ from deepscout_core.domain.contracts import (
     SourceClass,
     SourceConstraint,
     SourceConstraintMode,
+    SourceKind,
 )
 from deepscout_core.domain.schemas import SourcePreferenceRead
 
 from deepscout_research.contracts.query_planning import official_source_namespaces
 from deepscout_research.fetch.url_normalize import normalize_source_url
+from deepscout_research.source_fabric.strategy import infer_source_kind
 from deepscout_research.source_policy import is_excluded
 
 _OFFICIAL_DOMAIN_SUFFIXES = (
@@ -110,6 +112,7 @@ def classify_source_authority(
     peer_reviewed = False
     official = False
     primary_vs_secondary: str = "unknown"
+    source_kind = infer_source_kind(url, title=title)
 
     if any(domain == hint or domain.endswith("." + hint) for hint in _SOFTWARE_VENDOR_HINTS):
         source_class = SourceClass.SOFTWARE_VENDOR
@@ -160,7 +163,23 @@ def classify_source_authority(
         official = True
         primary_vs_secondary = "primary"
 
+    if source_kind == SourceKind.ACADEMIC_PAPER and source_class == SourceClass.UNKNOWN:
+        source_class = SourceClass.PEER_REVIEWED
+        authority = AuthorityClass.PRIMARY
+        peer_reviewed = True
+        primary_vs_secondary = "primary"
+    elif source_kind == SourceKind.NEWS_ARTICLE and source_class == SourceClass.UNKNOWN:
+        source_class = SourceClass.NEWS_MEDIA
+        authority = AuthorityClass.SECONDARY
+        primary_vs_secondary = "secondary"
+    elif source_kind == SourceKind.COMMUNITY_DISCUSSION:
+        authority = AuthorityClass.TERTIARY
+        primary_vs_secondary = "secondary"
+    elif source_kind == SourceKind.TECHNICAL_DOCUMENTATION and official:
+        source_class = SourceClass.SOFTWARE_VENDOR
+
     return SourceAuthorityMetadata(
+        source_kind=source_kind,
         source_class=source_class,
         authority_class=authority,
         primary_vs_secondary=primary_vs_secondary,  # type: ignore[arg-type]

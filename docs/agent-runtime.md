@@ -1,6 +1,6 @@
 # Agent runtime internals
 
-How DeepScout's research runtime actually works (v0.1.0). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+How DeepScout's research runtime actually works (v0.1.1). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
 
 For a shorter overview see [architecture-overview.md](architecture-overview.md). For file locations see [repository-map.md](repository-map.md).
 
@@ -46,7 +46,7 @@ sequenceDiagram
   O->>O: contradiction → critic → synthesis → report
   O->>DB: terminal status + termination reason
   O->>DB: persist_research_evaluations + learning observation
-  O->>DB: RUN_COMPLETED event
+  O->>DB: truthful terminal event (completed / failed / budget exhausted)
 ```
 
 ---
@@ -63,6 +63,10 @@ Important snapshot keys:
 | `report_contract` | Planner | Report structure expectations |
 | `coverage_map` | Corrective loop | Requirement coverage tracking |
 | `verified_entities` | Entity verification gate | Unlocks dependent DAG tasks |
+
+Contract schema v2 also stores explicit numeric constraints and conflicts. Allocation arithmetic in
+report tables is checked deterministically; conflicting totals must be disclosed rather than silently
+resolved by a model.
 
 **Who decides lifecycle:** `ResearchOrchestrator.execute()` — not the model.
 
@@ -108,11 +112,12 @@ DAG rather than against a web citation.
 1. LLM → `PlannerStructuredOutput` (`with_structured_output`)
 2. If planner v2: **dependency validator** LLM → `DependencyValidatorOutput`
 3. `repair_plan()`: dedupe objectives, remove invalid deps, break cycles via `TaskGraph.validate_dependencies()`
-4. `contract_research_tasks()` may append contract-driven tasks
+4. `contract_research_tasks()` may append specialized or fallback contract-driven tasks
 
-Contract-driven tasks are requirement-scoped and bounded by the canonical mode profile. A search
-task uses a focused requirement query; the runtime does not search a long multi-part goal as the only
-query for every requirement.
+When the validated planner already produced a semantic DAG, the runtime does not append one generic
+task per user bullet. Contract-driven requirement tasks are a bounded fallback when no semantic task
+plan exists; specialized entity/regulatory gates remain available. Search reformulations retain named
+subjects from the full request instead of truncating context at the first comma.
 
 ### Example DAG (illustrative)
 
@@ -184,11 +189,10 @@ Separate from **critic loop** (`_max_correction_rounds = 1`) used in finalize.
 
 `CONTRADICTION → CRITIC (deterministic) → SYNTHESIS (LLM) → REPORT (LLM + final critic rewrites) → COMPILE_KNOWLEDGE (non-blocking)`
 
-The final critic gates terminal success: evidence-blocked, remaining-gap, or rewrite-exhausted
-artifacts terminate as `failed` with a `final_critic_*` reason rather than being mislabeled
-`completed`. The terminal status and reason are persisted first. `persist_research_evaluations()`
-then observes the real terminal state; the completion evaluators cannot fail merely because
-evaluation ran too early.
+The final critic gates terminal success. A useful evidence-backed partial report may complete as
+`completed_with_limitations`; zero admissible sources or zero evidence produce a failed,
+evidence-blocked outcome; rewrite exhaustion remains a report failure. The terminal status and reason
+are persisted first. `persist_research_evaluations()` then observes the real terminal state.
 
 ### Quick / Standard / Deep
 
@@ -243,7 +247,13 @@ Model text, retrieved content, and LangSmith feedback **cannot** approve reviews
 2. `select_skills(objective, channel="task_objective")` — max 2 builtin skills
 3. `run_worker_graph()` — LangGraph, not LangChain `create_agent`
 4. Requires `web_search` in `task.allowed_tools`
-5. Persists sources, candidates, tool executions, task checkpoint JSON
+5. On zero relevant/admissible yield, executes bounded subject-preserving reformulations; every
+   attempt reserves tool budget and persists candidates/execution
+6. Marks `COMPLETED` only after adding at least one admissible source; otherwise marks `BLOCKED`
+7. Propagates terminal dependency blocks and persists an explicit checkpoint outcome
+
+`BLOCKED` is terminal for the task graph but is not success. A stale checkpoint is recovered as
+completed only when its explicit outcome is `completed`; `sources_added: 0` is never sufficient.
 
 ### Delegation / subagents
 

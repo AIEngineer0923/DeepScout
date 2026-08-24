@@ -118,9 +118,7 @@ class ResearchStore:
     def _lock_run_for_write(self, run_id: uuid.UUID) -> uuid.UUID:
         """Serialize concurrent child writes before they acquire FK key locks."""
         locked_run_id = self._session.scalar(
-            select(ResearchRunRow.id)
-            .where(ResearchRunRow.id == run_id)
-            .with_for_update()
+            select(ResearchRunRow.id).where(ResearchRunRow.id == run_id).with_for_update()
         )
         if locked_run_id is None:
             raise LookupError(f"ResearchRun {run_id} not found")
@@ -570,9 +568,7 @@ class ResearchStore:
             for row in rows
         ]
 
-    def replace_evaluation_results(
-        self, run_id: uuid.UUID, rows: list[dict[str, object]]
-    ) -> None:
+    def replace_evaluation_results(self, run_id: uuid.UUID, rows: list[dict[str, object]]) -> None:
         self._require_run(run_id)
         if not self._evaluation_results_available():
             return
@@ -737,7 +733,9 @@ class ResearchStore:
             for row in rows
         ]
 
-    def get_improvement_candidate_row(self, candidate_id: uuid.UUID) -> ImprovementCandidateRow | None:
+    def get_improvement_candidate_row(
+        self, candidate_id: uuid.UUID
+    ) -> ImprovementCandidateRow | None:
         if not self._learning_tables_available():
             return None
         return self._session.get(ImprovementCandidateRow, candidate_id)
@@ -882,7 +880,9 @@ class ResearchStore:
             )
         else:
             active_stmt = active_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
-        current = self._session.scalar(active_stmt.order_by(LearningPolicyVersionRow.created_at.desc()))
+        current = self._session.scalar(
+            active_stmt.order_by(LearningPolicyVersionRow.created_at.desc())
+        )
         if current is None:
             return None
         previous_stmt = (
@@ -899,7 +899,9 @@ class ResearchStore:
                 LearningPolicyVersionRow.owner_principal_id == owner_principal_id
             )
         else:
-            previous_stmt = previous_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
+            previous_stmt = previous_stmt.where(
+                LearningPolicyVersionRow.owner_principal_id.is_(None)
+            )
         previous = self._session.scalar(previous_stmt)
         if previous is None:
             return None
@@ -1030,25 +1032,35 @@ class ResearchStore:
             for row in self._session.scalars(stmt).all()
         ]
 
-    def get_learning_metrics(self, *, owner_principal_id: uuid.UUID | None = None) -> dict[str, int]:
+    def get_learning_metrics(
+        self, *, owner_principal_id: uuid.UUID | None = None
+    ) -> dict[str, int]:
         if not self._learning_tables_available():
             return {}
         case_stmt = select(LearningCaseRow)
         cand_stmt = select(ImprovementCandidateRow)
         if owner_principal_id is not None:
             case_stmt = case_stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
-            cand_stmt = cand_stmt.where(ImprovementCandidateRow.owner_principal_id == owner_principal_id)
+            cand_stmt = cand_stmt.where(
+                ImprovementCandidateRow.owner_principal_id == owner_principal_id
+            )
         cases = list(self._session.scalars(case_stmt).all())
         candidates = list(self._session.scalars(cand_stmt).all())
-        policy_stmt = select(LearningPolicyVersionRow).where(LearningPolicyVersionRow.active.is_(True))
+        policy_stmt = select(LearningPolicyVersionRow).where(
+            LearningPolicyVersionRow.active.is_(True)
+        )
         if owner_principal_id is not None:
-            policy_stmt = policy_stmt.where(LearningPolicyVersionRow.owner_principal_id == owner_principal_id)
+            policy_stmt = policy_stmt.where(
+                LearningPolicyVersionRow.owner_principal_id == owner_principal_id
+            )
         else:
             policy_stmt = policy_stmt.where(LearningPolicyVersionRow.owner_principal_id.is_(None))
         active_policies = list(self._session.scalars(policy_stmt).all())
         return {
             "cases_total": len(cases),
-            "cases_open": sum(1 for c in cases if c.review_state not in ("promoted", "rejected", "archived")),
+            "cases_open": sum(
+                1 for c in cases if c.review_state not in ("promoted", "rejected", "archived")
+            ),
             "cases_diagnosed": sum(1 for c in cases if c.root_cause_class),
             "candidates_proposed": len(candidates),
             "candidates_evaluated": sum(1 for c in candidates if c.experiment_result),
@@ -1068,7 +1080,9 @@ class ResearchStore:
         if self._learning_experience_available():
             stmt = select(LearningExperienceSampleRow)
             if owner_principal_id is not None:
-                stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id == owner_principal_id)
+                stmt = stmt.where(
+                    LearningExperienceSampleRow.owner_principal_id == owner_principal_id
+                )
             counts["experience_samples"] = len(list(self._session.scalars(stmt).all()))
         else:
             counts["experience_samples"] = 0
@@ -1097,7 +1111,9 @@ class ResearchStore:
         if self._learning_tables_available():
             case_stmt = select(LearningCaseRow)
             if owner_principal_id is not None:
-                case_stmt = case_stmt.where(LearningCaseRow.owner_principal_id == owner_principal_id)
+                case_stmt = case_stmt.where(
+                    LearningCaseRow.owner_principal_id == owner_principal_id
+                )
             cases = list(self._session.scalars(case_stmt).all())
             counts["opportunity_cases"] = sum(1 for c in cases if c.failure_class == "opportunity")
             counts["user_feedback_cases"] = sum(
@@ -1279,7 +1295,11 @@ class ResearchStore:
             stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id == owner_principal_id)
         else:
             stmt = stmt.where(LearningExperienceSampleRow.owner_principal_id.is_(None))
-        rows = list(self._session.scalars(stmt.order_by(LearningExperienceSampleRow.created_at.desc()).limit(limit)))
+        rows = list(
+            self._session.scalars(
+                stmt.order_by(LearningExperienceSampleRow.created_at.desc()).limit(limit)
+            )
+        )
         if not rows:
             return None
         return {
@@ -1431,7 +1451,9 @@ class ResearchStore:
         )
         return row.id
 
-    def claim_learning_experiment_job(self, owner: str, *, lease_seconds: int = 120) -> LearningExperimentJobRow | None:
+    def claim_learning_experiment_job(
+        self, owner: str, *, lease_seconds: int = 120
+    ) -> LearningExperimentJobRow | None:
         if not self._learning_experiment_jobs_available():
             return None
         now = datetime.now(UTC)
@@ -1529,14 +1551,10 @@ class ResearchStore:
         previous_raw = merged.get("requirement_ids", [])
         incoming_raw = metadata.get("requirement_ids", [])
         previous_ids = (
-            [str(item) for item in previous_raw]
-            if isinstance(previous_raw, list)
-            else []
+            [str(item) for item in previous_raw] if isinstance(previous_raw, list) else []
         )
         incoming_ids = (
-            [str(item) for item in incoming_raw]
-            if isinstance(incoming_raw, list)
-            else []
+            [str(item) for item in incoming_raw] if isinstance(incoming_raw, list) else []
         )
         merged.update(metadata)
         merged["requirement_ids"] = list(dict.fromkeys([*previous_ids, *incoming_ids]))[:10]
@@ -2013,9 +2031,7 @@ class ResearchStore:
                 delete(ReportEvidenceRow).where(ReportEvidenceRow.report_id == existing.id)
             )
             for evidence in evidence_rows:
-                self._session.add(
-                    ReportEvidenceRow(report_id=existing.id, evidence_id=evidence.id)
-                )
+                self._session.add(ReportEvidenceRow(report_id=existing.id, evidence_id=evidence.id))
             self._session.flush()
             return existing
         report = ReportRow(
@@ -2111,10 +2127,20 @@ class ResearchStore:
             ResearchTaskStatus.COMPLETED,
             ResearchTaskStatus.FAILED,
             ResearchTaskStatus.CANCELLED,
+            ResearchTaskStatus.BLOCKED,
         }:
             row.completed_at = now
         self._session.flush()
         return row
+
+    def increment_task_retry(self, task_id: uuid.UUID) -> int:
+        """Record a bounded worker reformulation attempt."""
+        row = self._session.get(ResearchTaskRow, task_id)
+        if row is None:
+            raise LookupError(f"ResearchTask {task_id} not found")
+        row.retry_count = int(row.retry_count or 0) + 1
+        self._session.flush()
+        return row.retry_count
 
     def claim_ready_task(self, task_id: uuid.UUID, worker_id: uuid.UUID) -> bool:
         """Atomically claim a READY task. Returns False if another worker won."""
@@ -2151,11 +2177,15 @@ class ResearchStore:
         reclaimed = 0
         for row in rows:
             checkpoint = row.checkpoint or {}
-            if (
-                checkpoint.get("phase") == "research"
-                and checkpoint.get("sources_added") is not None
-            ):
-                row.status = ResearchTaskStatus.COMPLETED
+            if checkpoint.get("phase") == "research" and checkpoint.get("outcome") in {
+                "completed",
+                "blocked",
+            }:
+                row.status = (
+                    ResearchTaskStatus.COMPLETED
+                    if checkpoint.get("outcome") == "completed"
+                    else ResearchTaskStatus.BLOCKED
+                )
                 row.completed_at = row.completed_at or now
                 continue
             started = row.started_at or row.created_at
@@ -3057,6 +3087,7 @@ def _task_to_read(row: ResearchTaskRow) -> ResearchTaskRead:
         started_at=row.started_at,
         completed_at=row.completed_at,
         retry_count=row.retry_count,
+        error_message=row.error_message,
     )
 
 

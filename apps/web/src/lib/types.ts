@@ -41,7 +41,10 @@ export type WorkspacePresentation = {
   summary?: string;
   why_interesting?: string;
   quality_intro?: string;
-  tasks?: Record<string, { objective: string; display_name?: string; rationale?: string }>;
+  tasks?: Record<
+    string,
+    { objective: string; display_name?: string; rationale?: string }
+  >;
   workers?: Record<string, { display_name: string; assigned_task?: string }>;
   claims?: Record<string, { statement: string }>;
   report?: {
@@ -58,6 +61,7 @@ export type Workspace = {
   goal: string;
   presentation?: WorkspacePresentation | null;
   termination_reason: string | null;
+  terminal_outcome?: string;
   llm_provider: string;
   llm_model: string;
   research_mode?: string | null;
@@ -89,13 +93,16 @@ export type Workspace = {
     evaluation_total_tokens: number | null;
     evaluation_cost_usd: number | null;
     cost_unknown_reason: string | null;
-    by_role?: Record<string, {
-      input_tokens: number | null;
-      output_tokens: number | null;
-      cached_input_tokens: number | null;
-      reasoning_tokens: number | null;
-      total_tokens: number | null;
-    }>;
+    by_role?: Record<
+      string,
+      {
+        input_tokens: number | null;
+        output_tokens: number | null;
+        cached_input_tokens: number | null;
+        reasoning_tokens: number | null;
+        total_tokens: number | null;
+      }
+    >;
   };
   counts: {
     tasks: number;
@@ -109,7 +116,12 @@ export type Workspace = {
   };
   completed_phases: string[];
   phase_timings: Record<string, string>;
-  report: { id: string; title: string; body_markdown: string; created_at: string } | null;
+  report: {
+    id: string;
+    title: string;
+    body_markdown: string;
+    created_at: string;
+  } | null;
   tasks: Array<{
     id: string;
     task_key: string;
@@ -123,6 +135,7 @@ export type Workspace = {
     started_at: string | null;
     completed_at: string | null;
     retries: number;
+    outcome_reason?: string | null;
   }>;
   workers: Array<{
     index: number;
@@ -139,6 +152,7 @@ export type Workspace = {
     completed_at: string | null;
     allowed_tools: string[];
     retries: number;
+    outcome_reason?: string | null;
     skills?: string[];
   }>;
   sources: Array<{
@@ -147,6 +161,14 @@ export type Workspace = {
     url: string;
     domain: string;
     source_type: string;
+    source_kind?: string;
+    authority_class?: string;
+    evidence_role?: string;
+    publisher?: string;
+    connector?: string;
+    publication_date?: string;
+    transcript_available?: boolean;
+    locator_scheme?: string;
     created_at: string | null;
     fetch_state: string;
     snapshot_available: boolean;
@@ -158,7 +180,13 @@ export type Workspace = {
     worker_index: number | null;
     preference?: string;
   }>;
-  source_preferences?: Array<{ id: string; action: string; identity_kind: string; identity_value: string; reason: string }>;
+  source_preferences?: Array<{
+    id: string;
+    action: string;
+    identity_kind: string;
+    identity_value: string;
+    reason: string;
+  }>;
   snapshots: Array<{
     id: string;
     source_id: string;
@@ -256,6 +284,11 @@ export type Overview = {
     avg_completion_seconds: number | null;
   };
   identity: { label: string; role: string; mode?: string };
-  langsmith: { connected: boolean; project: string; region: string; tracing: boolean };
+  langsmith: {
+    connected: boolean;
+    project: string;
+    region: string;
+    tracing: boolean;
+  };
   providers: Record<string, { configured: boolean; model?: string }>;
 };

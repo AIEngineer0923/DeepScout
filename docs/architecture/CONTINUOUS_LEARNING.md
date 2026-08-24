@@ -152,6 +152,10 @@ candidate and enqueues an experiment job in the same transaction. Re-observation
 case key. The job result cannot promote a policy by itself; sample thresholds, risk gates, cooldown,
 and HITL/operator decisions remain unchanged.
 
+Runtime diagnostics include candidate/source counts, blocked-task count, and false-completion event
+count. When search returned candidates but admitted no source, diagnosis records the retrieval-stage
+failure so downstream critic/evaluation symptoms do not become the alleged root cause.
+
 ---
 
 ## Learning ≠ promotion

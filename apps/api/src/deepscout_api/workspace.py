@@ -9,11 +9,13 @@ from uuid import UUID
 from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_evaluation.persist import load_evaluation_rows
 from deepscout_persistence.store import ResearchStore
+from deepscout_research.contracts.source_authority import classify_source_authority
 from deepscout_research.demo.presentation import (
     build_presentation_payload,
     normalize_locale,
     resolve_presentation,
 )
+from deepscout_research.source_fabric.strategy import evidence_role_for_kind
 
 
 def worker_display_name(index: int, objective: str) -> str:
@@ -49,6 +51,38 @@ def _source_preference(url: str, domain: str, preferences: list) -> str:
     if pin:
         return "pin"
     return "normal"
+
+
+def _task_outcome_reason(error_message: str | None) -> str | None:
+    if not error_message:
+        return None
+    if error_message.startswith("no_admissible_sources"):
+        return "no_admissible_sources"
+    if error_message.startswith("blocked_by_dependency"):
+        return "blocked_dependency"
+    if error_message.startswith("source_portfolio_inadequate"):
+        return "source_portfolio_inadequate"
+    if error_message == "run_cancelled":
+        return "cancelled"
+    return "technical_failure"
+
+
+def _terminal_outcome(status: str, reason: str | None) -> str:
+    if status in {"pending", "running", "paused"}:
+        return "in_progress"
+    if status == "completed" and reason == "completed_with_limitations":
+        return "completed_with_limitations"
+    if status == "completed":
+        return "completed"
+    if status == "budget_exhausted":
+        return "budget_exhausted"
+    if status == "cancelled":
+        return "cancelled"
+    if reason == "systemic_no_admissible_sources":
+        return "blocked_no_sources"
+    if reason == "blocked_by_evidence":
+        return "blocked_by_evidence"
+    return "technical_failure"
 
 
 def assemble_workspace(
@@ -119,6 +153,7 @@ def assemble_workspace(
                 "snapshot_count": 0,
                 "evidence_count": 0,
                 "retries": task.retry_count,
+                "outcome_reason": _task_outcome_reason(task.error_message),
                 "skills": [],
             }
         )
@@ -150,6 +185,18 @@ def assemble_workspace(
     source_payloads = []
     for source in sources:
         source_snaps = snapshot_by_source.get(str(source.id), [])
+        first_snapshot = source_snaps[0] if source_snaps else None
+        retrieval_metadata = (
+            dict(first_snapshot.retrieval_metadata or {}) if first_snapshot is not None else {}
+        )
+        authority = classify_source_authority(
+            url=source.canonical_url,
+            title=source.title or "",
+            publisher=str(retrieval_metadata.get("publisher") or ""),
+        )
+        evidence_role = str(
+            retrieval_metadata.get("evidence_role") or evidence_role_for_kind(authority.source_kind)
+        )
         source_claims = claims_by_source.get(str(source.id), [])
         related_evidence = []
         for claim in source_claims:
@@ -168,6 +215,21 @@ def assemble_workspace(
                 "url": source.canonical_url,
                 "domain": source.domain,
                 "source_type": source.source_type.value,
+                "source_kind": str(
+                    retrieval_metadata.get("source_kind") or authority.source_kind.value
+                ),
+                "authority_class": authority.authority_class.value,
+                "evidence_role": evidence_role,
+                "publisher": str(
+                    retrieval_metadata.get("publisher")
+                    or retrieval_metadata.get("creator")
+                    or authority.publisher
+                    or source.domain
+                ),
+                "connector": str(retrieval_metadata.get("connector") or "indexed_web"),
+                "publication_date": str(retrieval_metadata.get("publication_date") or ""),
+                "transcript_available": retrieval_metadata.get("transcript_available") == "true",
+                "locator_scheme": str(retrieval_metadata.get("locator_scheme") or ""),
                 "created_at": _iso(source.created_at),
                 "fetch_state": fetch_state,
                 "snapshot_available": bool(source_snaps),
@@ -288,6 +350,7 @@ def assemble_workspace(
         "status": run.status.value,
         "goal": run.goal,
         "termination_reason": run.termination_reason,
+        "terminal_outcome": _terminal_outcome(run.status.value, run.termination_reason),
         "llm_provider": run.llm_provider,
         "llm_model": run.llm_model,
         "research_mode": run.research_mode,
@@ -358,6 +421,7 @@ def assemble_workspace(
                 "started_at": _iso(task.started_at),
                 "completed_at": _iso(task.completed_at),
                 "retries": task.retry_count,
+                "outcome_reason": _task_outcome_reason(task.error_message),
             }
             for task in tasks
         ],

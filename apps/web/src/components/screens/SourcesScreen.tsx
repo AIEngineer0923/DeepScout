@@ -10,7 +10,9 @@ import { api } from "@/lib/api";
 import { useT, useI18n } from "@/i18n/context";
 import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import {
+  presentEvidenceRole,
   presentPreference,
+  presentSourceAuthority,
   presentSourceType,
   presentTaskKey,
   presentWorkerIndex,
@@ -73,8 +75,10 @@ export function SourcesScreen() {
           <h2>{t("sources.title")}</h2>
           <p className="muted">{t("sources.subtitle")}</p>
         </div>
-        <a className="btn" href={api.exportUrl(workspace.run_id, "sources-csv")}>{t("action.exportSources")} CSV</a>
-        <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>{t("action.exportSources")} JSON</a>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <a className="btn" href={api.exportUrl(workspace.run_id, "sources-csv")}>{t("action.exportSources")} CSV</a>
+          <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>{t("action.exportSources")} JSON</a>
+        </div>
       </div>
       <div className="grid cols-metrics" style={{ margin: "12px 0" }}>
         {(
@@ -130,8 +134,13 @@ export function SourcesScreen() {
               <StatusBadge status={source.fetch_state} />
               <p><ExternalLink href={source.url}><span className="wrap-text">{source.url}</span></ExternalLink></p>
               <p>
-                {t("sources.type")}: {presentSourceType(source.source_type, locale)}
+                {t("sources.type")}: {presentSourceType(source.source_kind ?? source.source_type, locale)}
               </p>
+              <p>{t("sources.publisher")}: {source.publisher || source.domain || "—"}</p>
+              <p>{t("sources.authority")}: {presentSourceAuthority(source.authority_class, locale)}</p>
+              <p>{t("sources.evidenceRole")}: {presentEvidenceRole(source.evidence_role, locale)}</p>
+              {source.publication_date ? <p>{t("sources.published")}: {source.publication_date}</p> : null}
+              {source.transcript_available ? <p>{t("sources.transcriptAvailable")}</p> : null}
               <p>
                 {t("nav.snapshot")}: {source.snapshot_available ? t("sources.snapshotAvailable") : t("sources.snapshotMissing")}
               </p>

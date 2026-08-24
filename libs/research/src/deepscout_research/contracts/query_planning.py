@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from dataclasses import dataclass
 
 from deepscout_core.domain.contracts import (
     AnswerRequirement,
@@ -15,6 +16,13 @@ from deepscout_core.domain.contracts import (
 )
 from deepscout_core.domain.research_profiles import research_profile
 from deepscout_core.domain.schemas import PlannerTask
+
+from deepscout_research.source_fabric.strategy import (
+    DiscoveryRequest,
+    QueryStrategy,
+    plan_source_strategy,
+    query_suffix,
+)
 
 # Official EU institutional namespaces (verified host aliases, not lookalikes).
 EU_OFFICIAL_NAMESPACES: tuple[str, ...] = (
@@ -241,24 +249,47 @@ _EVIDENCE_QUERY_TERMS: dict[EvidenceType, str] = {
 }
 
 _QUERY_STOPWORDS = {
+    "a",
+    "adesso",
     "assess",
+    "anche",
+    "che",
+    "chiedo",
+    "considera",
     "compare",
     "confronta",
     "copri",
+    "costruire",
+    "da",
+    "devo",
     "della",
     "delle",
     "degli",
     "dello",
     "descrivi",
     "determine",
+    "fare",
+    "gli",
+    "ho",
+    "il",
+    "in",
     "including",
     "includendo",
+    "io",
+    "la",
+    "le",
+    "mi",
     "nella",
     "nelle",
+    "per",
+    "preparare",
+    "prima",
     "realistico",
     "rispetto",
     "study",
+    "una",
     "valuta",
+    "voglio",
     "where",
     "with",
 }
@@ -268,6 +299,125 @@ def _compact_search_text(text: str, *, limit: int) -> str:
     tokens = re.findall(r"[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9+_-]*", text)
     kept = [token for token in tokens if token.casefold() not in _QUERY_STOPWORDS]
     return " ".join(kept[:limit])
+
+
+def primary_subject_context(contract: ResearchContract, *, limit: int = 20) -> str:
+    """Keep the request's named subject while dropping conversational scaffolding.
+
+    Long requests often introduce their actual subject after an initial clause or
+    comma.  Cutting at the first punctuation therefore turns useful goals into
+    queries such as ``prepare today authoritative evidence``.  Token selection is
+    deliberately domain-agnostic and bounded instead.
+    """
+    primary = re.sub(r"[*#•]+", " ", contract.primary_question)
+    return _compact_search_text(primary, limit=limit)
+
+
+def search_query_variants(
+    objective: str,
+    contract: ResearchContract | None,
+    *,
+    max_variants: int = 3,
+) -> list[str]:
+    """Build bounded, generic reformulations for a research worker.
+
+    These variants preserve named entities and the research objective.  They do
+    not contain domain-specific vocabulary, so the same policy applies to legal,
+    medical, product, travel, technical, and other research.
+    """
+    objective_terms = _compact_search_text(objective, limit=28)
+    if contract is None:
+        subject = ""
+    else:
+        subject = primary_subject_context(contract, limit=18)
+    combined = " ".join(dict.fromkeys(f"{subject} {objective_terms}".split()))
+    raw = [
+        combined,
+        f"{combined} authoritative primary source evidence",
+        f"{combined} quantitative data methodology comparison",
+        f"{combined} official documentation current",
+    ]
+    variants: list[str] = []
+    for item in raw:
+        query = route_preferred_vendor_query(item.strip()[:500], contract)
+        if contract is not None:
+            from deepscout_research.contracts.source_authority import (
+                enrich_search_query_with_policy,
+            )
+
+            query = enrich_search_query_with_policy(query, contract)
+        if query and query not in variants:
+            variants.append(query)
+        if len(variants) >= max(1, max_variants):
+            break
+    return variants
+
+
+@dataclass(frozen=True, slots=True)
+class PlannedDiscoveryQuery:
+    request: DiscoveryRequest
+    family: QueryStrategy
+
+
+def search_discovery_requests(
+    objective: str,
+    contract: ResearchContract | None,
+    *,
+    research_mode: str | None,
+    max_variants: int,
+) -> list[PlannedDiscoveryQuery]:
+    """Create bounded, materially different query families for the source router."""
+    source_strategy = plan_source_strategy(
+        objective,
+        contract,
+        research_mode=research_mode,
+    )
+    objective_terms = _compact_search_text(objective, limit=28)
+    subject = primary_subject_context(contract, limit=18) if contract else ""
+    base = " ".join(dict.fromkeys(f"{subject} {objective_terms}".split()))
+    output: list[PlannedDiscoveryQuery] = []
+    seen: set[str] = set()
+    for family in source_strategy.query_families:
+        suffix = query_suffix(family)
+        query = f"{base} {suffix}".strip()[:500]
+        query = route_preferred_vendor_query(query, contract)
+        if contract is not None:
+            from deepscout_research.contracts.source_authority import (
+                enrich_search_query_with_policy,
+            )
+
+            query = enrich_search_query_with_policy(query, contract)
+        fingerprint = query_fingerprint(query)
+        if not query or fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        family_kinds = {
+            QueryStrategy.ACADEMIC: {"academic_paper", "web_page"},
+            QueryStrategy.CODE: {"repository", "technical_documentation", "web_page"},
+            QueryStrategy.VIDEO: {"video", "web_page"},
+            QueryStrategy.COMMUNITY: {"community_discussion", "web_page"},
+            QueryStrategy.DATA: {"dataset", "academic_paper", "structured_api", "web_page"},
+            QueryStrategy.RECENT: {"news_article", "web_page", "feed"},
+        }.get(family)
+        if family_kinds is None:
+            requested = {item.value for item in source_strategy.requested_kinds}
+        else:
+            requested = family_kinds
+        from deepscout_core.domain.contracts import SourceKind
+
+        output.append(
+            PlannedDiscoveryQuery(
+                request=DiscoveryRequest(
+                    query=query,
+                    strategy=family,
+                    source_kinds=frozenset(SourceKind(item) for item in requested),
+                ),
+                family=family,
+            )
+        )
+        if len(output) >= max(1, max_variants):
+            break
+    return output
 
 
 def _generic_requirement_queries(
@@ -332,7 +482,7 @@ def contract_research_tasks(
     existing_tasks = existing_tasks or []
     profile = research_profile(research_mode)
     lowered = contract.primary_question.casefold()
-    subject_context = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0][:160]
+    subject_context = primary_subject_context(contract)
     req_ids = {item.requirement_id for item in contract.requirements}
 
     if "R_president" in req_ids and ("quindi" in lowered or "then" in lowered):
@@ -399,6 +549,11 @@ def contract_research_tasks(
         }
         and item.materiality == "central"
     ]
+    # A model-produced, dependency-validated DAG is the semantic decomposition.
+    # Requirement tasks are a fallback when no such DAG exists; expanding every
+    # bullet after a valid plan fragments long prompts and destroys search focus.
+    if existing_tasks:
+        eligible = []
     for requirement in eligible:
         if remaining <= 0:
             break
@@ -486,7 +641,7 @@ def gap_queries_for_requirement(
             requirement.text,
             intent="official_guidance",
         )[:2]
-    subject_context = re.split(r"[,.;\n]", contract.primary_question, maxsplit=1)[0][:160]
+    subject_context = primary_subject_context(contract)
     return _generic_requirement_queries(
         requirement,
         round_number=round_number,

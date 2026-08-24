@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from deepscout_core.domain.contracts import (
@@ -10,12 +11,16 @@ from deepscout_core.domain.contracts import (
     FinalCriticVerdict,
     RequirementCoverageStatus,
     RequirementKind,
+    SourceKind,
 )
 from deepscout_core.domain.enums import ResearchRunStatus
 from deepscout_core.domain.schemas import WORKER_TOOL_ALLOWLIST
 from deepscout_persistence.store import ResearchStore
 from deepscout_research.contracts.coverage import evaluate_coverage
 from deepscout_research.contracts.extract import contract_from_snapshot
+from deepscout_research.contracts.source_authority import classify_source_authority
+from deepscout_research.contracts.source_portfolio import source_family
+from deepscout_research.source_fabric.strategy import QueryStrategy, plan_source_strategy
 from deepscout_research.tasks.graph import TaskGraph, TaskGraphError
 
 from deepscout_evaluation.deterministic import (
@@ -79,14 +84,11 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         for item in central_requirements
         if item.quantification_required or item.kind == RequirementKind.QUANTIFICATION
     ]
-    comparisons = [
-        item for item in central_requirements if item.kind == RequirementKind.COMPARISON
-    ]
+    comparisons = [item for item in central_requirements if item.kind == RequirementKind.COMPARISON]
     quantitative_coverage = (
         all(
             item.requirement_id in coverage_by_id
-            and coverage_by_id[item.requirement_id].status
-            == RequirementCoverageStatus.SUPPORTED
+            and coverage_by_id[item.requirement_id].status == RequirementCoverageStatus.SUPPORTED
             for item in quantitative
         )
         if quantitative
@@ -95,17 +97,20 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
     comparison_completeness = (
         all(
             item.requirement_id in coverage_by_id
-            and coverage_by_id[item.requirement_id].status
-            == RequirementCoverageStatus.SUPPORTED
+            and coverage_by_id[item.requirement_id].status == RequirementCoverageStatus.SUPPORTED
             for item in comparisons
         )
         if comparisons
         else None
     )
-    source_portfolio_adequacy = bool(contract) and not any(
-        entry.gap_cause == CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
-        for entry in coverage_by_id.values()
-        if entry.requirement_id in {item.requirement_id for item in central_requirements}
+    source_portfolio_adequacy = (
+        bool(contract)
+        and bool(sources)
+        and not any(
+            entry.gap_cause == CoverageGapCause.SOURCE_PORTFOLIO_INADEQUATE
+            for entry in coverage_by_id.values()
+            if entry.requirement_id in {item.requirement_id for item in central_requirements}
+        )
     )
     raw_critic = config_snapshot.get("final_critic")
     try:
@@ -162,13 +167,22 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         mode=TrajectoryMatchMode.SUPERSET,
     )
 
+    false_completion = any(
+        event.event_type == "worker.completed"
+        and int((event.payload or {}).get("sources_added") or 0) <= 0
+        for event in events
+    )
+    progress_consistent = not false_completion and not (
+        any(task.status.value == "completed" for task in tasks) and not sources
+    )
+    trajectory_ok = trajectory_ok and progress_consistent
+    plan_adherence = plan_adherence and progress_consistent
+    tool_selection = tool_selection and bool(sources)
+
     unique_keys = len({task.task_key for task in tasks})
     completed = sum(1 for task in tasks if task.status.value == "completed")
     allowed_tools = {
-        tool
-        for task in tasks
-        for tool in task.allowed_tools
-        if tool in WORKER_TOOL_ALLOWLIST
+        tool for task in tasks for tool in task.allowed_tools if tool in WORKER_TOOL_ALLOWLIST
     } or set(WORKER_TOOL_ALLOWLIST)
     forbidden_tool_ok = all(item.tool_name in allowed_tools for item in tool_executions)
 
@@ -185,6 +199,74 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
     )
     snapshot_ids = {snapshot.id for snapshot in snapshots}
     isolation_ok = all(item.snapshot_id in snapshot_ids for item in evidence)
+    snapshots_by_source = {item.source_id: item for item in snapshots}
+    source_families = {source_family(item.canonical_url) for item in sources if item.canonical_url}
+    source_metadata = [
+        classify_source_authority(url=item.canonical_url, title=item.title or "")
+        for item in sources
+    ]
+    source_kinds = {item.source_kind for item in source_metadata}
+    primary_count = sum(item.authority_class.value == "primary" for item in source_metadata)
+    strategy = plan_source_strategy(
+        run.goal,
+        contract,
+        research_mode=run.research_mode,
+    )
+    source_diversity = len(source_kinds) >= strategy.target_source_kinds if sources else False
+    source_independence = (
+        len(source_families) >= strategy.target_independent_publishers if sources else False
+    )
+    fetch_success_rate = (len(snapshots_by_source) / len(sources)) if sources else None
+    primary_source_ratio = (primary_count / len(sources)) if sources else None
+    publisher_duplicate_rate = 1.0 - (len(source_families) / len(sources)) if sources else None
+    original_citation_rate = (
+        sum(
+            not any(
+                marker in item.canonical_url
+                for marker in ("api.openalex.org", "api.github.com", "tavily.com/search")
+            )
+            for item in sources
+        )
+        / len(sources)
+        if sources
+        else None
+    )
+    evidence_sources_by_claim: dict[object, set[object]] = {}
+    for item in evidence:
+        snapshot = store.get_snapshot(item.snapshot_id)
+        if snapshot is not None:
+            evidence_sources_by_claim.setdefault(item.claim_id, set()).add(snapshot.source_id)
+    corroborated = sum(len(source_ids) >= 2 for source_ids in evidence_sources_by_claim.values())
+    cross_source_corroboration = (
+        corroborated / len(evidence_sources_by_claim) if evidence_sources_by_claim else None
+    )
+    requested_special_kinds = set(strategy.requested_kinds) - {SourceKind.WEB_PAGE}
+    source_type_compliance = (
+        bool(source_kinds & requested_special_kinds) if requested_special_kinds else None
+    )
+    source_dates: list[datetime] = []
+    for snapshot in snapshots:
+        raw_date = str((snapshot.retrieval_metadata or {}).get("publication_date") or "").strip()
+        if not raw_date:
+            continue
+        try:
+            parsed = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        source_dates.append(parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC))
+    freshness_required = QueryStrategy.RECENT in strategy.query_families
+    source_freshness = (
+        any(item >= datetime.now(UTC) - timedelta(days=365) for item in source_dates)
+        if freshness_required
+        else None
+    )
+    contradictions = store.list_contradictions(run_id)
+    contradiction_resolution_rate = (
+        sum(item.evidence_status.value == "sufficient" for item in contradictions)
+        / len(contradictions)
+        if contradictions
+        else None
+    )
 
     results: dict[str, object] = {
         "run_id": str(run_id),
@@ -200,17 +282,34 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         "budget_compliance": eval_budget_compliance(
             consumed=float(consumption.sources), limit=float(run.budget.max_sources)
         ),
+        # Compatibility alias retained for existing runtime gates and API consumers.
+        "budget_sources": eval_budget_compliance(
+            consumed=float(consumption.sources), limit=float(run.budget.max_sources)
+        ),
         "dag_cycle_free": dag_ok,
         "termination_correct": (
-            requirement_coverage and report_contract_compliance
+            (requirement_coverage and report_contract_compliance and progress_consistent)
+            or (
+                run.termination_reason == "completed_with_limitations"
+                and bool(evidence)
+                and progress_consistent
+                and final_critic is not None
+                and final_critic.verdict == FinalCriticVerdict.BLOCKED_BY_EVIDENCE
+            )
             if run.status == ResearchRunStatus.COMPLETED
-            else eval_termination_correct(
-                status=run.status.value,
-                allowed={
-                    ResearchRunStatus.BUDGET_EXHAUSTED.value,
-                    ResearchRunStatus.CANCELLED.value,
-                    ResearchRunStatus.FAILED.value,
-                },
+            else (
+                eval_termination_correct(
+                    status=run.status.value,
+                    allowed={
+                        ResearchRunStatus.BUDGET_EXHAUSTED.value,
+                        ResearchRunStatus.CANCELLED.value,
+                        ResearchRunStatus.FAILED.value,
+                    },
+                )
+                and (
+                    (run.status == ResearchRunStatus.FAILED and "run.failed" in actual_actions)
+                    or run.status != ResearchRunStatus.FAILED
+                )
             )
         ),
         "trajectory_accuracy": trajectory_ok,
@@ -223,6 +322,16 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         ),
         "requirement_coverage": requirement_coverage,
         "source_portfolio_adequacy": source_portfolio_adequacy,
+        "source_diversity": source_diversity,
+        "source_independence": source_independence,
+        "source_type_compliance": source_type_compliance,
+        "source_freshness": source_freshness,
+        "primary_source_ratio": primary_source_ratio,
+        "source_fetch_success_rate": fetch_success_rate,
+        "publisher_duplicate_rate": publisher_duplicate_rate,
+        "original_citation_rate": original_citation_rate,
+        "cross_source_corroboration": cross_source_corroboration,
+        "contradiction_resolution_rate": contradiction_resolution_rate,
         "quantitative_coverage": quantitative_coverage,
         "comparison_completeness": comparison_completeness,
         "report_contract_compliance": report_contract_compliance,
@@ -246,4 +355,13 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
     if not comparisons:
         results["comparison_completeness__status"] = "not_applicable"
         results["comparison_completeness__reason"] = "No central comparison requirement."
+    if not requested_special_kinds:
+        results["source_type_compliance__status"] = "not_applicable"
+        results["source_type_compliance__reason"] = "No specialized source class was requested."
+    if not freshness_required:
+        results["source_freshness__status"] = "not_applicable"
+        results["source_freshness__reason"] = "The objective is not freshness-sensitive."
+    if not contradictions:
+        results["contradiction_resolution_rate__status"] = "not_applicable"
+        results["contradiction_resolution_rate__reason"] = "No contradiction was detected."
     return results

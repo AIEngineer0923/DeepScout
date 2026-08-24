@@ -64,10 +64,27 @@ def _apply_final_critic_terminal_gate(
     row = store.get_run_row(run_id)
     raw = (row.config_snapshot or {}).get("final_critic") if row else None
     verdict = str(raw.get("verdict", "")) if isinstance(raw, dict) else ""
-    if verdict in {"blocked_by_evidence", "research_gap", "revision_required"}:
+    if verdict in {"blocked_by_evidence", "research_gap"}:
+        if store.list_evidence(run_id):
+            return TerminationDecision(
+                should_stop=True,
+                reason="completed_with_limitations",
+                terminal_status=ResearchRunStatus.COMPLETED,
+            )
+        reason = (
+            "systemic_no_admissible_sources"
+            if not store.list_sources(run_id)
+            else "blocked_by_evidence"
+        )
         return TerminationDecision(
             should_stop=True,
-            reason=f"final_critic_{verdict}",
+            reason=reason,
+            terminal_status=ResearchRunStatus.FAILED,
+        )
+    if verdict == "revision_required":
+        return TerminationDecision(
+            should_stop=True,
+            reason="report_revision_failed",
             terminal_status=ResearchRunStatus.FAILED,
         )
     return decision
@@ -269,8 +286,7 @@ class ResearchOrchestrator:
             self._store.commit()
             initial_iteration_cap = max(
                 1,
-                run.budget.max_iterations
-                - research_profile(run.research_mode).max_coverage_rounds,
+                run.budget.max_iterations - research_profile(run.research_mode).max_coverage_rounds,
             )
             while True:
                 self._ensure_active(run_id)
@@ -323,9 +339,13 @@ class ResearchOrchestrator:
 
             persist_research_evaluations(self._store, run_id)
             self._store.commit()
+            terminal_event = {
+                ResearchRunStatus.COMPLETED: ResearchEventType.RUN_COMPLETED,
+                ResearchRunStatus.BUDGET_EXHAUSTED: ResearchEventType.RUN_BUDGET_EXHAUSTED,
+            }.get(terminal_status, ResearchEventType.RUN_FAILED)
             self._emit(
                 ResearchEvent(
-                    event_type=ResearchEventType.RUN_COMPLETED,
+                    event_type=terminal_event,
                     run_id=run_id,
                     payload={"reason": reason},
                 )
@@ -387,7 +407,7 @@ class ResearchOrchestrator:
                     )
             self._emit(
                 ResearchEvent(
-                    event_type=ResearchEventType.RUN_COMPLETED,
+                    event_type=ResearchEventType.RUN_BUDGET_EXHAUSTED,
                     run_id=run_id,
                     payload={"reason": "budget_exhausted"},
                 )
@@ -472,18 +492,11 @@ class ResearchOrchestrator:
         )
         plan_write = planner_output_to_write(plan_output)
         mode_profile = research_profile(run.research_mode)
-        depended_on = {
-            dependency
-            for task in plan_write.tasks
-            for dependency in task.depends_on
-        }
+        depended_on = {dependency for task in plan_write.tasks for dependency in task.depends_on}
         plan_write.tasks = [
             task
             for task in plan_write.tasks
-            if not (
-                len(task.depends_on) >= 2
-                and task.task_key not in depended_on
-            )
+            if not (len(task.depends_on) >= 2 and task.task_key not in depended_on)
         ]
         plan_write.tasks = plan_write.tasks[: mode_profile.max_requirement_tasks]
         kept_task_keys = {task.task_key for task in plan_write.tasks}
@@ -527,8 +540,13 @@ class ResearchOrchestrator:
         if not tasks or self._settings.research_use_legacy_path:
             return self._legacy_single_question_iteration(run_id, iteration=iteration)
 
-        from deepscout_research.contracts.dependency_gate import ready_tasks_with_verified_deps
+        from deepscout_research.contracts.dependency_gate import (
+            block_tasks_with_terminal_dependencies,
+            ready_tasks_with_verified_deps,
+        )
 
+        block_tasks_with_terminal_dependencies(self._store, tasks)
+        tasks = self._store.list_tasks(run_id)
         ready = ready_tasks_with_verified_deps(self._store, run_id, tasks)
         for task in ready:
             if task.status == ResearchTaskStatus.PENDING:
@@ -624,6 +642,10 @@ class ResearchOrchestrator:
         )
         results = pool.execute_batch(run_id, ready, iteration=iteration)
         self._store.refresh()
+        block_tasks_with_terminal_dependencies(
+            self._store,
+            self._store.list_tasks(run_id),
+        )
         self._emit(
             ResearchEvent(
                 event_type=ResearchEventType.PHASE_COMPLETED,
@@ -902,9 +924,7 @@ class ResearchOrchestrator:
                 )
                 remaining_run_tokens = max(
                     0,
-                    run.budget.max_total_tokens
-                    - total_tokens_used
-                    - finalization_reserve,
+                    run.budget.max_total_tokens - total_tokens_used - finalization_reserve,
                 )
                 max_index_tokens = min(
                     max(0, profile.max_index_tokens - index_tokens_used),
@@ -1112,10 +1132,10 @@ class ResearchOrchestrator:
             from deepscout_core.domain.schemas import CriticResult
 
             critic_result = CriticResult(
-                passed=True,
+                passed=False,
                 artifact_type="research_pipeline",
-                severity="pass",
-                issues=[],
+                severity="critical",
+                issues=["No evidence-backed claims were produced."],
             )
         self._store.commit()
         self._emit(

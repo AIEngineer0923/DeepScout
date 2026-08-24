@@ -50,6 +50,10 @@ The UI hides most `not_applicable_by_design` rows. Generic “not evaluated” i
 Deterministic evaluators in `run_evals.py` include:
 
 - Claim/evidence coverage, citation resolve rate, provenance
+- Goal-conditioned source portfolio adequacy, source-kind diversity/compliance, publisher-family
+  independence, freshness for time-sensitive objectives, primary-source ratio, fetch success,
+  original-citation rate, publisher duplication, cross-source corroboration, and contradiction
+  resolution rate
 - Budget compliance, duplicate work, DAG validity
 - Security scans (SSRF URLs, secret/PII patterns, prompt injection heuristics)
 - Trajectory / phase adherence checks
@@ -60,7 +64,10 @@ Deterministic evaluators in `run_evals.py` include:
 
 `task_completion` is semantic: a `completed` status alone is insufficient. It also requires material
 coverage and a passing contract-aware final critic. `termination_correctness` applies the same rule to
-`completed`; budget-exhausted/cancelled/failed terminal states retain their explicit semantics.
+`completed`; failed runs also require a matching `run.failed` event. Trajectory, plan adherence, and
+tool-selection checks fail when a historical worker emitted `worker.completed` with zero sources, and
+source-portfolio adequacy cannot pass with an empty source set. Budget-exhausted/cancelled/failed
+terminal states retain their explicit semantics.
 
 ## What does **not** run online (honest unavailable)
 

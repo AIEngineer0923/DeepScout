@@ -30,8 +30,9 @@ def evaluate_sufficiency(
     new_sources = sum(item.sources_added for item in batch)
     completed = sum(1 for task in tasks if task.status.value == "completed")
     failed = sum(1 for task in tasks if task.status.value == "failed")
+    blocked = sum(1 for task in tasks if task.status.value == "blocked")
     pending = sum(1 for task in tasks if task.status.value in {"pending", "ready", "running"})
-  # Bounded policy deltas: positive yield delta stops earlier; negative requires more margin.
+    # Bounded policy deltas: positive yield delta stops earlier; negative requires more margin.
     low_yield_cutoff = max(0, round(1 - low_marginal_yield_threshold_delta * 5))
     evidence_finalize_at = max(1, round(3 - evidence_sufficiency_threshold_delta * 10))
     if (
@@ -46,7 +47,7 @@ def evaluate_sufficiency(
             new_sources,
             completed,
         )
-    if pending == 0 and completed > 0:
+    if pending == 0 and completed > 0 and blocked == 0 and failed == 0:
         return SufficiencyDecision(
             SufficiencyAction.FINALIZE,
             "no_pending_work",
@@ -65,7 +66,7 @@ def evaluate_sufficiency(
             new_sources,
             completed,
         )
-    if failed > 0 and pending > 0 and evidence_count == 0:
+    if (failed > 0 or blocked > 0) and pending > 0 and evidence_count == 0:
         return SufficiencyDecision(
             SufficiencyAction.TARGET_SPECIFIC_GAP,
             "failures_without_evidence",

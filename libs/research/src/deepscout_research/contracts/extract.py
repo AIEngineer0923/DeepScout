@@ -783,6 +783,9 @@ def build_research_contract(
     requirements = _decompose_requirements(goal, planner)
     preferred = _preferred_classes(goal)
     constraints = _extract_source_constraints(goal)
+    from deepscout_research.contracts.numeric_constraints import extract_numeric_constraints
+
+    numeric_constraints, constraint_conflicts = extract_numeric_constraints(goal)
     required_classes: list[SourceClass] = []
     for constraint in constraints:
         if constraint.mode == SourceConstraintMode.ONLY and constraint.scope == "class":
@@ -810,6 +813,8 @@ def build_research_contract(
         evidence_standard=_evidence_standard(goal, preferred),
         requirements=requirements,
         source_constraints=constraints,
+        numeric_constraints=numeric_constraints,
+        constraint_conflicts=constraint_conflicts,
         preferred_source_classes=preferred,
         required_source_classes=required_classes,
         geography=[],

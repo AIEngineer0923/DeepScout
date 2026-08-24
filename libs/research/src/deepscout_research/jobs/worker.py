@@ -14,6 +14,7 @@ from deepscout_persistence.store import ResearchStore
 from deepscout_research.jobs.service import JobService
 from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.search.tavily import TavilyWebSearchProvider
+from deepscout_research.source_fabric.router import build_discovery_router
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,8 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
             )
             session.commit()
             run_settings = resolve_run_settings(store, settings, run_id)
-            with TavilyWebSearchProvider(run_settings) as search:
+            web_search = TavilyWebSearchProvider(run_settings)
+            with build_discovery_router(run_settings, web_search) as search:
                 orchestrator = ResearchOrchestrator(store, run_settings, search)
                 orchestrator.execute(run_id)
             _persist_job_completion(jobs, session, job_id, owner, lease_token)

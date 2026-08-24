@@ -467,7 +467,7 @@ nvtx = [
 
 [[package]]
 name = "deepscout"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -490,7 +490,7 @@ dev = [
 
 [[package]]
 name = "deepscout-api"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "authlib" },
@@ -525,7 +525,7 @@ requires-dist = [
 
 [[package]]
 name = "deepscout-core"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/core" }
 dependencies = [
     { name = "pydantic" },
@@ -540,7 +540,7 @@ requires-dist = [
 
 [[package]]
 name = "deepscout-evaluation"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/evaluation" }
 dependencies = [
     { name = "deepscout-core" },
@@ -559,7 +559,7 @@ requires-dist = [
 
 [[package]]
 name = "deepscout-persistence"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/persistence" }
 dependencies = [
     { name = "alembic" },
@@ -580,7 +580,7 @@ requires-dist = [
 
 [[package]]
 name = "deepscout-providers"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/providers" }
 dependencies = [
     { name = "deepscout-core" },
@@ -601,7 +601,7 @@ requires-dist = [
 
 [[package]]
 name = "deepscout-research"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/research" }
 dependencies = [
     { name = "cryptography" },
@@ -614,6 +614,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "langgraph-checkpoint-postgres" },
     { name = "langsmith" },
+    { name = "pypdf" },
 ]
 
 [package.optional-dependencies]
@@ -633,6 +634,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=0.2" },
     { name = "langgraph-checkpoint-postgres", specifier = ">=3.1.2" },
     { name = "langsmith", specifier = ">=0.3" },
+    { name = "pypdf", specifier = ">=6.0,<7.0" },
     { name = "sentence-transformers", marker = "extra == 'rerank'", specifier = ">=3.0" },
 ]
 provides-extras = ["rerank"]
@@ -1972,6 +1974,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/49/2e/ced460408999b33da6b31b0021b0f37d329e202d4169aeb164493778f25b/pygments-2.21.0.tar.gz", hash = "sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c", size = 5005329, upload-time = "2026-08-17T08:02:48.824Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl", hash = "sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9", size = 1250147, upload-time = "2026-08-17T08:02:44.912Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "6.16.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/66/54212e75406afd9f3e933d0dda23072f6aecc55c5a273077dc2e0b028b23/pypdf-6.16.2.tar.gz", hash = "sha256:595647f6191de6f402cfde1d0c455d6cbccbd509aac32b34783009c032de5d6e", size = 7008996, upload-time = "2026-08-23T13:50:07.135Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/f1/a2da3b55acd4ab737bf728c97edaaed5ec1d3c1236acb639dcdfa97e42c7/pypdf-6.16.2-py3-none-any.whl", hash = "sha256:c8b09a59399062fb45a1b8156c18a787a10a3dae03ac9674397a226712c94604", size = 385060, upload-time = "2026-08-23T13:50:05.349Z" },
 ]
 
 [[package]]

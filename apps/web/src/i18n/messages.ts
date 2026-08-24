@@ -126,9 +126,11 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "phase.running": "Running",
     "phase.pending": "Pending",
     "dashboard.title": "Welcome back",
-    "dashboard.subtitle": "Start a research goal or inspect an active run. Content always comes from a real ResearchRun.",
+    "dashboard.subtitle":
+      "Start a research goal or inspect an active run. Content always comes from a real ResearchRun.",
     "dashboard.goalLabel": "Research goal",
-    "dashboard.goalPlaceholder": "Ask anything. Be specific for better results...",
+    "dashboard.goalPlaceholder":
+      "Ask anything. Be specific for better results...",
     "dashboard.active": "Active research",
     "dashboard.noActive": "No active research. Start a new goal to begin.",
     "dashboard.recent": "Recent research",
@@ -144,7 +146,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "dashboard.metric.knownSpend": "Known application spend",
     "dashboard.automaticModels": "Automatic models",
     "new.title": "New Research",
-    "new.subtitle": "Define a research goal and configure how DeepScout should investigate it.",
+    "new.subtitle":
+      "Define a research goal and configure how DeepScout should investigate it.",
     "new.step1": "1. What do you want to research?",
     "new.step2": "2. Research mode",
     "new.step3": "3. Basic settings",
@@ -159,21 +162,25 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.mode.deepBody": "Comprehensive analysis, higher cost.",
     "new.mode.deepBadge": "Higher cost · Slower",
     "new.outputLanguage": "Research output language",
-    "new.outputLanguageHelp": "Language of the plan and report. Independent from the interface language.",
+    "new.outputLanguageHelp":
+      "Language of the plan and report. Independent from the interface language.",
     "new.freshness": "Source freshness",
     "new.excluded": "Excluded domains",
     "new.region": "Region focus",
     "new.regionAny": "Any region",
     "new.maxSources": "Source budget for this mode",
-    "new.unsupportedFilter": "Not applied in this baseline. Search uses live provider results.",
-    "new.budgetByMode": "Source budget is determined by Quick / Standard / Deep, not a free-form field.",
+    "new.unsupportedFilter":
+      "Not applied in this baseline. Search uses live provider results.",
+    "new.budgetByMode":
+      "Source budget is determined by Quick / Standard / Deep, not a free-form field.",
     "freshness.live": "Live provider results",
     "new.summary": "Research summary",
     "new.summaryEmpty": "Goal will appear here as you type.",
     "new.expectedSources": "Max sources",
     "new.resources": "Resource estimate",
     "new.costUnknown": "Unknown until the run reports usage",
-    "new.costNote": "DeepScout does not invent token or dollar estimates before a run. Cost is shown after real usage is mapped to the pricing catalog, otherwise Unknown.",
+    "new.costNote":
+      "DeepScout does not invent token or dollar estimates before a run. Cost is shown after real usage is mapped to the pricing catalog, otherwise Unknown.",
     "new.costHint": "You can adjust limits and budget in Advanced settings.",
     "new.expectedDepth": "Estimated depth",
     "new.maxIterations": "Max iterations",
@@ -186,7 +193,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.depthDeep": "Deep multi-source analysis",
     "new.saveTemplate": "Save as template",
     "new.templates": "Saved templates",
-    "new.templatesEmpty": "No templates yet. Save a goal and mode to reuse them.",
+    "new.templatesEmpty":
+      "No templates yet. Save a goal and mode to reuse them.",
     "new.templateName": "Template name",
     "new.templateSaved": "Template saved",
     "new.templateApply": "Use template",
@@ -200,7 +208,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "lang.en": "English",
     "lang.it": "Italian",
     "select.title": "Select a research",
-    "select.body": "Run-specific screens need a current research. Start a new one or open a run from History.",
+    "select.body":
+      "Run-specific screens need a current research. Start a new one or open a run from History.",
     "live.plan": "Research plan ({count} tasks)",
     "live.dagView": "DAG view",
     "live.workers": "Active workers ({count})",
@@ -209,7 +218,23 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "live.activity": "Live activity",
     "live.waiting": "Waiting for events.",
     "live.loading": "Loading research…",
-    "live.banner": "DeepScout is gathering and analyzing information from configured providers. Progress reflects real runtime state.",
+    "live.banner":
+      "DeepScout is gathering and analyzing information from configured providers. Progress reflects real runtime state.",
+    "outcome.completed": "Research completed with evidence-backed results.",
+    "outcome.completed_with_limitations":
+      "Research completed with useful evidence, but some requested areas remain unsupported. The report states those limitations explicitly.",
+    "outcome.budget_exhausted":
+      "Research stopped because its configured budget was exhausted. Available evidence and limitations are preserved.",
+    "outcome.cancelled":
+      "Research was cancelled. Any artifacts collected before cancellation are preserved.",
+    "outcome.blocked_no_sources":
+      "Research stopped because no relevant, admissible sources were found after bounded query reformulation.",
+    "outcome.blocked_by_evidence":
+      "Research stopped because the available evidence was not sufficient for a defensible answer.",
+    "outcome.technical_failure":
+      "Research stopped because of a technical failure. Existing artifacts remain available for inspection or resume.",
+    "workers.blockedNoEvidence": "Blocked — no admissible evidence",
+    "workers.blockedPortfolio": "Blocked — independent source portfolio incomplete",
     "live.progress": "Live progress",
     "live.usage": "Usage",
     "live.quickActions": "Quick actions",
@@ -243,7 +268,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "plan.empty": "No tasks yet.",
     "workers.loading": "Loading research agents…",
     "workers.topology": "Research flow",
-    "workers.topologyNote": "Shows how planning, research agents, and downstream synthesis connect for this run.",
+    "workers.topologyNote":
+      "Shows how planning, research agents, and downstream synthesis connect for this run.",
     "workers.runtime": "Research agents ({count})",
     "workers.empty": "Research agents appear once the plan creates tasks.",
     "workers.select": "Select a research agent.",
@@ -270,7 +296,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "arch.synthesis": "Synthesis",
     "arch.report": "Report generation",
     "sources.title": "Sources",
-    "sources.subtitle": "All sources discovered and processed during this research.",
+    "sources.subtitle":
+      "All sources discovered and processed during this research.",
     "sources.loading": "Loading sources…",
     "sources.search": "Search by title, domain or URL...",
     "sources.allStatus": "All status",
@@ -281,7 +308,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.openClaims": "Claims / evidence",
     "snapshot.listTitle": "Snapshots",
     "snapshot.loading": "Loading snapshot…",
-    "snapshot.empty": "No snapshots yet. They appear after a source is fetched.",
+    "snapshot.empty":
+      "No snapshots yet. They appear after a source is fetched.",
     "snapshot.highlight": "Highlight evidence",
     "snapshot.download": "Download text",
     "snapshot.viewContent": "View captured content",
@@ -308,7 +336,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "snapshot.hash": "Hash",
     "quality.loading": "Loading quality…",
     "quality.checks": "Quality checks",
-    "quality.note": "No vanity overall score. These are deterministic evaluator results for this run.",
+    "quality.note":
+      "No vanity overall score. These are deterministic evaluator results for this run.",
     "quality.contradictions": "Contradictions ({count})",
     "quality.none": "No contradictions recorded.",
     "quality.inspect": "Inspect claims",
@@ -316,26 +345,31 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "quality.claimB": "Second claim",
     "report.loading": "Loading report…",
     "report.title": "Research report",
-    "report.empty": "The report appears when synthesis completes. Monitoring stays on the live research view until then.",
+    "report.empty":
+      "The report appears when synthesis completes. Monitoring stays on the live research view until then.",
     "report.info": "Report information",
     "report.generatedBy": "Generated by: Synthesis Agent / Report Engine",
-    "report.citations": "Citations in the markdown body resolve through evidence IDs on the Claims screen. No raw HTML is injected.",
+    "report.citations":
+      "Citations in the markdown body resolve through evidence IDs on the Claims screen. No raw HTML is injected.",
     "report.copied": "Copied",
     "report.copyFailed": "Could not copy the report to the clipboard.",
     "report.readMore": "Read more",
     "report.readLess": "Read less",
     "evals.loading": "Loading evaluations…",
-    "evals.note": "Results come from the DeepScout evaluator registry. No aggregate vanity score is invented.",
+    "evals.note":
+      "Results come from the DeepScout evaluator registry. No aggregate vanity score is invented.",
     "evals.filter": "Filter evaluators...",
     "evals.empty": "No evaluations match your filter.",
-    "evals.deferred": "Evaluations run after the research reaches a terminal state.",
+    "evals.deferred":
+      "Evaluations run after the research reaches a terminal state.",
     "history.title": "History",
     "history.subtitle": "View and manage past research runs.",
     "history.all": "All runs",
     "history.search": "Search research runs...",
     "history.showing": "Showing {shown} of {total}",
     "resume.title": "Resume research",
-    "resume.subtitle": "PostgreSQL domain state is authoritative. LangGraph checkpoints store worker execution snapshots only.",
+    "resume.subtitle":
+      "PostgreSQL domain state is authoritative. LangGraph checkpoints store worker execution snapshots only.",
     "resume.lastState": "Last persisted state",
     "resume.completed": "What’s been completed",
     "resume.remaining": "Remaining work",
@@ -343,13 +377,15 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "resume.sources": "{count} sources preserved",
     "resume.evidence": "{count} evidence items preserved",
     "resume.remainingTasks": "{count} recoverable / remaining tasks",
-    "resume.note": "Resume continues the existing run. Restart creates a new run with the same goal.",
+    "resume.note":
+      "Resume continues the existing run. Restart creates a new run with the same goal.",
     "resume.loading": "Loading resume state…",
     "resume.currentPhase": "Current phase",
     "resume.latestJob": "Latest job",
     "resume.checkpoint": "Recovery checkpoint",
     "reviews.title": "Reviews",
-    "reviews.subtitle": "Research paused for operator approval. Model or retrieved text cannot approve these actions.",
+    "reviews.subtitle":
+      "Research paused for operator approval. Model or retrieved text cannot approve these actions.",
     "reviews.empty": "No pending reviews.",
     "reviews.risk": "Risk",
     "reviews.currentLimits": "Current limits",
@@ -367,7 +403,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "reviews.sourcesShort": "sources",
     "reviews.costLabel": "cost",
     "learning.title": "Learning & improvements",
-    "learning.subtitle": "Review diagnosed failures, improvement candidates, and promoted policies for your workspace.",
+    "learning.subtitle":
+      "Review diagnosed failures, improvement candidates, and promoted policies for your workspace.",
     "learning.metrics.title": "Learning metrics",
     "learning.metrics.casesTotal": "Cases",
     "learning.metrics.casesOpen": "Open cases",
@@ -406,14 +443,17 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "learning.effectiveness.qualityDelta": "Quality delta",
     "learning.effectiveness.costDelta": "Cost delta",
     "learning.effectiveness.evidence": "Evidence strength",
-    "learning.effectiveness.noPolicies": "No active policies with measurable post-promotion cohorts yet.",
+    "learning.effectiveness.noPolicies":
+      "No active policies with measurable post-promotion cohorts yet.",
     "learning.effectiveness.debt.unresolved": "Unresolved cases",
     "learning.effectiveness.debt.unevaluated": "Unevaluated candidates",
     "learning.effectiveness.debt.monitoring": "Active monitoring windows",
-    "learning.effectiveness.debt.insufficientEvidence": "Policies with insufficient evidence",
+    "learning.effectiveness.debt.insufficientEvidence":
+      "Policies with insufficient evidence",
     "status.paused": "Waiting for review",
     "settings.title": "Settings",
-    "settings.subtitle": "Only settings with real backend semantics are shown. No fake billing, quotas, or accounts.",
+    "settings.subtitle":
+      "Only settings with real backend semantics are shown. No fake billing, quotas, or accounts.",
     "settings.tab.general": "General",
     "settings.tab.models": "Models & Providers",
     "settings.tab.research": "Research",
@@ -424,26 +464,38 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "settings.tab.advanced": "Advanced",
     "settings.workspace": "Workspace",
     "settings.uiLanguage": "Interface language",
-    "settings.noMultiuser": "There is no multi-user workspace. Identity is local/operator.",
-    "settings.localWorkspace": "Local mode has one operator workspace and reads provider credentials from the environment.",
-    "settings.hostedWorkspace": "Hosted mode isolates research, credentials, learning, monitors, and templates by authenticated user.",
+    "settings.noMultiuser":
+      "There is no multi-user workspace. Identity is local/operator.",
+    "settings.localWorkspace":
+      "Local mode has one operator workspace and reads provider credentials from the environment.",
+    "settings.hostedWorkspace":
+      "Hosted mode isolates research, credentials, learning, monitors, and templates by authenticated user.",
     "settings.providers": "Providers",
     "settings.keysHidden": "API keys are never displayed.",
     "settings.routing": "Model routing",
-    "settings.routingAuto": "Automatic via ModelRouter. Default provider from environment.",
+    "settings.routingAuto":
+      "Automatic via ModelRouter. Default provider from environment.",
     "settings.researchDefaults": "Research defaults",
     "settings.evals": "Evaluations",
     "settings.evalsDet": "Deterministic evaluators run against real artifacts.",
-    "settings.evalsLlm": "LLM judges are offline-only in development (0% online sampling).",
+    "settings.evalsLlm":
+      "LLM judges are offline-only in development (0% online sampling).",
     "settings.privacy": "Privacy / security",
-    "settings.notifications": "No notification backend is configured. This tab is informational only.",
+    "settings.notifications":
+      "No notification backend is configured. This tab is informational only.",
     "settings.system": "System status",
-    "settings.vector": "pgvector backs run-scoped snapshot retrieval when embeddings are configured.",
-    "settings.noSaas": "No Professional plan, token quota, or tenant settings exist in this product.",
-    "settings.researchLangNote": "Research output language is chosen per run on New Research, not here.",
-    "settings.concurrencyNote": "Research-agent fan-out is bounded by the run concurrency limit (default: 3).",
-    "settings.untrustedText": "Research titles, captured quotes, and reports are treated as untrusted data and rendered as text.",
-    "settings.ssrfText": "Private, loopback, link-local, CGNAT, and metadata destinations are blocked; secure fetch pins the connection to the validated address.",
+    "settings.vector":
+      "pgvector backs run-scoped snapshot retrieval when embeddings are configured.",
+    "settings.noSaas":
+      "No Professional plan, token quota, or tenant settings exist in this product.",
+    "settings.researchLangNote":
+      "Research output language is chosen per run on New Research, not here.",
+    "settings.concurrencyNote":
+      "Research-agent fan-out is bounded by the run concurrency limit (default: 3).",
+    "settings.untrustedText":
+      "Research titles, captured quotes, and reports are treated as untrusted data and rendered as text.",
+    "settings.ssrfText":
+      "Private, loopback, link-local, CGNAT, and metadata destinations are blocked; secure fetch pins the connection to the validated address.",
     "settings.advancedTitle": "Runtime details",
     "tab.overview": "Overview",
     "tab.plan": "Plan / DAG",
@@ -500,12 +552,18 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.stat.claims": "Claims",
     "sources.stat.evidence": "Evidence",
     "sources.type": "Type",
+    "sources.publisher": "Publisher / creator",
+    "sources.authority": "Authority",
+    "sources.evidenceRole": "Useful as",
+    "sources.published": "Published",
+    "sources.transcriptAvailable": "Public transcript captured with timestamp provenance.",
     "sources.analyzedFor": "Analyzed for",
     "report.model": "Model",
-    "configured": "configured",
-    "notConfigured": "not configured",
+    configured: "configured",
+    notConfigured: "not configured",
     "followup.title": "Ask follow-up",
-    "followup.help": "Creates a new research run. The original report is not mutated.",
+    "followup.help":
+      "Creates a new research run. The original report is not mutated.",
     "followup.placeholder": "Dig deeper into this claim…",
     "followup.start": "Start follow-up research",
     "followup.starting": "Starting…",
@@ -520,7 +578,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.undo": "Undo",
     "sources.prefFailed": "Could not update source preference",
     "knowledge.title": "Knowledge",
-    "knowledge.subtitle": "Browse compiled Wiki pages. This is derived knowledge, not raw evidence.",
+    "knowledge.subtitle":
+      "Browse compiled Wiki pages. This is derived knowledge, not raw evidence.",
     "knowledge.notEvidence": "Compiled knowledge is not primary evidence.",
     "knowledge.empty": "No compiled pages yet. Complete a research run first.",
     "knowledge.pages": "Pages",
@@ -529,7 +588,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "knowledge.openRun": "Open research",
     "knowledge.compiledHits": "Compiled hits",
     "knowledge.graph": "Relations",
-    "knowledge.graphHelp": "Bounded relational graph from PostgreSQL. List fallback below.",
+    "knowledge.graphHelp":
+      "Bounded relational graph from PostgreSQL. List fallback below.",
     "knowledge.noGraph": "No relations in this run.",
     "knowledge.from": "From",
     "knowledge.to": "To",
@@ -539,7 +599,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "knowledge.provenance": "Provenance drill-down",
     "knowledge.openClaims": "Open claims",
     "monitors.title": "Monitors",
-    "monitors.subtitle": "Scheduled research uses the same pipeline, budgets, and HITL rules.",
+    "monitors.subtitle":
+      "Scheduled research uses the same pipeline, budgets, and HITL rules.",
     "monitors.create": "Create monitor",
     "monitors.defaultName": "Daily monitor",
     "monitors.name": "Name",
@@ -557,7 +618,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "monitors.loading": "Loading monitor…",
     "monitors.history": "Executions",
     "compare.title": "Compare runs",
-    "compare.subtitle": "Newer is not automatically better. UNKNOWN cost stays UNKNOWN.",
+    "compare.subtitle":
+      "Newer is not automatically better. UNKNOWN cost stays UNKNOWN.",
     "compare.left": "Left run",
     "compare.right": "Right run",
     "compare.run": "Compare",
@@ -573,11 +635,15 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "compare.plan.parallel_width": "Parallel width",
     "compare.plan.edges": "Dependencies",
     "account.title": "Account",
-    "account.subtitle": "Provider credentials, privacy, and account data. No subscriptions or invented quotas.",
+    "account.subtitle":
+      "Provider credentials, privacy, and account data. No subscriptions or invented quotas.",
     "account.providers": "Providers",
-    "account.privacyHosted": "Credentials are encrypted at rest, never returned to the browser, and decrypted only in the trusted backend for your provider calls.",
-    "account.privacyLocal": "Local mode reads credentials from the operator environment. This page never receives or stores their values.",
-    "account.localCredentialsHelp": "Edit provider keys in your local environment configuration, then restart the API and worker. This screen is status-only in local mode.",
+    "account.privacyHosted":
+      "Credentials are encrypted at rest, never returned to the browser, and decrypted only in the trusted backend for your provider calls.",
+    "account.privacyLocal":
+      "Local mode reads credentials from the operator environment. This page never receives or stores their values.",
+    "account.localCredentialsHelp":
+      "Edit provider keys in your local environment configuration, then restart the API and worker. This screen is status-only in local mode.",
     "account.replaceSecret": "Replace secret",
     "account.pasteSecret": "Paste secret",
     "account.saved": "Credential configured",
@@ -589,33 +655,42 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "account.security": "Security",
     "account.logoutAll": "Sign out all sessions",
     "account.delete": "Delete account",
-    "account.deleteConfirm": "Delete this account and all research it owns? This cannot be undone.",
+    "account.deleteConfirm":
+      "Delete this account and all research it owns? This cannot be undone.",
     "auth.unavailableTitle": "Unable to verify access",
-    "auth.unavailableBody": "DeepScout could not verify the current session. Access stays closed until the API responds.",
+    "auth.unavailableBody":
+      "DeepScout could not verify the current session. Access stays closed until the API responds.",
     "onboarding.welcome": "Welcome, {name}",
     "onboarding.fallbackName": "researcher",
-    "onboarding.stepProviders": "Configure the required providers (LLM and web search).",
+    "onboarding.stepProviders":
+      "Configure the required providers (LLM and web search).",
     "onboarding.stepReadiness": "Verify their readiness on the account page.",
     "onboarding.stepResearch": "Start your first research run.",
-    "onboarding.langsmith": "LangSmith is optional and stays off unless you configure your own key.",
+    "onboarding.langsmith":
+      "LangSmith is optional and stays off unless you configure your own key.",
     "action.delete": "Delete",
     "landing.nav": "Public navigation",
     "landing.loading": "Loading…",
     "landing.eyebrow": "Autonomous deep research",
-    "landing.lead": "Planner/DAG research with evidence, provenance, RAG, contradiction analysis, monitoring, and human-in-the-loop — inspect every step.",
+    "landing.lead":
+      "Planner/DAG research with evidence, provenance, RAG, contradiction analysis, monitoring, and human-in-the-loop — inspect every step.",
     "landing.cta.demo": "Explore Live Demo",
     "landing.cta.signIn": "Sign in",
     "landing.cta.github": "Sign in with GitHub",
     "landing.cta.google": "Sign in with Google",
     "landing.featuresTitle": "What Deep Scout does",
-    "landing.feature.planner": "Planner/DAG decomposition with dependency validation",
+    "landing.feature.planner":
+      "Planner/DAG decomposition with dependency validation",
     "landing.feature.workers": "Dynamic workers with bounded tool calls",
-    "landing.feature.evidence": "Claims, evidence, and source snapshots with provenance",
+    "landing.feature.evidence":
+      "Claims, evidence, and source snapshots with provenance",
     "landing.feature.rag": "Run-scoped hybrid RAG over PostgreSQL/pgvector",
     "landing.feature.monitor": "Monitors and follow-up research with lineage",
-    "landing.feature.hitl": "Human-in-the-loop reviews without exposing chain-of-thought",
+    "landing.feature.hitl":
+      "Human-in-the-loop reviews without exposing chain-of-thought",
     "landing.tryTitle": "Try without an account",
-    "landing.tryBody": "Browse sanitized public demos read-only. No provider spend, no mutations.",
+    "landing.tryBody":
+      "Browse sanitized public demos read-only. No provider spend, no mutations.",
     "landing.ossTitle": "Open source",
     "landing.link.github": "View on GitHub",
     "landing.link.local": "Run Locally",
@@ -624,15 +699,19 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "landing.link.security": "Security",
     "landing.link.docs": "Documentation",
     "landing.learnTitle": "Learn more",
-    "landing.footer": "Public demos are real research runs that were executed and stored. Private research stays in your own account.",
+    "landing.footer":
+      "Public demos are real research runs that were executed and stored. Private research stays in your own account.",
     "landing.footerNav": "Footer links",
     "demo.title": "Explore Demo",
-    "demo.subtitle": "Read-only completed research. No signup. No provider spend.",
+    "demo.subtitle":
+      "Read-only completed research. No signup. No provider spend.",
     "demo.empty": "No published demo is available on this deployment yet.",
     "demo.cta": "Run your own research",
     "demo.exploreResearch": "Explore research",
-    "demo.replayBanner": "Precomputed research replay — read only. Sign in to run your own.",
-    "demo.readOnlyFooter": "Read-only public demo. No provider calls are made while browsing.",
+    "demo.replayBanner":
+      "Precomputed research replay — read only. Sign in to run your own.",
+    "demo.readOnlyFooter":
+      "Read-only public demo. No provider calls are made while browsing.",
     "demo.badge": "Public demo",
     "demo.backToCatalog": "Back to catalog",
     "demo.technicalDetails": "Technical details",
@@ -671,12 +750,16 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "demo.category.regulatory": "Regulatory",
     "demo.category.scientific": "Scientific",
     "login.title": "Welcome to Deep Scout",
-    "login.subtitle": "Deep Scout runs multi-step research and keeps every claim linked to the source it came from.",
+    "login.subtitle":
+      "Deep Scout runs multi-step research and keeps every claim linked to the source it came from.",
     "login.authHeading": "Sign in",
-    "login.authHelp": "Research runs on your own provider keys, which you add after signing in.",
+    "login.authHelp":
+      "Research runs on your own provider keys, which you add after signing in.",
     "login.demoHeading": "Just looking?",
-    "login.demoHelp": "Browse a completed research run — sources, evidence and report — without an account.",
-    "login.notReady": "Hosted authentication is not configured on this deployment.",
+    "login.demoHelp":
+      "Browse a completed research run — sources, evidence and report — without an account.",
+    "login.notReady":
+      "Hosted authentication is not configured on this deployment.",
     "login.github": "Continue with GitHub",
     "login.google": "Continue with Google",
     "login.demo": "Explore demo without signing in",
@@ -689,7 +772,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "nav.account": "Account",
     "nav.dashboard": "Dashboard",
     "new.modelPolicy": "Model selection",
-    "new.modelPolicyHelp": "Automatic uses your configured providers and task capabilities.",
+    "new.modelPolicyHelp":
+      "Automatic uses your configured providers and task capabilities.",
     "new.model.automatic": "Automatic — Recommended",
     "new.model.quality": "Prefer quality",
     "new.model.balanced": "Balanced",
@@ -699,7 +783,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.geo.automatic": "Automatic — Recommended",
     "new.geo.global": "Global",
     "new.geo.regions": "Country / territory",
-    "new.geo.regionsHelp": "Select one or more areas. Independent from interface language.",
+    "new.geo.regionsHelp":
+      "Select one or more areas. Independent from interface language.",
     "new.geo.search": "Search countries…",
     "new.freshness.automatic": "Automatic — Recommended",
     "new.freshness.any": "Any time",
@@ -707,17 +792,22 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.freshness.7d": "Last 7 days",
     "new.freshness.30d": "Last 30 days",
     "new.freshness.1y": "Last year",
-    "new.freshnessHelp": "Applied where providers support recency; otherwise post-filtered when safe.",
-    "new.excludedHelp": "Domains excluded from search and retrieval for this run.",
+    "new.freshnessHelp":
+      "Applied where providers support recency; otherwise post-filtered when safe.",
+    "new.excludedHelp":
+      "Domains excluded from search and retrieval for this run.",
     "new.excludedPlaceholder": "example.com, spam.test",
     "new.saveTemplateTitle": "Save as template",
     "new.templateNameLabel": "Template name",
     "new.estimatedEnvelope": "Estimated resource envelope",
     "new.actualUsage": "Actual usage appears after the run completes.",
-    "new.providerMissing": "Configure at least one LLM and web search provider before starting hosted research.",
-    "new.providerCheckFailed": "Provider readiness and runtime limits could not be verified. Research remains disabled until the API is available.",
+    "new.providerMissing":
+      "Configure at least one LLM and web search provider before starting hosted research.",
+    "new.providerCheckFailed":
+      "Provider readiness and runtime limits could not be verified. Research remains disabled until the API is available.",
     "new.runtimeLimits": "Configured runtime limits",
-    "new.runtimeLimitsNote": "These are enforced ceilings from the backend configuration, not usage predictions. Actual usage can be lower; cost remains unknown when provider pricing is unavailable.",
+    "new.runtimeLimitsNote":
+      "These are enforced ceilings from the backend configuration, not usage predictions. Actual usage can be lower; cost remains unknown when provider pricing is unavailable.",
     "new.maxTasks": "Requirement tasks",
     "new.upToMinutes": "Up to {count} min",
     "new.costCeiling": "Configured cost ceiling: ${value}",
@@ -846,11 +936,14 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "phase.running": "In esecuzione",
     "phase.pending": "In attesa",
     "dashboard.title": "Bentornato",
-    "dashboard.subtitle": "Avvia un obiettivo di ricerca o ispeziona una run attiva. I contenuti arrivano sempre da un ResearchRun reale.",
+    "dashboard.subtitle":
+      "Avvia un obiettivo di ricerca o ispeziona una run attiva. I contenuti arrivano sempre da un ResearchRun reale.",
     "dashboard.goalLabel": "Obiettivo di ricerca",
-    "dashboard.goalPlaceholder": "Chiedi qualsiasi cosa. Sii specifico per risultati migliori...",
+    "dashboard.goalPlaceholder":
+      "Chiedi qualsiasi cosa. Sii specifico per risultati migliori...",
     "dashboard.active": "Ricerca attiva",
-    "dashboard.noActive": "Nessuna ricerca attiva. Avvia un nuovo obiettivo per iniziare.",
+    "dashboard.noActive":
+      "Nessuna ricerca attiva. Avvia un nuovo obiettivo per iniziare.",
     "dashboard.recent": "Ricerche recenti",
     "dashboard.metric.runs": "Ricerche",
     "dashboard.metric.sources": "Fonti analizzate",
@@ -864,13 +957,15 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "dashboard.metric.knownSpend": "Spesa applicativa nota",
     "dashboard.automaticModels": "Modelli automatici",
     "new.title": "Nuova ricerca",
-    "new.subtitle": "Definisci un obiettivo e configura come DeepScout deve indagare.",
+    "new.subtitle":
+      "Definisci un obiettivo e configura come DeepScout deve indagare.",
     "new.step1": "1. Cosa vuoi ricercare?",
     "new.step2": "2. Modalità di ricerca",
     "new.step3": "3. Impostazioni di base",
     "new.step4": "4. Impostazioni avanzate (opzionale)",
     "new.mode.quick": "Quick",
-    "new.mode.quickBody": "Panoramica rapida, fonti essenziali, costo inferiore.",
+    "new.mode.quickBody":
+      "Panoramica rapida, fonti essenziali, costo inferiore.",
     "new.mode.quickBadge": "Costo inferiore · Più veloce",
     "new.mode.standard": "Standard",
     "new.mode.standardBody": "Ricerca bilanciata e verificabile.",
@@ -879,22 +974,27 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.mode.deepBody": "Analisi completa, costo più alto.",
     "new.mode.deepBadge": "Costo superiore · Più lenta",
     "new.outputLanguage": "Lingua del report",
-    "new.outputLanguageHelp": "Lingua del piano e del report. Indipendente dalla lingua dell’interfaccia.",
+    "new.outputLanguageHelp":
+      "Lingua del piano e del report. Indipendente dalla lingua dell’interfaccia.",
     "new.freshness": "Freschezza delle fonti",
     "new.excluded": "Domini esclusi",
     "new.region": "Focus geografico",
     "new.regionAny": "Qualsiasi regione",
     "new.maxSources": "Budget fonti di questa modalità",
-    "new.unsupportedFilter": "Non applicato in questo baseline. La ricerca usa i risultati live del provider.",
-    "new.budgetByMode": "Il budget fonti è determinato da Quick / Standard / Deep, non da un campo libero.",
+    "new.unsupportedFilter":
+      "Non applicato in questo baseline. La ricerca usa i risultati live del provider.",
+    "new.budgetByMode":
+      "Il budget fonti è determinato da Quick / Standard / Deep, non da un campo libero.",
     "freshness.live": "Risultati live del provider",
     "new.summary": "Riepilogo ricerca",
     "new.summaryEmpty": "L’obiettivo comparirà qui mentre scrivi.",
     "new.expectedSources": "Fonti max",
     "new.resources": "Stima risorse",
     "new.costUnknown": "Sconosciuto finché la run non riporta l’uso",
-    "new.costNote": "DeepScout non inventa stime di token o costo prima della run. Il costo compare dopo la mappatura sul catalogo prezzi, altrimenti resta Sconosciuto.",
-    "new.costHint": "Puoi regolare limiti e budget nelle impostazioni avanzate.",
+    "new.costNote":
+      "DeepScout non inventa stime di token o costo prima della run. Il costo compare dopo la mappatura sul catalogo prezzi, altrimenti resta Sconosciuto.",
+    "new.costHint":
+      "Puoi regolare limiti e budget nelle impostazioni avanzate.",
     "new.expectedDepth": "Profondità stimata",
     "new.maxIterations": "Iterazioni max",
     "new.modelCalls": "Chiamate modello",
@@ -906,7 +1006,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.depthDeep": "Analisi approfondita multi-fonte",
     "new.saveTemplate": "Salva come modello",
     "new.templates": "Modelli salvati",
-    "new.templatesEmpty": "Nessun modello. Salva un obiettivo e una modalità per riusarli.",
+    "new.templatesEmpty":
+      "Nessun modello. Salva un obiettivo e una modalità per riusarli.",
     "new.templateName": "Nome del template",
     "new.templateSaved": "Modello salvato",
     "new.templateApply": "Usa modello",
@@ -920,7 +1021,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "lang.en": "Inglese",
     "lang.it": "Italiano",
     "select.title": "Seleziona una ricerca",
-    "select.body": "Le schermate della run richiedono una ricerca corrente. Avviane una nuova o aprine una dalla Cronologia.",
+    "select.body":
+      "Le schermate della run richiedono una ricerca corrente. Avviane una nuova o aprine una dalla Cronologia.",
     "live.plan": "Piano di ricerca ({count} task)",
     "live.dagView": "Vista DAG",
     "live.workers": "Worker attivi ({count})",
@@ -929,11 +1031,29 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "live.activity": "Attività in tempo reale",
     "live.waiting": "In attesa di eventi.",
     "live.loading": "Caricamento ricerca…",
-    "live.banner": "DeepScout sta raccogliendo e analizzando informazioni dai provider configurati. L'avanzamento riflette lo stato runtime reale.",
+    "live.banner":
+      "DeepScout sta raccogliendo e analizzando informazioni dai provider configurati. L'avanzamento riflette lo stato runtime reale.",
+    "outcome.completed":
+      "Ricerca completata con risultati supportati da evidenze.",
+    "outcome.completed_with_limitations":
+      "Ricerca completata con evidenze utili, ma alcune aree richieste restano senza supporto. Il report dichiara esplicitamente questi limiti.",
+    "outcome.budget_exhausted":
+      "La ricerca si è fermata perché ha esaurito il budget configurato. Le evidenze disponibili e i limiti sono stati conservati.",
+    "outcome.cancelled":
+      "La ricerca è stata annullata. Gli artefatti raccolti prima dell'annullamento sono stati conservati.",
+    "outcome.blocked_no_sources":
+      "La ricerca si è fermata perché, dopo riformulazioni limitate delle query, non sono state trovate fonti pertinenti e ammissibili.",
+    "outcome.blocked_by_evidence":
+      "La ricerca si è fermata perché le evidenze disponibili non erano sufficienti per una risposta difendibile.",
+    "outcome.technical_failure":
+      "La ricerca si è fermata per un errore tecnico. Gli artefatti esistenti restano disponibili per ispezione o ripresa.",
+    "workers.blockedNoEvidence": "Bloccato — nessuna evidenza ammissibile",
+    "workers.blockedPortfolio": "Bloccato — portafoglio di fonti indipendenti incompleto",
     "live.progress": "Avanzamento live",
     "live.usage": "Utilizzo",
     "live.quickActions": "Azioni rapide",
-    "live.activitySub": "Eventi runtime in tempo reale dall'orchestratore di ricerca.",
+    "live.activitySub":
+      "Eventi runtime in tempo reale dall'orchestratore di ricerca.",
     "activity.all": "Tutti",
     "activity.phase": "Planner",
     "activity.worker": "Worker",
@@ -963,9 +1083,11 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "plan.empty": "Nessun task ancora.",
     "workers.loading": "Caricamento agenti di ricerca…",
     "workers.topology": "Flusso di ricerca",
-    "workers.topologyNote": "Mostra come pianificazione, agenti di ricerca e sintesi finale si collegano in questa ricerca.",
+    "workers.topologyNote":
+      "Mostra come pianificazione, agenti di ricerca e sintesi finale si collegano in questa ricerca.",
     "workers.runtime": "Agenti di ricerca ({count})",
-    "workers.empty": "Gli agenti di ricerca compaiono quando il piano crea le attività.",
+    "workers.empty":
+      "Gli agenti di ricerca compaiono quando il piano crea le attività.",
     "workers.select": "Seleziona un agente di ricerca.",
     "workers.role": "Ruolo",
     "workers.parent": "Dipende da",
@@ -976,7 +1098,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "workers.deterministic": "Automatico",
     "workers.configuration": "Configurazione",
     "workers.metrics": "Metriche della ricerca",
-    "workers.runtimeNote": "Agenti di ricerca autonomi creati per questa ricerca.",
+    "workers.runtimeNote":
+      "Agenti di ricerca autonomi creati per questa ricerca.",
     "workers.total": "Totale {count}",
     "workers.runningCount": "In esecuzione {count}",
     "workers.completedCount": "Completati {count}",
@@ -990,7 +1113,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "arch.synthesis": "Sintesi",
     "arch.report": "Generazione del report",
     "sources.title": "Fonti",
-    "sources.subtitle": "Tutte le fonti scoperte e processate in questa ricerca.",
+    "sources.subtitle":
+      "Tutte le fonti scoperte e processate in questa ricerca.",
     "sources.loading": "Caricamento fonti…",
     "sources.search": "Cerca per titolo, dominio o URL...",
     "sources.allStatus": "Tutti gli stati",
@@ -1001,7 +1125,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.openClaims": "Affermazioni / evidenze",
     "snapshot.listTitle": "Snapshot",
     "snapshot.loading": "Caricamento snapshot…",
-    "snapshot.empty": "Nessuno snapshot ancora. Compare dopo il fetch di una fonte.",
+    "snapshot.empty":
+      "Nessuno snapshot ancora. Compare dopo il fetch di una fonte.",
     "snapshot.highlight": "Evidenzia evidenze",
     "snapshot.download": "Scarica testo",
     "snapshot.viewContent": "Visualizza contenuto",
@@ -1028,7 +1153,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "snapshot.hash": "Hash",
     "quality.loading": "Caricamento qualità…",
     "quality.checks": "Controlli di qualità",
-    "quality.note": "Nessun punteggio complessivo inventato. Questi sono risultati deterministici della run.",
+    "quality.note":
+      "Nessun punteggio complessivo inventato. Questi sono risultati deterministici della run.",
     "quality.contradictions": "Contraddizioni ({count})",
     "quality.none": "Nessuna contraddizione registrata.",
     "quality.inspect": "Ispeziona affermazioni",
@@ -1036,26 +1162,31 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "quality.claimB": "Seconda affermazione",
     "report.loading": "Caricamento report…",
     "report.title": "Report di ricerca",
-    "report.empty": "Il report compare al termine della sintesi. Fino ad allora resta la vista live.",
+    "report.empty":
+      "Il report compare al termine della sintesi. Fino ad allora resta la vista live.",
     "report.info": "Informazioni report",
     "report.generatedBy": "Generato da: Synthesis Agent / Report Engine",
-    "report.citations": "Le citazioni nel markdown si risolvono tramite ID evidenza nella schermata Affermazioni. Nessun HTML grezzo viene iniettato.",
+    "report.citations":
+      "Le citazioni nel markdown si risolvono tramite ID evidenza nella schermata Affermazioni. Nessun HTML grezzo viene iniettato.",
     "report.copied": "Copiato",
     "report.copyFailed": "Impossibile copiare il report negli appunti.",
     "report.readMore": "Leggi di più",
     "report.readLess": "Leggi meno",
     "evals.loading": "Caricamento valutazioni…",
-    "evals.note": "I risultati arrivano dal registry valutatori DeepScout. Nessun punteggio aggregato di facciata.",
+    "evals.note":
+      "I risultati arrivano dal registry valutatori DeepScout. Nessun punteggio aggregato di facciata.",
     "evals.filter": "Filtra valutatori...",
     "evals.empty": "Nessuna valutazione corrisponde al filtro.",
-    "evals.deferred": "Le valutazioni vengono eseguite quando la ricerca raggiunge uno stato terminale.",
+    "evals.deferred":
+      "Le valutazioni vengono eseguite quando la ricerca raggiunge uno stato terminale.",
     "history.title": "Cronologia",
     "history.subtitle": "Consulta e gestisci le ricerche passate.",
     "history.all": "Tutte le run",
     "history.search": "Cerca ricerche...",
     "history.showing": "Mostro {shown} di {total}",
     "resume.title": "Riprendi ricerca",
-    "resume.subtitle": "Lo stato di dominio PostgreSQL è autorevole. I checkpoint LangGraph conservano solo snapshot di esecuzione worker.",
+    "resume.subtitle":
+      "Lo stato di dominio PostgreSQL è autorevole. I checkpoint LangGraph conservano solo snapshot di esecuzione worker.",
     "resume.lastState": "Ultimo stato persistito",
     "resume.completed": "Cosa è stato completato",
     "resume.remaining": "Lavoro rimanente",
@@ -1063,13 +1194,15 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "resume.sources": "{count} fonti conservate",
     "resume.evidence": "{count} evidenze conservate",
     "resume.remainingTasks": "{count} task recuperabili / rimanenti",
-    "resume.note": "Riprendi continua la stessa run. Ricomincia crea una nuova run con lo stesso obiettivo.",
+    "resume.note":
+      "Riprendi continua la stessa run. Ricomincia crea una nuova run con lo stesso obiettivo.",
     "resume.loading": "Caricamento stato resume…",
     "resume.currentPhase": "Fase attuale",
     "resume.latestJob": "Ultimo job",
     "resume.checkpoint": "Checkpoint di recupero",
     "reviews.title": "Revisioni",
-    "reviews.subtitle": "Ricerca in pausa in attesa di approvazione. Testo del modello o recuperato non può approvare.",
+    "reviews.subtitle":
+      "Ricerca in pausa in attesa di approvazione. Testo del modello o recuperato non può approvare.",
     "reviews.empty": "Nessuna revisione in sospeso.",
     "reviews.risk": "Rischio",
     "reviews.currentLimits": "Limiti attuali",
@@ -1087,7 +1220,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "reviews.sourcesShort": "fonti",
     "reviews.costLabel": "costo",
     "learning.title": "Apprendimento e miglioramenti",
-    "learning.subtitle": "Rivedi errori diagnosticati, candidati di miglioramento e policy promosse per il tuo workspace.",
+    "learning.subtitle":
+      "Rivedi errori diagnosticati, candidati di miglioramento e policy promosse per il tuo workspace.",
     "learning.metrics.title": "Metriche di apprendimento",
     "learning.metrics.casesTotal": "Casi",
     "learning.metrics.casesOpen": "Casi aperti",
@@ -1126,14 +1260,17 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "learning.effectiveness.qualityDelta": "Delta qualità",
     "learning.effectiveness.costDelta": "Delta costo",
     "learning.effectiveness.evidence": "Forza dell'evidenza",
-    "learning.effectiveness.noPolicies": "Nessuna policy attiva con coorti misurabili post-promozione.",
+    "learning.effectiveness.noPolicies":
+      "Nessuna policy attiva con coorti misurabili post-promozione.",
     "learning.effectiveness.debt.unresolved": "Casi irrisolti",
     "learning.effectiveness.debt.unevaluated": "Candidati non valutati",
     "learning.effectiveness.debt.monitoring": "Finestre di monitoraggio attive",
-    "learning.effectiveness.debt.insufficientEvidence": "Policy con evidenza insufficiente",
+    "learning.effectiveness.debt.insufficientEvidence":
+      "Policy con evidenza insufficiente",
     "status.paused": "In attesa di revisione",
     "settings.title": "Impostazioni",
-    "settings.subtitle": "Sono visibili solo impostazioni con semantica backend reale. Nessun billing, quota o account fittizio.",
+    "settings.subtitle":
+      "Sono visibili solo impostazioni con semantica backend reale. Nessun billing, quota o account fittizio.",
     "settings.tab.general": "Generale",
     "settings.tab.models": "Modelli e provider",
     "settings.tab.research": "Ricerca",
@@ -1144,26 +1281,39 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "settings.tab.advanced": "Avanzate",
     "settings.workspace": "Workspace",
     "settings.uiLanguage": "Lingua interfaccia",
-    "settings.noMultiuser": "Non esiste un workspace multi-utente. L’identità è locale/operatore.",
-    "settings.localWorkspace": "La modalità locale ha un solo workspace operatore e legge le credenziali provider dall’ambiente.",
-    "settings.hostedWorkspace": "La modalità hosted isola ricerche, credenziali, apprendimento, monitor e template per utente autenticato.",
+    "settings.noMultiuser":
+      "Non esiste un workspace multi-utente. L’identità è locale/operatore.",
+    "settings.localWorkspace":
+      "La modalità locale ha un solo workspace operatore e legge le credenziali provider dall’ambiente.",
+    "settings.hostedWorkspace":
+      "La modalità hosted isola ricerche, credenziali, apprendimento, monitor e template per utente autenticato.",
     "settings.providers": "Provider",
     "settings.keysHidden": "Le chiavi API non vengono mai mostrate.",
     "settings.routing": "Routing modelli",
-    "settings.routingAuto": "Automatico via ModelRouter. Provider predefinito dall’ambiente.",
+    "settings.routingAuto":
+      "Automatico via ModelRouter. Provider predefinito dall’ambiente.",
     "settings.researchDefaults": "Default di ricerca",
     "settings.evals": "Valutazioni",
-    "settings.evalsDet": "I valutatori deterministici girano sugli artefatti reali.",
-    "settings.evalsLlm": "I judge LLM sono solo offline in sviluppo (campionamento online 0%).",
+    "settings.evalsDet":
+      "I valutatori deterministici girano sugli artefatti reali.",
+    "settings.evalsLlm":
+      "I judge LLM sono solo offline in sviluppo (campionamento online 0%).",
     "settings.privacy": "Privacy / sicurezza",
-    "settings.notifications": "Nessun backend di notifica è configurato. Questa scheda è solo informativa.",
+    "settings.notifications":
+      "Nessun backend di notifica è configurato. Questa scheda è solo informativa.",
     "settings.system": "Stato di sistema",
-    "settings.vector": "pgvector gestisce il retrieval per run quando gli embedding sono configurati.",
-    "settings.noSaas": "Non esistono piano Professional, quota token o impostazioni tenant in questo prodotto.",
-    "settings.researchLangNote": "La lingua del report si sceglie per run in Nuova ricerca, non qui.",
-    "settings.concurrencyNote": "Il fan-out degli agenti di ricerca è limitato dalla concorrenza della run (default: 3).",
-    "settings.untrustedText": "Titoli di ricerca, citazioni acquisite e report sono trattati come dati non attendibili e renderizzati come testo.",
-    "settings.ssrfText": "Destinazioni private, loopback, link-local, CGNAT e metadata sono bloccate; il fetch sicuro vincola la connessione all’indirizzo validato.",
+    "settings.vector":
+      "pgvector gestisce il retrieval per run quando gli embedding sono configurati.",
+    "settings.noSaas":
+      "Non esistono piano Professional, quota token o impostazioni tenant in questo prodotto.",
+    "settings.researchLangNote":
+      "La lingua del report si sceglie per run in Nuova ricerca, non qui.",
+    "settings.concurrencyNote":
+      "Il fan-out degli agenti di ricerca è limitato dalla concorrenza della run (default: 3).",
+    "settings.untrustedText":
+      "Titoli di ricerca, citazioni acquisite e report sono trattati come dati non attendibili e renderizzati come testo.",
+    "settings.ssrfText":
+      "Destinazioni private, loopback, link-local, CGNAT e metadata sono bloccate; il fetch sicuro vincola la connessione all’indirizzo validato.",
     "settings.advancedTitle": "Dettagli runtime",
     "tab.overview": "Panoramica",
     "tab.plan": "Piano / DAG",
@@ -1220,12 +1370,18 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.stat.claims": "Affermazioni",
     "sources.stat.evidence": "Evidenze",
     "sources.type": "Tipo",
+    "sources.publisher": "Editore / autore",
+    "sources.authority": "Autorevolezza",
+    "sources.evidenceRole": "Utile come",
+    "sources.published": "Pubblicato",
+    "sources.transcriptAvailable": "Trascrizione pubblica acquisita con provenienza temporale.",
     "sources.analyzedFor": "Analizzata per",
     "report.model": "Modello",
-    "configured": "configurato",
-    "notConfigured": "non configurato",
+    configured: "configurato",
+    notConfigured: "non configurato",
     "followup.title": "Chiedi un follow-up",
-    "followup.help": "Crea una nuova run. Il report originale non viene modificato.",
+    "followup.help":
+      "Crea una nuova run. Il report originale non viene modificato.",
     "followup.placeholder": "Approfondisci questa affermazione…",
     "followup.start": "Avvia follow-up",
     "followup.starting": "Avvio…",
@@ -1240,7 +1396,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "sources.undo": "Annulla",
     "sources.prefFailed": "Impossibile aggiornare la preferenza",
     "knowledge.title": "Conoscenza",
-    "knowledge.subtitle": "Sfoglia le pagine Wiki compilate. Non è evidenza primaria.",
+    "knowledge.subtitle":
+      "Sfoglia le pagine Wiki compilate. Non è evidenza primaria.",
     "knowledge.notEvidence": "La conoscenza compilata non è evidenza primaria.",
     "knowledge.empty": "Nessuna pagina compilata. Completa prima una ricerca.",
     "knowledge.pages": "Pagine",
@@ -1249,7 +1406,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "knowledge.openRun": "Apri ricerca",
     "knowledge.compiledHits": "Risultati compilati",
     "knowledge.graph": "Relazioni",
-    "knowledge.graphHelp": "Grafo relazionale PostgreSQL limitato. Elenco sotto.",
+    "knowledge.graphHelp":
+      "Grafo relazionale PostgreSQL limitato. Elenco sotto.",
     "knowledge.noGraph": "Nessuna relazione in questa run.",
     "knowledge.from": "Da",
     "knowledge.to": "A",
@@ -1259,7 +1417,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "knowledge.provenance": "Provenienza",
     "knowledge.openClaims": "Apri affermazioni",
     "monitors.title": "Monitor",
-    "monitors.subtitle": "La ricerca pianificata usa la stessa pipeline, budget e HITL.",
+    "monitors.subtitle":
+      "La ricerca pianificata usa la stessa pipeline, budget e HITL.",
     "monitors.create": "Crea monitor",
     "monitors.defaultName": "Monitor giornaliero",
     "monitors.name": "Nome",
@@ -1277,7 +1436,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "monitors.loading": "Caricamento monitor…",
     "monitors.history": "Esecuzioni",
     "compare.title": "Confronta run",
-    "compare.subtitle": "Più recente non significa migliore. Il costo UNKNOWN resta UNKNOWN.",
+    "compare.subtitle":
+      "Più recente non significa migliore. Il costo UNKNOWN resta UNKNOWN.",
     "compare.left": "Run sinistra",
     "compare.right": "Run destra",
     "compare.run": "Confronta",
@@ -1293,11 +1453,15 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "compare.plan.parallel_width": "Ampiezza parallela",
     "compare.plan.edges": "Dipendenze",
     "account.title": "Account",
-    "account.subtitle": "Credenziali provider, privacy e dati account. Nessun abbonamento o quota inventata.",
+    "account.subtitle":
+      "Credenziali provider, privacy e dati account. Nessun abbonamento o quota inventata.",
     "account.providers": "Provider",
-    "account.privacyHosted": "Le credenziali sono cifrate a riposo, non tornano mai al browser e vengono decifrate solo nel backend fidato per le tue chiamate provider.",
-    "account.privacyLocal": "La modalità locale legge le credenziali dall’ambiente dell’operatore. Questa pagina non ne riceve né memorizza i valori.",
-    "account.localCredentialsHelp": "Modifica le chiavi provider nella configurazione dell’ambiente locale, poi riavvia API e worker. In modalità locale questa schermata mostra solo lo stato.",
+    "account.privacyHosted":
+      "Le credenziali sono cifrate a riposo, non tornano mai al browser e vengono decifrate solo nel backend fidato per le tue chiamate provider.",
+    "account.privacyLocal":
+      "La modalità locale legge le credenziali dall’ambiente dell’operatore. Questa pagina non ne riceve né memorizza i valori.",
+    "account.localCredentialsHelp":
+      "Modifica le chiavi provider nella configurazione dell’ambiente locale, poi riavvia API e worker. In modalità locale questa schermata mostra solo lo stato.",
     "account.replaceSecret": "Sostituisci segreto",
     "account.pasteSecret": "Incolla segreto",
     "account.saved": "Credenziale configurata",
@@ -1309,33 +1473,42 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "account.security": "Sicurezza",
     "account.logoutAll": "Disconnetti tutte le sessioni",
     "account.delete": "Elimina account",
-    "account.deleteConfirm": "Eliminare questo account e tutte le ricerche possedute? L’operazione è irreversibile.",
+    "account.deleteConfirm":
+      "Eliminare questo account e tutte le ricerche possedute? L’operazione è irreversibile.",
     "auth.unavailableTitle": "Impossibile verificare l’accesso",
-    "auth.unavailableBody": "DeepScout non riesce a verificare la sessione corrente. L’accesso resta chiuso finché l’API non risponde.",
+    "auth.unavailableBody":
+      "DeepScout non riesce a verificare la sessione corrente. L’accesso resta chiuso finché l’API non risponde.",
     "onboarding.welcome": "Benvenuto, {name}",
     "onboarding.fallbackName": "ricercatore",
-    "onboarding.stepProviders": "Configura i provider necessari (LLM e ricerca web).",
+    "onboarding.stepProviders":
+      "Configura i provider necessari (LLM e ricerca web).",
     "onboarding.stepReadiness": "Verificane lo stato nella pagina account.",
     "onboarding.stepResearch": "Avvia la tua prima ricerca.",
-    "onboarding.langsmith": "LangSmith è opzionale e resta disattivato finché non configuri una tua chiave.",
+    "onboarding.langsmith":
+      "LangSmith è opzionale e resta disattivato finché non configuri una tua chiave.",
     "action.delete": "Elimina",
     "landing.nav": "Navigazione pubblica",
     "landing.loading": "Caricamento…",
     "landing.eyebrow": "Ricerca autonoma approfondita",
-    "landing.lead": "Ricerca con Planner/DAG, evidenze, provenienza, RAG, analisi delle contraddizioni, monitoraggio e human-in-the-loop — ogni passo è ispezionabile.",
+    "landing.lead":
+      "Ricerca con Planner/DAG, evidenze, provenienza, RAG, analisi delle contraddizioni, monitoraggio e human-in-the-loop — ogni passo è ispezionabile.",
     "landing.cta.demo": "Esplora demo live",
     "landing.cta.signIn": "Accedi",
     "landing.cta.github": "Accedi con GitHub",
     "landing.cta.google": "Accedi con Google",
     "landing.featuresTitle": "Cosa fa Deep Scout",
-    "landing.feature.planner": "Decomposizione Planner/DAG con validazione dipendenze",
+    "landing.feature.planner":
+      "Decomposizione Planner/DAG con validazione dipendenze",
     "landing.feature.workers": "Worker dinamici con tool call limitati",
-    "landing.feature.evidence": "Affermazioni, evidenze e snapshot con provenienza",
+    "landing.feature.evidence":
+      "Affermazioni, evidenze e snapshot con provenienza",
     "landing.feature.rag": "RAG ibrido per run su PostgreSQL/pgvector",
     "landing.feature.monitor": "Monitor e follow-up con lineage",
-    "landing.feature.hitl": "Revisioni human-in-the-loop senza chain-of-thought",
+    "landing.feature.hitl":
+      "Revisioni human-in-the-loop senza chain-of-thought",
     "landing.tryTitle": "Prova senza account",
-    "landing.tryBody": "Sfoglia demo pubbliche sanificate in sola lettura. Nessun costo provider.",
+    "landing.tryBody":
+      "Sfoglia demo pubbliche sanificate in sola lettura. Nessun costo provider.",
     "landing.ossTitle": "Open source",
     "landing.link.github": "Vedi su GitHub",
     "landing.link.local": "Esegui in locale",
@@ -1344,15 +1517,19 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "landing.link.security": "Sicurezza",
     "landing.link.docs": "Documentazione",
     "landing.learnTitle": "Approfondisci",
-    "landing.footer": "Le demo pubbliche sono ricerche reali già eseguite e archiviate. Le ricerche private restano nel tuo account.",
+    "landing.footer":
+      "Le demo pubbliche sono ricerche reali già eseguite e archiviate. Le ricerche private restano nel tuo account.",
     "landing.footerNav": "Link del footer",
     "demo.title": "Esplora demo",
-    "demo.subtitle": "Ricerche completate in sola lettura. Nessuna registrazione. Nessun costo provider.",
+    "demo.subtitle":
+      "Ricerche completate in sola lettura. Nessuna registrazione. Nessun costo provider.",
     "demo.empty": "Nessuna demo pubblicata è disponibile su questo deployment.",
     "demo.cta": "Esegui la tua ricerca",
     "demo.exploreResearch": "Esplora ricerca",
-    "demo.replayBanner": "Replay di ricerca precomputata — sola lettura. Accedi per eseguire la tua.",
-    "demo.readOnlyFooter": "Demo pubblica in sola lettura. Nessuna chiamata provider durante la navigazione.",
+    "demo.replayBanner":
+      "Replay di ricerca precomputata — sola lettura. Accedi per eseguire la tua.",
+    "demo.readOnlyFooter":
+      "Demo pubblica in sola lettura. Nessuna chiamata provider durante la navigazione.",
     "demo.badge": "Demo pubblica",
     "demo.backToCatalog": "Torna al catalogo",
     "demo.technicalDetails": "Dettagli tecnici",
@@ -1391,12 +1568,16 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "demo.category.regulatory": "Normativa",
     "demo.category.scientific": "Scientifica",
     "login.title": "Benvenuto in Deep Scout",
-    "login.subtitle": "Deep Scout esegue ricerche in più passaggi e collega ogni affermazione alla fonte da cui proviene.",
+    "login.subtitle":
+      "Deep Scout esegue ricerche in più passaggi e collega ogni affermazione alla fonte da cui proviene.",
     "login.authHeading": "Accedi",
-    "login.authHelp": "Le ricerche usano le tue chiavi provider, che aggiungi dopo l'accesso.",
+    "login.authHelp":
+      "Le ricerche usano le tue chiavi provider, che aggiungi dopo l'accesso.",
     "login.demoHeading": "Vuoi solo dare un'occhiata?",
-    "login.demoHelp": "Consulta una ricerca già completata — fonti, evidenze e report — senza registrarti.",
-    "login.notReady": "L'autenticazione hosted non è configurata su questo deployment.",
+    "login.demoHelp":
+      "Consulta una ricerca già completata — fonti, evidenze e report — senza registrarti.",
+    "login.notReady":
+      "L'autenticazione hosted non è configurata su questo deployment.",
     "login.github": "Continua con GitHub",
     "login.google": "Continua con Google",
     "login.demo": "Esplora la demo senza accedere",
@@ -1409,7 +1590,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "nav.account": "Account",
     "nav.dashboard": "Dashboard",
     "new.modelPolicy": "Selezione modello",
-    "new.modelPolicyHelp": "Automatico usa i provider configurati e le capacità del task.",
+    "new.modelPolicyHelp":
+      "Automatico usa i provider configurati e le capacità del task.",
     "new.model.automatic": "Automatico — Consigliato",
     "new.model.quality": "Preferisci qualità",
     "new.model.balanced": "Bilanciato",
@@ -1419,7 +1601,8 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.geo.automatic": "Automatico — Consigliato",
     "new.geo.global": "Globale",
     "new.geo.regions": "Paese / territorio",
-    "new.geo.regionsHelp": "Seleziona una o più aree. Indipendente dalla lingua interfaccia.",
+    "new.geo.regionsHelp":
+      "Seleziona una o più aree. Indipendente dalla lingua interfaccia.",
     "new.geo.search": "Cerca paesi…",
     "new.freshness.automatic": "Automatico — Consigliato",
     "new.freshness.any": "Qualsiasi periodo",
@@ -1427,22 +1610,27 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "new.freshness.7d": "Ultimi 7 giorni",
     "new.freshness.30d": "Ultimi 30 giorni",
     "new.freshness.1y": "Ultimo anno",
-    "new.freshnessHelp": "Applicato dove i provider supportano la recency; altrimenti post-filtrato quando sicuro.",
+    "new.freshnessHelp":
+      "Applicato dove i provider supportano la recency; altrimenti post-filtrato quando sicuro.",
     "new.excludedHelp": "Domini esclusi da ricerca e retrieval per questa run.",
     "new.excludedPlaceholder": "esempio.it, spam.test",
     "new.saveTemplateTitle": "Salva come template",
     "new.templateNameLabel": "Nome del template",
     "new.estimatedEnvelope": "Inviluppo risorse stimato",
     "new.actualUsage": "L'utilizzo reale appare al completamento della run.",
-    "new.providerMissing": "Configura almeno un LLM e un provider di ricerca web prima di avviare ricerche hosted.",
-    "new.providerCheckFailed": "Impossibile verificare provider e limiti runtime. La ricerca resta disabilitata finché l’API non è disponibile.",
+    "new.providerMissing":
+      "Configura almeno un LLM e un provider di ricerca web prima di avviare ricerche hosted.",
+    "new.providerCheckFailed":
+      "Impossibile verificare provider e limiti runtime. La ricerca resta disabilitata finché l’API non è disponibile.",
     "new.runtimeLimits": "Limiti runtime configurati",
-    "new.runtimeLimitsNote": "Sono limiti massimi applicati dal backend, non previsioni di utilizzo. L’uso reale può essere inferiore; il costo resta sconosciuto se il pricing del provider non è disponibile.",
+    "new.runtimeLimitsNote":
+      "Sono limiti massimi applicati dal backend, non previsioni di utilizzo. L’uso reale può essere inferiore; il costo resta sconosciuto se il pricing del provider non è disponibile.",
     "new.maxTasks": "Task dei requisiti",
     "new.upToMinutes": "Fino a {count} min",
     "new.costCeiling": "Tetto di costo configurato: ${value}",
     "new.configureProviders": "Configura provider",
-    "new.goalPlaceholder": "Confronta… Verifica… Analizza… Quali sono le ultime…",
+    "new.goalPlaceholder":
+      "Confronta… Verifica… Analizza… Quali sono le ultime…",
   },
 };
 

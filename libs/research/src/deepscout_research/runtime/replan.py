@@ -25,11 +25,11 @@ def evaluate_replan(
 ) -> ReplanDecision:
     if replans_used >= settings.agent_max_replans:
         return ReplanDecision(False, (), "max_replans")
-    failed = [task for task in tasks if task.status.value == "failed"]
+    failed = [task for task in tasks if task.status.value in {"failed", "blocked"}]
     pending = [task for task in tasks if task.status.value in {"pending", "ready", "running"}]
     if pending:
         return ReplanDecision(False, (), "work_still_pending")
-    if not failed or last_batch_sources > 0:
+    if not failed:
         return ReplanDecision(False, (), "no_gap_signal")
     if evidence_count > 0 and len(failed) == 0:
         return ReplanDecision(False, (), "already_covered")

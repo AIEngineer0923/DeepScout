@@ -39,21 +39,20 @@ def detect_failure_from_evaluations(
     evaluation_rows: list[dict[str, Any]],
     *,
     config_snapshot: dict[str, Any] | None = None,
+    runtime_diagnostics: dict[str, Any] | None = None,
 ) -> tuple[FailureClass | None, dict[str, Any]]:
     """Return earliest failure class and diagnostic evidence if any evaluator failed."""
-    failed = [
-        row for row in evaluation_rows if str(row.get("status")) in {"failed", "error"}
-    ]
+    failed = [row for row in evaluation_rows if str(row.get("status")) in {"failed", "error"}]
     if not failed:
         return None, {}
 
     failure = from_evaluator_failure(str(failed[0]["evaluator_id"]))
     evidence: dict[str, Any] = {
         "failed_evaluators": [
-            {"evaluator_id": row["evaluator_id"], "reason": row.get("reason")}
-            for row in failed
+            {"evaluator_id": row["evaluator_id"], "reason": row.get("reason")} for row in failed
         ],
     }
+    evidence.update(runtime_diagnostics or {})
     snapshot = config_snapshot or {}
     if snapshot.get("final_critic"):
         evidence["final_critic_verdict"] = snapshot["final_critic"].get("verdict")
@@ -85,13 +84,16 @@ def observe_from_evaluations(
     owner_principal_id: UUID | None = None,
     origin: RegressionOrigin = RegressionOrigin.PRODUCTION_CANDIDATE,
     is_public_demo: bool = False,
+    runtime_diagnostics: dict[str, Any] | None = None,
 ) -> LearningCase | None:
     """Create a learning case from terminal evaluation rows. Returns None if no signal."""
     if is_public_demo:
         return None
 
     failure, evidence = detect_failure_from_evaluations(
-        evaluation_rows, config_snapshot=config_snapshot
+        evaluation_rows,
+        config_snapshot=config_snapshot,
+        runtime_diagnostics=runtime_diagnostics,
     )
     if failure is None:
         return None
