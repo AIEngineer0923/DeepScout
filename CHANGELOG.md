@@ -31,6 +31,8 @@ No unreleased changes yet.
   of resetting enriched native-language requests to `und`.
 - Language execution summaries and evidence metadata match policy-enriched queries back to their
   planned native variants instead of relying on brittle byte-for-byte equality.
+- Allocation parsing no longer mistakes league/audience sizes or modifier comparisons for budget
+  totals and category quotas.
 
 ## [0.1.3] - 2026-08-24
 

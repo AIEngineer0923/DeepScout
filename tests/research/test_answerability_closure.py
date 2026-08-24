@@ -36,6 +36,28 @@ def test_allocation_contract_extracts_generic_quotas_and_conflicting_budgets() -
     assert spec.attribute_goals[0].requirement_ids == ["R1"]
 
 
+def test_league_sizes_and_modifier_comparison_are_not_allocation_constraints() -> None:
+    goal = (
+        "Ricostruisci una rosa per una lega a 8 partecipanti, budget 500 crediti, "
+        "rosa completa 3 portieri, 8 difensori, 8 centrocampisti e 6 attaccanti. "
+        "Confronta la distribuzione del budget con strategie di leghe a 8 e 10 "
+        "con modificatore."
+    )
+
+    constraints, conflicts = extract_numeric_constraints(goal)
+    spec = infer_deliverable_spec(goal=goal, requirements=[], numeric_constraints=constraints)
+
+    assert conflicts == []
+    assert spec.budget_total == "500"
+    assert spec.exact_item_count == 25
+    assert [item.category_key for item in spec.category_quotas] == [
+        "portieri",
+        "difensori",
+        "centrocampisti",
+        "attaccanti",
+    ]
+
+
 def test_report_deliverable_validator_checks_rows_quotas_and_budget() -> None:
     goal = "Scegli 2 laptop e 1 tablet con budget totale 900 EUR"
     constraints, _ = extract_numeric_constraints(goal)

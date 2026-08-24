@@ -37,7 +37,7 @@ _ALLOCATION_HINTS = re.compile(
 _RANKING_HINTS = re.compile(r"\b(?:rank|ranking|classifica|miglior\w*|top)\b", re.I)
 _QUOTA = re.compile(
     r"(?<![\d.,])(?P<count>\d{1,3})\s+"
-    r"(?P<label>[^\d\n,;:.!?/]{2,45}?)(?=\s*(?:,|/|;|\be\b|\band\b|"
+    r"(?P<label>[^\d\n,;:.!?/]{2,45}?)(?=\s*(?:,|\.|/|;|\be\b|\band\b|"
     r"\b(?:con|with)\s+budget\b|\n|$))",
     re.I,
 )
@@ -107,6 +107,10 @@ def _quota_candidates(goal: str) -> list[CategoryQuota]:
         label = _clean_label(match.group("label"))
         label_key = _key(label)
         if not label or count > 100 or label_key in _NON_CATEGORY_LABELS:
+            continue
+        # Context phrases such as "leagues of 8 and 10 with modifier" are
+        # comparison dimensions, not roster/category quotas.
+        if re.match(r"^(?:con|with|per|for|in|a|ad|da|di|of)\b", label, re.I):
             continue
         # Years, money and dates are not category quotas. A quota label should
         # be a short noun phrase rather than a full instruction clause.

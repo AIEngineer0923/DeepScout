@@ -32,6 +32,17 @@ def extract_numeric_constraints(goal: str) -> tuple[list[NumericConstraint], lis
     for index, match in enumerate(_CONSTRAINT_PATTERN.finditer(goal), start=1):
         raw_metric = match.group("metric").casefold()
         unit = (match.group("unit") or "").casefold()
+        bridge = goal[match.end("metric") : match.start("value")]
+        # A later audience or league size is not a budget merely because the
+        # word "budget" occurred earlier in the same clause. Explicit currency
+        # units remain authoritative, while unitless matches must not cross a
+        # participant/team-size phrase.
+        if not unit and re.search(
+            r"\b(?:league|leagues|lega|leghe|participants?|partecipanti|teams?|squadre)\b",
+            bridge,
+            re.I,
+        ):
+            continue
         metric = (
             "budget_total"
             if "budget" in raw_metric
