@@ -58,6 +58,43 @@ def test_league_sizes_and_modifier_comparison_are_not_allocation_constraints() -
     ]
 
 
+def test_scoring_threshold_and_instruction_prose_are_not_roster_constraints() -> None:
+    goal = (
+        "Costruisci una rosa con 3 portieri, 8 difensori, 8 centrocampisti e "
+        "6 attaccanti, modificatore e soglia gol ogni 4 punti."
+    )
+    requirements = [
+        AnswerRequirement(
+            requirement_id="R_compare",
+            text=(
+                "Confronta la distribuzione del budget con strategie documentate "
+                "di leghe a 8 e 10 con modificatore, mostra scenari asta aggressivo."
+            ),
+            kind=RequirementKind.COMPARISON,
+            comparison_subjects=[
+                "la distribuzione del budget con strategie documentate di leghe a 8",
+                "10 con modificatore",
+                "mostra scenari asta aggressivo",
+            ],
+        )
+    ]
+
+    spec = infer_deliverable_spec(
+        goal=goal,
+        requirements=requirements,
+        numeric_constraints=[],
+    )
+
+    assert spec.exact_item_count == 25
+    assert [item.category_key for item in spec.category_quotas] == [
+        "portieri",
+        "difensori",
+        "centrocampisti",
+        "attaccanti",
+    ]
+    assert spec.comparison_subjects == ["10 con modificatore"]
+
+
 def test_report_deliverable_validator_checks_rows_quotas_and_budget() -> None:
     goal = "Scegli 2 laptop e 1 tablet con budget totale 900 EUR"
     constraints, _ = extract_numeric_constraints(goal)

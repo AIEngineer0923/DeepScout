@@ -33,6 +33,8 @@ No unreleased changes yet.
   planned native variants instead of relying on brittle byte-for-byte equality.
 - Allocation parsing no longer mistakes league/audience sizes or modifier comparisons for budget
   totals and category quotas.
+- Scoring thresholds such as "every 4 points" are excluded from allocation quotas, and compound
+  comparison instruction prose no longer becomes a brittle literal report-presence constraint.
 
 ## [0.1.3] - 2026-08-24
 
