@@ -8,6 +8,17 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.2] - 2026-08-24
+
+### Fixed
+
+- Generic questions that merely mention an API no longer activate repository discovery; code and
+  technical-documentation connectors now require an actual software, SDK, repository, package, or
+  framework intent.
+- The Dashboard research composer and the sidebar **New Research** screen now create and enqueue
+  runs through one shared launch path with identical default research preferences and visible error
+  handling.
+
 ## [0.1.1] - 2026-08-24
 
 ### Added
@@ -74,6 +85,7 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/francescoveryra-dot/deepscout/releases/tag/v0.1.0

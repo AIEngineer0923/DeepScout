@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, type ResearchPreferencesPayload } from "@/lib/api";
 import { COUNTRY_OPTIONS, countryLabel } from "@/lib/countries";
-import { rememberRunId } from "@/lib/current-run";
+import { launchResearch } from "@/lib/research-launch";
 import { useI18n, useT } from "@/i18n/context";
 import { IconBolt, IconCheck, IconLayers, IconSpark } from "@/components/Icons";
 import { ClampedText } from "@/components/ClampedText";
@@ -115,7 +115,7 @@ export function NewResearchScreen() {
     [mode, outputLanguage, selectedProfile, t],
   );
 
-  function buildPreferences() {
+  function buildPreferences(): ResearchPreferencesPayload {
     return {
       geographic_focus: {
         mode: geoMode,
@@ -199,15 +199,13 @@ export function NewResearchScreen() {
     setBusy(true);
     setError(null);
     try {
-      const created = await api.createRun({
+      const runId = await launchResearch({
         goal: goal.trim(),
         research_mode: mode,
         output_language: outputLanguage,
         preferences: buildPreferences(),
       });
-      rememberRunId(created.id);
-      await api.execute(created.id);
-      router.push(`/research/${created.id}`);
+      router.push(`/research/${runId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("new.startError"));
     } finally {

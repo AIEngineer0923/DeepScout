@@ -119,6 +119,47 @@ test.describe("interaction", () => {
     await expect(page.getByRole("link", { name: "Nuova ricerca" })).toBeVisible();
   });
 
+  test("dashboard and New Research launch through the same default pipeline", async ({ page }) => {
+    await mockApi(page);
+    const payloads: Array<Record<string, unknown>> = [];
+    await page.route("**/api/v1/research-runs", async (route) => {
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON() as Record<string, unknown>;
+        payloads.push(body);
+        await route.fulfill({ json: { id: FIXTURE_RUN_ID } });
+        return;
+      }
+      await route.continue();
+    });
+    await page.route(`**/api/v1/research-runs/${FIXTURE_RUN_ID}/execute`, async (route) => {
+      await route.fulfill({ json: { run_id: FIXTURE_RUN_ID, job_id: FIXTURE_RUN_ID } });
+    });
+
+    const goal = "Compare two public cloud inference services.";
+    await page.goto("/dashboard");
+    await page.getByTestId("dashboard-research-goal").fill(goal);
+    await page.getByTestId("dashboard-start-research").click();
+    await expect.poll(() => payloads.length).toBe(1);
+
+    await page.goto("/research/new");
+    await page.getByTestId("research-goal").fill(goal);
+    await page.getByTestId("start-research").click();
+    await expect.poll(() => payloads.length).toBe(2);
+
+    expect(payloads[0]).toEqual(payloads[1]);
+    expect(payloads[0]).toMatchObject({
+      goal,
+      research_mode: "standard",
+      output_language: "en",
+      preferences: {
+        geographic_focus: { mode: "automatic", regions: [] },
+        freshness: { mode: "automatic", policy: "any" },
+        model_policy: { mode: "automatic", provider: null, model: null },
+        excluded_domains: [],
+      },
+    });
+  });
+
   test("new research filters are enabled and configurable", async ({ page }) => {
     await mockApi(page);
     await page.goto("/research/new");

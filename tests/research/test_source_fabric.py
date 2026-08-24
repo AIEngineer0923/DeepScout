@@ -61,6 +61,24 @@ def test_strategy_scales_portfolio_by_mode_and_objective() -> None:
     assert deep.minimum_query_families > quick.minimum_query_families
 
 
+def test_strategy_does_not_treat_every_api_question_as_code_research() -> None:
+    cloud_api = plan_source_strategy(
+        "Compare public cloud GPU offerings for a latency-sensitive inference API",
+        None,
+        research_mode="standard",
+    )
+    sdk = plan_source_strategy(
+        "Compare the official SDKs and GitHub repositories for two APIs",
+        None,
+        research_mode="standard",
+    )
+
+    assert SourceKind.REPOSITORY not in cloud_api.requested_kinds
+    assert SourceKind.TECHNICAL_DOCUMENTATION not in cloud_api.requested_kinds
+    assert SourceKind.REPOSITORY in sdk.requested_kinds
+    assert SourceKind.TECHNICAL_DOCUMENTATION in sdk.requested_kinds
+
+
 class _Provider:
     def __init__(self, name: str, kinds: set[SourceKind], results=None, error=None) -> None:
         self.provider_name = name

@@ -132,7 +132,11 @@ def plan_source_strategy(
         families.append(QueryStrategy.ACADEMIC)
     if requested_classes & {
         SourceClass.SOFTWARE_VENDOR,
-    } or re.search(r"\b(github|repository|source code|software|package|framework|api)\b", lowered):
+    } or re.search(
+        r"\b(github|gitlab|repository|source code|codebase|open.source|software|"
+        r"package|framework|sdk|library)\b",
+        lowered,
+    ):
         kinds.update({SourceKind.REPOSITORY, SourceKind.TECHNICAL_DOCUMENTATION})
         families.append(QueryStrategy.CODE)
     if re.search(r"\b(video|youtube|watch|tutorial|interview|podcast)\b", lowered):

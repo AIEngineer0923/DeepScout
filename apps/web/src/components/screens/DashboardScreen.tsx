@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { rememberRunId } from "@/lib/current-run";
 import { elapsed, formatCost, formatTokens, relativeTime } from "@/lib/format";
+import { launchResearch } from "@/lib/research-launch";
 import type { Overview } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
@@ -38,6 +38,7 @@ export function DashboardScreen() {
   const [mode, setMode] = useState<"quick" | "standard" | "deep">("standard");
   const [outputLanguage, setOutputLanguage] = useState("en");
   const [busy, setBusy] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [providerStatus, setProviderStatus] = useState<"checking" | "ready" | "missing" | "unavailable">("checking");
   const active = overview.active;
 
@@ -67,15 +68,16 @@ export function DashboardScreen() {
   async function start() {
     if (!goal.trim() || providerStatus !== "ready") return;
     setBusy(true);
+    setStartError(null);
     try {
-      const created = await api.createRun({
+      const runId = await launchResearch({
         goal: goal.trim(),
         research_mode: mode,
         output_language: outputLanguage,
       });
-      rememberRunId(created.id);
-      await api.execute(created.id);
-      router.push(`/research/${created.id}`);
+      router.push(`/research/${runId}`);
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : t("new.startError"));
     } finally {
       setBusy(false);
     }
@@ -124,6 +126,7 @@ export function DashboardScreen() {
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             placeholder={t("dashboard.goalPlaceholder")}
+            data-testid="dashboard-research-goal"
           />
           <div className="chip-row" style={{ marginTop: 14 }}>
             {(["quick", "standard", "deep"] as const).map((item) => (
@@ -150,12 +153,18 @@ export function DashboardScreen() {
             </select>
           </div>
           <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
-            <button className="btn primary" disabled={busy || !goal.trim() || providerStatus !== "ready"} onClick={() => void start()}>
+            <button
+              className="btn primary"
+              disabled={busy || !goal.trim() || providerStatus !== "ready"}
+              data-testid="dashboard-start-research"
+              onClick={() => void start()}
+            >
               {t("action.start")} →
             </button>
           </div>
           {providerStatus === "missing" ? <p className="note-box">{t("new.providerMissing")}</p> : null}
           {providerStatus === "unavailable" ? <p className="note-box" role="alert">{t("new.providerCheckFailed")}</p> : null}
+          {startError ? <p className="badge bad wrap-text" role="alert">{startError}</p> : null}
         </section>
         <section className="card">
           <p className="card-eyebrow">{t("dashboard.active")}</p>

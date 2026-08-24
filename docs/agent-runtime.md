@@ -1,6 +1,6 @@
 # Agent runtime internals
 
-How DeepScout's research runtime actually works (v0.1.1). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+How DeepScout's research runtime actually works (v0.1.2). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
 
 For a shorter overview see [architecture-overview.md](architecture-overview.md). For file locations see [repository-map.md](repository-map.md).
 
