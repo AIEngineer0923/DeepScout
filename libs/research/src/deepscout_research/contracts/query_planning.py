@@ -448,17 +448,22 @@ def search_discovery_requests(
             if family_index < len(multilingual_schedule)
             else None
         )
-        query = (
-            _relax_native_search_query(native_variant.query)[:500]
-            if native_variant is not None
-            else f"{base} {suffix}".strip()[:500]
+        relaxed_native = (
+            multilingual_variants[0]
+            if native_variant is None
+            and family_index == native_lead_count
+            and multilingual_variants
+            else None
         )
-        query_language = (
-            normalize_language_tag(native_variant.language)
-            if native_variant is not None
-            else detect_language(query).language
-        )
-        if native_variant is None:
+        if native_variant is not None:
+            query = native_variant.query[:500]
+            query_language = normalize_language_tag(native_variant.language)
+        elif relaxed_native is not None:
+            query = _relax_native_search_query(relaxed_native.query)[:500]
+            query_language = normalize_language_tag(relaxed_native.language)
+        else:
+            query = f"{base} {suffix}".strip()[:500]
+            query_language = detect_language(query).language
             query = route_preferred_vendor_query(query, contract)
         # A model-proposed native-language variant still has to honor the
         # deterministic user source policy. Previously this enrichment only

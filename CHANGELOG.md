@@ -20,7 +20,8 @@ No unreleased changes yet.
 - Native multilingual discovery queries now retain deterministic official/primary-source policy;
   Italian, French, German, and Spanish official-documentation wording is recognized directly.
 - Quick discovery now reserves one bounded deterministic fallback when only one query language is
-  planned, and relaxes brittle quoted/site-path syntax without discarding the requested domain.
+  planned: the precise native query runs first, followed by a relaxed version that removes brittle
+  quoted/site-path syntax without discarding the requested domain or planned language.
 - Search-result relevance keeps dotted version/decimal identifiers intact and recognizes planned
   multilingual variants after deterministic source-policy enrichment.
 - English `shortlist of exactly N` requests now retain their exact cardinality; an instruction to
