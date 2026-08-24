@@ -166,6 +166,14 @@ export const api = {
         body: JSON.stringify(body),
       }),
     ),
+  respondReview: (runId: string, reviewId: string, body: { response: string; reason?: string }) =>
+    parse(
+      apiFetch(`${apiUrl}/api/v1/research-runs/${runId}/reviews/${reviewId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    ),
   submitFeedback: (runId: string, body: Record<string, unknown>) =>
     parse(
       apiFetch(`${apiUrl}/api/v1/research-runs/${runId}/feedback`, {

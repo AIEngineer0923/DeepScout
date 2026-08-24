@@ -94,6 +94,18 @@ deltas cannot exceed these bounds.
 
 Lexical hybrid uses **BM25** (`retrieval/bm25.py`) and **Postgres FTS** as separate RRF legs — not the same algorithm.
 
+### Embedding and language behavior
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDING_PROVIDER` | Resolved provider (`google` in the release env) | Must be `google` or `openai` |
+| `EMBEDDING_MODEL` | Provider default | Google default is `gemini-embedding-2` |
+| `EMBEDDING_DIMENSIONS` | `768` | Stored vector size; changing it requires reindexing |
+
+The v0.1.3 multilingual benchmark validates the current Google 768-dimensional space directly, so
+the release does not change model, dimensions, or embedding config version and requires no reindex.
+Language detection and query planning introduce no translation dependency or extra service key.
+
 ## LangSmith (optional)
 
 | Variable | Description |

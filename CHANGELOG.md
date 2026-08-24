@@ -8,6 +8,53 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.3] - 2026-08-24
+
+### Added
+
+- Contract schema v3 classifies entity sets, shortlists, rankings, portfolios, allocations,
+  itineraries, and comparisons by requested output shape rather than subject-specific keywords.
+- A persisted, domain-neutral `EntityResearchMatrix` records entity attributes, confidence,
+  freshness, source/evidence provenance, sparse-field status, and conflict state.
+- A persisted source-to-deliverable funnel records discovery, fetch, indexing, retrieval,
+  evidence admission/rejection, claims, and populated matrix fields with bounded reason codes.
+- Deterministic selection and final-deliverable checks cover exact item counts, category quotas,
+  budgets, include/exclude rules, comparison subjects, and Markdown allocation arithmetic.
+- Follow-up runs now carry an explicit continuation type, parent report/evidence lineage,
+  bounded matrix context, and provenance-preserving snapshot reuse where freshness is not requested.
+- Material conflicting constraints can create a real human-input review; a response resolves the
+  chosen value, resumes the same run, and remains idempotent across reloads.
+- Goal-conditioned multilingual plans distinguish user, output, query, and original source
+  languages and persist native query variants plus language execution metrics.
+- A multilingual retrieval benchmark covers cross-language semantic pairs, localized aliases,
+  identifiers, and a no-answer negative across lexical, dense, RRF, and reranked ablations.
+
+### Changed
+
+- Evidence extraction is attribute-aware, reuses multiple requirement-scoped queries per acquired
+  source, records rejection causes, and concentrates the report context on viable entities.
+- Partial but admissible source contributions no longer block every dependent task; portfolio
+  inadequacy remains visible to coverage and bounded corrective research.
+- Quick mode uses one research task and skips global replanning, while preserving evidence and
+  report finalization budgets.
+- Reports are answer-first and entity deliverables use a mechanically inspectable Markdown table;
+  deliverable completeness is tracked separately from evidence completeness.
+- Source snapshots and evidence preserve the original language/text/URL/locator; report-language
+  synthesis remains derived presentation, and cross-language dense candidates are not discarded by
+  language-local lexical overlap.
+
+### Security
+
+- Follow-up reuse remains tenant-authorized, copies only bounded source snapshots with explicit
+  lineage, and does not treat parent report prose as evidence.
+- Existing tenant isolation, BYOK, SSRF, public-demo read-only, prompt-injection, and authoritative
+  HITL resolution controls remain covered by the full security suite.
+
+### Deployment notes
+
+- Database schema head is Alembic `017`; run `alembic upgrade head` before starting v0.1.3 API and
+  worker processes.
+
 ## [0.1.2] - 2026-08-24
 
 ### Fixed
@@ -85,7 +132,8 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/francescoveryra-dot/deepscout/releases/tag/v0.1.0

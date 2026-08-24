@@ -88,6 +88,12 @@ def build_synthesis_context(
             if source
             else {}
         )
+        snapshot = store.get_snapshot(ev.snapshot_id) if ev else None
+        original_language = str(
+            (snapshot.retrieval_metadata or {}).get("original_language", "und")
+            if snapshot
+            else "und"
+        )
         claim_blocks.append(
             {
                 "claim_id": str(claim.id),
@@ -96,6 +102,8 @@ def build_synthesis_context(
                 "evidence_quote": (ev.quote[:1200] if ev else ""),
                 "source_title": (source.title if source else ""),
                 "source_url": (source.canonical_url if source else ""),
+                "original_language": original_language,
+                "translation_state": "original",
                 "source_authority": authority,
                 "requirement_ids": (
                     list((ev.extraction_metadata or {}).get("requirement_ids") or []) if ev else []
@@ -116,9 +124,32 @@ def build_synthesis_context(
     contradictions = [
         {"description": row.description[:500]} for row in store.list_contradictions(run_id)[:8]
     ]
+    raw_matrix = store.get_entity_research_matrix(run_id) or {}
+    compact_entities: list[dict] = []
+    for entity in list(raw_matrix.get("entities") or [])[:80]:
+        compact_entities.append(
+            {
+                "entity_id": entity.get("entity_id"),
+                "entity_name": entity.get("entity_name"),
+                "entity_type": entity.get("entity_type"),
+                "category": entity.get("category"),
+                "stage": entity.get("stage"),
+                "fields": [
+                    {
+                        "attribute_key": field.get("attribute_key"),
+                        "value": str(field.get("value") or "")[:500],
+                        "status": field.get("status"),
+                        "confidence": field.get("confidence"),
+                        "evidence_ids": list(field.get("evidence_ids") or [])[:4],
+                    }
+                    for field in list(entity.get("fields") or [])[:6]
+                ],
+            }
+        )
     return {
         "primary_question": research.primary_question,
         "output_language": research.output_language,
+        "language_strategy": research.language_strategy.model_dump(mode="json"),
         "report_type": report_spec.report_type.value,
         "required_sections": [section.heading for section in report_spec.sections],
         "requirements": [
@@ -153,6 +184,14 @@ def build_synthesis_context(
             item.model_dump(mode="json") for item in research.numeric_constraints
         ],
         "constraint_conflicts": research.constraint_conflicts,
+        "deliverable_spec": research.deliverable.model_dump(mode="json"),
+        "entity_research_matrix": {
+            "candidate_count": raw_matrix.get("candidate_count", 0),
+            "plausible_count": raw_matrix.get("plausible_count", 0),
+            "finalist_count": raw_matrix.get("finalist_count", 0),
+            "fields_populated": raw_matrix.get("fields_populated", 0),
+            "entities": compact_entities,
+        },
         "verified_claims": claim_blocks,
         "contradictions": contradictions,
         "unresolved_requirements": coverage.critical_unresolved[:10],
@@ -202,7 +241,14 @@ def synthesize_goal_conditioned_report(
         f"Write the final research report in {language}. "
         f"Report type: {report_spec.report_type.value}. "
         f"Required sections (use these headings, localized to {language}): {section_list}. "
-        "Use ONLY verified claims and evidence quotes provided. "
+        "Start with the requested answer or recommendation, never with pipeline status. "
+        "The output language and research/source languages are independent. Synthesize all supplied "
+        "languages into natural report prose in the requested output language. Keep proper names, "
+        "code identifiers, APIs, standards, and canonical technical terms intact. "
+        "Evidence quotes are immutable originals: never rewrite or translate a quote as though the "
+        "source said it. A translated explanation is derived presentation and must be clearly labeled; "
+        "citations must continue to target the original URL and original source title. "
+        "Use verified claims and matrix evidence for attributable factual statements. "
         "Number citations [1], [2] matching source order in Sources Cited. "
         "For PARTIAL or unresolved requirements, explain precisely what is missing. "
         "Address every central requirement explicitly; do not imply that unresolved items are covered. "
@@ -212,10 +258,18 @@ def synthesize_goal_conditioned_report(
         "technical, market, or historical quantity—not incidental administrative numbers. "
         "If a comparison is requested, compare the named subjects on the requested dimensions only. "
         "Respect the supplied numeric constraints and show deterministic allocation arithmetic. "
+        "When deliverable_spec requests an entity set, ranking, portfolio, allocation, or itinerary, "
+        "return the complete deliverable before extended analysis. Use one Markdown table with exactly "
+        "one data row per selected entity and explicit Name, Category, Allocation/Cost, Confidence, "
+        "and Rationale columns where applicable. Add a Total row only after all entity rows. "
+        "Meet exact item counts and category quotas mechanically. "
         "If user constraints conflict, state the ambiguity and do not silently choose one. "
         "Do not add a Sources Cited or Fonti citate section; the renderer appends one canonical list. "
         "Never emit internal task text, planner objectives, task keys, or debug scaffolding. "
-        "Do not invent numbers not supported by evidence quotes. "
+        "Do not invent current factual numbers not supported by evidence quotes. "
+        "Where evidence is sparse, you may use stable model background only for a useful provisional "
+        "selection, label it explicitly as estimated/model background, do not cite it, and do not "
+        "present it as current verified fact. "
         "Distinguish source-reported facts from any calculated values you derive. "
         "If evidence is partial, produce a useful partial answer — do not collapse to "
         "INSUFFICIENT_EVIDENCE for the entire report."
@@ -238,7 +292,7 @@ def synthesize_goal_conditioned_report(
                 HumanMessage(
                     content=instructions
                     + "\n\nSTRUCTURED_RESEARCH_DATA:\n"
-                    + json.dumps(context, ensure_ascii=False)[:14000]
+                    + json.dumps(context, ensure_ascii=False)[:50000]
                 ),
             ],
             config={"metadata": trace_meta},

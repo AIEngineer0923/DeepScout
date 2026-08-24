@@ -375,13 +375,67 @@ def search_discovery_requests(
     objective_terms = _compact_search_text(objective, limit=28)
     subject = primary_subject_context(contract, limit=18) if contract else ""
     base = " ".join(dict.fromkeys(f"{subject} {objective_terms}".split()))
+    from deepscout_research.language import detect_language, normalize_language_tag
+
+    mode_language_cap = {"quick": 2, "standard": 3, "deep": 5}.get(research_mode or "standard", 3)
+    multilingual_variants = []
+    if contract is not None:
+        from deepscout_research.contracts.requirement_attribution import (
+            requirements_for_query,
+        )
+
+        strategy = contract.language_strategy
+        allowed_languages = list(
+            dict.fromkeys([strategy.primary_query_language, *strategy.additional_query_languages])
+        )[:mode_language_cap]
+        normalized_order = [normalize_language_tag(item) for item in allowed_languages]
+        allowed = set(normalized_order)
+        candidate_variants = [
+            item
+            for item in strategy.query_variants
+            if normalize_language_tag(item.language) in allowed
+        ]
+        objective_requirement_ids = set(requirements_for_query(query=objective, contract=contract))
+        # Lead with one goal-relevant native variant per planned language so a
+        # task cannot spend every bounded attempt on several same-language
+        # rewrites before reaching its required source language fallback.
+        for language in normalized_order:
+            variants = [
+                item
+                for item in candidate_variants
+                if normalize_language_tag(item.language) == language
+            ]
+            variants.sort(
+                key=lambda item: bool(objective_requirement_ids & set(item.requirement_ids)),
+                reverse=True,
+            )
+            if variants:
+                multilingual_variants.append(variants[0])
+        multilingual_variants.extend(
+            item for item in candidate_variants if item not in multilingual_variants
+        )
     output: list[PlannedDiscoveryQuery] = []
     seen: set[str] = set()
-    for family in source_strategy.query_families:
+    for family_index, family in enumerate(source_strategy.query_families):
         suffix = query_suffix(family)
-        query = f"{base} {suffix}".strip()[:500]
-        query = route_preferred_vendor_query(query, contract)
-        if contract is not None:
+        native_variant = (
+            multilingual_variants[family_index]
+            if family_index < len(multilingual_variants)
+            else None
+        )
+        query = (
+            native_variant.query.strip()[:500]
+            if native_variant is not None
+            else f"{base} {suffix}".strip()[:500]
+        )
+        query_language = (
+            normalize_language_tag(native_variant.language)
+            if native_variant is not None
+            else detect_language(query).language
+        )
+        if native_variant is None:
+            query = route_preferred_vendor_query(query, contract)
+        if contract is not None and native_variant is None:
             from deepscout_research.contracts.source_authority import (
                 enrich_search_query_with_policy,
             )
@@ -409,6 +463,7 @@ def search_discovery_requests(
             PlannedDiscoveryQuery(
                 request=DiscoveryRequest(
                     query=query,
+                    query_language=query_language,
                     strategy=family,
                     source_kinds=frozenset(SourceKind(item) for item in requested),
                 ),

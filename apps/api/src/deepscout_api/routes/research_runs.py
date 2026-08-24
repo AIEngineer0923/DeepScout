@@ -598,7 +598,7 @@ def follow_up_research_run(
 ) -> ExecuteResponse:
     from deepscout_core.domain.enums import RunLineageKind
     from deepscout_core.domain.schemas import FollowUpCreate, ResearchRunCreate
-    from deepscout_research.followup import select_followup_context
+    from deepscout_research.followup import seed_followup_sources, select_followup_context
 
     parent = store.get_run(run_id)
     if parent is None:
@@ -618,8 +618,20 @@ def follow_up_research_run(
         store=store,
         owner_principal_id=parent_row.owner_principal_id if parent_row else None,
     )
-    snapshot["followup_context"] = select_followup_context(store, run_id, payload.goal)
-    snapshot["lineage"] = {"kind": "followup", "parent_run_id": str(run_id)}
+    followup_context = select_followup_context(store, run_id, payload.goal)
+    snapshot["followup_context"] = followup_context
+    snapshot["lineage"] = {
+        "kind": "followup",
+        "followup_type": followup_context.get("followup_type", "continuation"),
+        "parent_run_id": str(run_id),
+        "root_run_id": str(root_id),
+        "origin_report_id": (
+            str(parent_report.id) if (parent_report := store.get_report(run_id)) else None
+        ),
+        "origin_evidence_ids": [
+            str(item.get("id")) for item in followup_context.get("evidence", [])
+        ],
+    }
     created = store.create_run(
         ResearchRunCreate(
             goal=payload.goal,
@@ -636,6 +648,18 @@ def follow_up_research_run(
     )
     if payload.inherit_source_preferences:
         store.copy_source_preferences(run_id, created.id)
+    if followup_context.get("followup_type") != "freshness":
+        copied = seed_followup_sources(
+            store,
+            parent_run_id=run_id,
+            child_run_id=created.id,
+            source_ids=list(followup_context.get("reusable_source_ids") or []),
+        )
+        snapshot_row = store.get_run_row(created.id)
+        child_snapshot = dict(snapshot_row.config_snapshot or {}) if snapshot_row else {}
+        lineage = dict(child_snapshot.get("lineage") or {})
+        lineage["reused_snapshot_count"] = copied
+        store.merge_config_snapshot(created.id, {"lineage": lineage})
     jobs = JobService(store)
     job = jobs.enqueue_execute_run(created.id)
     _kick_worker(background_tasks, settings)
@@ -651,6 +675,52 @@ def list_source_preferences(
 ) -> list[dict]:
     _require_run(request, store, settings, run_id, write=False)
     return [item.model_dump(mode="json") for item in store.list_source_preferences(run_id)]
+
+
+@router.get("/{run_id}/answerability")
+def get_answerability_state(
+    run_id: UUID,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Return bounded, tenant-authorized deliverable and yield diagnostics."""
+    _require_run(request, store, settings, run_id, write=False)
+    row = store.get_run_row(run_id)
+    snapshot = dict(row.config_snapshot or {}) if row else {}
+    matrix = store.get_entity_research_matrix(run_id) or {}
+    funnel = store.get_research_funnel(run_id) or {}
+    return {
+        "deliverable": (snapshot.get("research_contract") or {}).get("deliverable", {}),
+        "validation": snapshot.get("deliverable_validation", {}),
+        "completeness": snapshot.get("answer_completeness", {}),
+        "language": {
+            "strategy": (snapshot.get("research_contract") or {}).get("language_strategy", {}),
+            "execution": snapshot.get("language_execution", {}),
+        },
+        "funnel": {
+            "metrics": funnel.get("metrics", {}),
+            "rejection_counts": funnel.get("rejection_counts", {}),
+        },
+        "matrix": {
+            "schema_version": matrix.get("schema_version"),
+            "candidate_count": matrix.get("candidate_count", 0),
+            "plausible_count": matrix.get("plausible_count", 0),
+            "finalist_count": matrix.get("finalist_count", 0),
+            "fields_populated": matrix.get("fields_populated", 0),
+            "entities": [
+                {
+                    "entity_id": item.get("entity_id"),
+                    "entity_name": item.get("entity_name"),
+                    "entity_type": item.get("entity_type"),
+                    "category": item.get("category"),
+                    "stage": item.get("stage"),
+                    "field_count": len(item.get("fields") or []),
+                }
+                for item in list(matrix.get("entities") or [])[:200]
+            ],
+        },
+    }
 
 
 @router.post("/{run_id}/source-preferences", status_code=201)

@@ -1,6 +1,6 @@
 # Architecture overview
 
-High-level map of how DeepScout works today (v0.1.2). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
+High-level map of how DeepScout works today (v0.1.3). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## Request flow
 
@@ -28,7 +28,8 @@ Goal submitted
   → Research run created (budget, mode, language)
   → Effective runtime policy resolved + frozen in config_snapshot
   → Worker: PLAN (semantic planner → task DAG)
-  → RESEARCH (agents + source strategy + multi-provider discovery)
+  → LANGUAGE STRATEGY (user/output/query/source languages + native variants)
+  → RESEARCH (agents + source strategy + multilingual multi-provider discovery)
   → COLLECT / INDEX (chunks + embeddings per run)
   → EXTRACT (claims + evidence quotes)
   → VERIFY
@@ -88,6 +89,8 @@ See [RAG_PIPELINE.md](architecture/RAG_PIPELINE.md) and [ADR-013](architecture/a
 | Evaluation persistence | **Implemented** | `evaluation_results` table, migration 012 |
 | Multi-source discovery fabric | **Implemented** | Capability registry, Tavily web, OpenAlex and GitHub public discovery |
 | Multi-format acquisition | **Implemented** | HTML/text/JSON/XML/RSS/Atom/PDF and public video metadata/captions |
+| Cross-language retrieval | **Implemented** | Native queries + original-language metadata + multilingual dense retrieval |
+| Translation provenance | **Implemented** | Original evidence is immutable; report-language synthesis is derived presentation |
 
 Default retrieval mode: `hybrid` with deterministic rerank (`RETRIEVAL_MODE` env: `lexical`, `dense`, `hybrid`).
 

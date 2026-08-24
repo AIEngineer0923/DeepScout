@@ -6,6 +6,26 @@ export type RunListItem = {
   llm_model: string;
   research_mode?: string | null;
   output_language?: string;
+  language?: {
+    strategy?: {
+      user_language?: string;
+      output_language?: string;
+      primary_query_language?: string;
+      additional_query_languages?: string[];
+      expected_primary_source_languages?: string[];
+      translation_required?: boolean;
+      language_confidence?: number;
+      language_reason?: string;
+    };
+    execution?: {
+      planned_query_languages?: string[];
+      actual_query_languages?: Record<string, number>;
+      source_languages?: Record<string, number>;
+      evidence_languages?: Record<string, number>;
+      cross_language_evidence_count?: number;
+      translation_operations?: number;
+    };
+  };
   termination_reason: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +74,27 @@ export type WorkspacePresentation = {
   } | null;
 };
 
+export type LanguageTelemetry = {
+  strategy?: {
+    user_language?: string;
+    output_language?: string;
+    primary_query_language?: string;
+    additional_query_languages?: string[];
+    expected_primary_source_languages?: string[];
+    translation_required?: boolean;
+    language_confidence?: number;
+    language_reason?: string;
+  };
+  execution?: {
+    planned_query_languages?: string[];
+    actual_query_languages?: Record<string, number>;
+    source_languages?: Record<string, number>;
+    evidence_languages?: Record<string, number>;
+    cross_language_evidence_count?: number;
+    translation_operations?: number;
+  };
+};
+
 export type Workspace = {
   run_id: string;
   event_head?: number;
@@ -66,6 +107,7 @@ export type Workspace = {
   llm_model: string;
   research_mode?: string | null;
   output_language?: string;
+  language?: LanguageTelemetry;
   is_public_demo?: boolean;
   public_slug?: string | null;
   created_at: string;
@@ -167,6 +209,8 @@ export type Workspace = {
     publisher?: string;
     connector?: string;
     publication_date?: string;
+    original_language?: string;
+    language_confidence?: string;
     transcript_available?: boolean;
     locator_scheme?: string;
     created_at: string | null;

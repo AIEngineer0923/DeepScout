@@ -31,6 +31,7 @@ class QueryStrategy(StrEnum):
 @dataclass(frozen=True, slots=True)
 class DiscoveryRequest:
     query: str
+    query_language: str = "und"
     max_results: int = 5
     strategy: QueryStrategy = QueryStrategy.GENERAL
     source_kinds: frozenset[SourceKind] = frozenset()

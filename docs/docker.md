@@ -19,16 +19,16 @@ machine or private network.
 Check out the release whose compose file you intend to run:
 
 ```bash
-git clone --branch v0.1.2 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.3 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 ```
 
-The default v0.1.2 images are:
+The default v0.1.3 images are:
 
 ```text
-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2
-ghcr.io/francescoveryra-dot/deepscout-web:0.1.2
+ghcr.io/francescoveryra-dot/deepscout-api:0.1.3
+ghcr.io/francescoveryra-dot/deepscout-web:0.1.3
 ```
 
 They are public and support `linux/amd64` and `linux/arm64`. The API image is deliberately reused
@@ -43,7 +43,7 @@ docker compose -f infra/docker/docker-compose.release.yml up -d
 docker compose -f infra/docker/docker-compose.release.yml ps
 ```
 
-The `migrate` service applies Alembic head `016` and exits successfully before the API and worker
+The `migrate` service applies Alembic head `017` and exits successfully before the API and worker
 start. PostgreSQL/pgvector and Redis run as separate services. The web image sends same-origin API
 requests through its built-in rewrite to the Compose service `api:8000`.
 

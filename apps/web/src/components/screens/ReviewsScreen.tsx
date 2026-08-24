@@ -17,7 +17,7 @@ type Review = {
   title: string;
   explanation: string;
   proposed_action_type: string;
-  proposed_action_payload: Record<string, number | string>;
+  proposed_action_payload: Record<string, unknown>;
   status: string;
   expires_at?: string | null;
 };
@@ -27,6 +27,7 @@ export function ReviewsScreen() {
   const [items, setItems] = useState<Review[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [responses, setResponses] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     api
@@ -57,6 +58,21 @@ export function ReviewsScreen() {
           requested_extra_sources: Number(payload.requested_extra_sources ?? 2),
         });
       }
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("reviews.requestFailed"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function respond(review: Review) {
+    const response = (responses[review.id] ?? "").trim();
+    if (!response) return;
+    setBusy(review.id);
+    setError(null);
+    try {
+      await api.respondReview(review.research_run_id, review.id, { response });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("reviews.requestFailed"));
@@ -108,17 +124,50 @@ export function ReviewsScreen() {
                   </div>
                 </div>
               ) : null}
+              {review.proposed_action_type === "human_input" ? (
+                <div className="review-response" style={{ margin: "12px 0" }}>
+                  <label htmlFor={`review-response-${review.id}`}>
+                    <strong>{t("reviews.yourResponse")}</strong>
+                  </label>
+                  <p className="muted wrap-text">{String(p.question ?? review.explanation)}</p>
+                  <textarea
+                    id={`review-response-${review.id}`}
+                    className="input"
+                    rows={4}
+                    value={responses[review.id] ?? ""}
+                    onChange={(event) =>
+                      setResponses((current) => ({
+                        ...current,
+                        [review.id]: event.target.value,
+                      }))
+                    }
+                    placeholder={t("reviews.responsePlaceholder")}
+                  />
+                </div>
+              ) : null}
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                <button
-                  className="btn primary"
-                  disabled={busy === review.id}
-                  onClick={() => void act(review, "approve")}
-                >
-                  {t("reviews.approve")}
-                </button>
-                <button className="btn" disabled={busy === review.id} onClick={() => void act(review, "edit")}>
-                  {t("reviews.editSmaller")}
-                </button>
+                {review.proposed_action_type === "human_input" ? (
+                  <button
+                    className="btn primary"
+                    disabled={busy === review.id || !(responses[review.id] ?? "").trim()}
+                    onClick={() => void respond(review)}
+                  >
+                    {t("reviews.submitResponse")}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="btn primary"
+                      disabled={busy === review.id}
+                      onClick={() => void act(review, "approve")}
+                    >
+                      {t("reviews.approve")}
+                    </button>
+                    <button className="btn" disabled={busy === review.id} onClick={() => void act(review, "edit")}>
+                      {t("reviews.editSmaller")}
+                    </button>
+                  </>
+                )}
                 <button className="btn danger" disabled={busy === review.id} onClick={() => void act(review, "reject")}>
                   {t("reviews.reject")}
                 </button>

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -174,6 +175,48 @@ class HumanReviewService:
             actor_source="system",
             actor_identity="orchestrator",
             detail={"reason_code": ReviewReasonCode.BUDGET_EXTENSION.value},
+        )
+        return review_id
+
+    def create_human_input_review(
+        self,
+        run_id: uuid.UUID,
+        *,
+        title: str,
+        question: str,
+        context: dict[str, Any] | None = None,
+    ) -> uuid.UUID:
+        """Create one durable clarification gate for a material ambiguity."""
+        if evaluate_policy(ReviewReasonCode.HUMAN_INPUT_REQUIRED, self._settings) != (
+            PolicyVerdict.REQUIRE_REVIEW
+        ):
+            raise ValueError("human input review not required by policy")
+        if self._store.get_run(run_id) is None:
+            raise LookupError(f"run {run_id} not found")
+        existing = self._store.get_pending_review(run_id, ReviewReasonCode.HUMAN_INPUT_REQUIRED)
+        if existing is not None:
+            return existing.id
+        body = {"question": question[:2000], "context": dict(context or {})}
+        review_id = self._store.create_review_request(
+            research_run_id=run_id,
+            reason_code=ReviewReasonCode.HUMAN_INPUT_REQUIRED,
+            risk_level=ReviewRiskLevel.MEDIUM,
+            title=title[:300],
+            explanation=question[:2000],
+            proposed_action_type="human_input",
+            proposed_action_payload=body,
+            payload_hash=payload_hash(body),
+            created_by_component="orchestrator.contract",
+            expires_at=None,
+            policy_version=POLICY_VERSION,
+        )
+        self._store.append_review_event(
+            review_id,
+            run_id,
+            event_type="created",
+            actor_source="system",
+            actor_identity="orchestrator",
+            detail={"reason_code": ReviewReasonCode.HUMAN_INPUT_REQUIRED.value},
         )
         return review_id
 
@@ -375,7 +418,51 @@ class HumanReviewService:
                 actor_source=source,
                 actor_identity=identity,
             )
+            row = self._store.get_run_row(run_id)
+            snapshot = dict(row.config_snapshot or {}) if row else {}
+            responses = list(snapshot.get("human_input_responses") or [])
+            response_text = str(decision_payload["response"]).strip()
+            responses.append(
+                {
+                    "review_id": str(review_id),
+                    "question": review.proposed_action_payload.get("question", ""),
+                    "response": response_text[:8000],
+                }
+            )
+            updates: dict[str, Any] = {"human_input_responses": responses[-10:]}
+            contract = snapshot.get("research_contract")
+            conflict_values = list(
+                (review.proposed_action_payload.get("context") or {}).get("conflict_values", [])
+            )
+            if isinstance(contract, dict) and conflict_values:
+                selected = next(
+                    (
+                        str(value)
+                        for value in conflict_values
+                        if re.search(rf"(?<!\d){re.escape(str(value))}(?!\d)", response_text)
+                    ),
+                    None,
+                )
+                if selected is not None:
+                    revised = dict(contract)
+                    revised["constraint_conflicts"] = []
+                    deliverable = dict(revised.get("deliverable") or {})
+                    deliverable["budget_total"] = selected
+                    revised["deliverable"] = deliverable
+                    revised["numeric_constraints"] = [
+                        item
+                        for item in list(revised.get("numeric_constraints") or [])
+                        if item.get("metric") != "budget_total"
+                        or str(item.get("value")) == selected
+                    ]
+                    updates["research_contract"] = revised
+                    updates["human_input_resolution"] = {
+                        "review_id": str(review_id),
+                        "selected_value": selected,
+                    }
+            self._store.merge_config_snapshot(run_id, updates)
             self._store.update_run_status(run_id, ResearchRunStatus.PENDING)
+            self._store.set_termination_reason(run_id, None)
             return ResolveResult(
                 review_id=review_id,
                 status=ReviewRequestStatus.RESPONDED,

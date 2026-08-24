@@ -786,6 +786,13 @@ def build_research_contract(
     from deepscout_research.contracts.numeric_constraints import extract_numeric_constraints
 
     numeric_constraints, constraint_conflicts = extract_numeric_constraints(goal)
+    from deepscout_research.contracts.deliverables import infer_deliverable_spec
+
+    deliverable = infer_deliverable_spec(
+        goal=goal,
+        requirements=requirements,
+        numeric_constraints=numeric_constraints,
+    )
     required_classes: list[SourceClass] = []
     for constraint in constraints:
         if constraint.mode == SourceConstraintMode.ONLY and constraint.scope == "class":
@@ -810,6 +817,9 @@ def build_research_contract(
         primary_question=goal.strip(),
         user_intent=planner.approach.strip()[:4000],
         output_language=output_language,
+        language_strategy=planner.language_strategy.model_copy(
+            update={"output_language": output_language}
+        ),
         evidence_standard=_evidence_standard(goal, preferred),
         requirements=requirements,
         source_constraints=constraints,
@@ -824,6 +834,7 @@ def build_research_contract(
         required_timeframes=timeframes[:10],
         uncertainty_requirements=["explain_missing_evidence_precisely"],
         user_facing_questions=_user_facing_questions(goal, planner),
+        deliverable=deliverable,
     )
 
 
@@ -896,6 +907,8 @@ def derive_report_contract(research: ResearchContract) -> ReportContract:
         include_sources_consulted=False,
         include_questions_answered=bool(research.user_facing_questions)
         and report_type in {ReportType.FACT_FINDING, ReportType.MULTI_HOP},
+        answer_first=True,
+        deliverable_kind=research.deliverable.kind,
     )
 
 

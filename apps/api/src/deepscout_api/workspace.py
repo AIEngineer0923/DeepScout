@@ -228,6 +228,8 @@ def assemble_workspace(
                 ),
                 "connector": str(retrieval_metadata.get("connector") or "indexed_web"),
                 "publication_date": str(retrieval_metadata.get("publication_date") or ""),
+                "original_language": str(retrieval_metadata.get("original_language") or "und"),
+                "language_confidence": str(retrieval_metadata.get("language_confidence") or ""),
                 "transcript_available": retrieval_metadata.get("transcript_available") == "true",
                 "locator_scheme": str(retrieval_metadata.get("locator_scheme") or ""),
                 "created_at": _iso(source.created_at),
@@ -314,6 +316,9 @@ def assemble_workspace(
                 "content_hash": snapshot.content_hash,
                 "word_count": len(snapshot.content_text.split()) if snapshot.content_text else 0,
                 "evidence_count": len(related),
+                "original_language": str(
+                    (snapshot.retrieval_metadata or {}).get("original_language") or "und"
+                ),
                 "indexing_status": snapshot.indexing_status.value,
                 "chunk_count": snapshot.chunk_count,
                 "embedding_count": snapshot.embedding_count,
@@ -355,6 +360,14 @@ def assemble_workspace(
         "llm_model": run.llm_model,
         "research_mode": run.research_mode,
         "output_language": run.output_language,
+        "language": {
+            "strategy": ((row.config_snapshot or {}).get("research_contract") or {}).get(
+                "language_strategy", {}
+            )
+            if row
+            else {},
+            "execution": (row.config_snapshot or {}).get("language_execution", {}) if row else {},
+        },
         "is_public_demo": bool(row.is_public_demo) if row else False,
         "public_slug": row.public_slug if row else None,
         "created_at": _iso(run.created_at),

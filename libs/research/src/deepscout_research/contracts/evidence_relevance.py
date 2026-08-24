@@ -150,9 +150,28 @@ def is_search_result_relevant(
         return False
     subject = _subject_text(contract, goal)
     subject_anchors = _topic_anchors(subject)
-    if subject_anchors:
-        return _has_subject_match(haystack=haystack, subject=subject)
     query_overlap = haystack & _topic_anchors(query)
+    if subject_anchors:
+        if _has_subject_match(haystack=haystack, subject=subject):
+            return True
+        # Native-language planner queries are an explicit semantic bridge.
+        # Preserve identifier/entity safety while avoiding a goal-language-only
+        # admission gate before dense retrieval can run.
+        from deepscout_research.language import detect_language, normalize_language_tag
+
+        planned_language = next(
+            (
+                normalize_language_tag(item.language)
+                for item in (contract.language_strategy.query_variants if contract else [])
+                if " ".join(item.query.casefold().split()) == " ".join(query.casefold().split())
+            ),
+            detect_language(query).language,
+        )
+        if planned_language != detect_language(goal).language:
+            return len(query_overlap) >= 2 or bool(
+                haystack & (_explicit_identifiers(query) | _explicit_identifiers(subject))
+            )
+        return False
     return len(query_overlap) >= 2
 
 
@@ -199,11 +218,31 @@ def is_evidence_relevant(
     if contract is not None:
         goal_tokens = _tokens(contract.primary_question)
         quote_tokens = _tokens(quote)
-        if goal_tokens and len(goal_tokens & quote_tokens) == 0 and score < 3:
+        from deepscout_research.language import detect_language, normalize_language_tag
+
+        planned_language = next(
+            (
+                normalize_language_tag(item.language)
+                for item in contract.language_strategy.query_variants
+                if " ".join(item.query.casefold().split()) == " ".join(query.casefold().split())
+            ),
+            detect_language(query).language,
+        )
+        cross_language = planned_language != detect_language(goal).language
+        if (
+            goal_tokens
+            and len(goal_tokens & quote_tokens) == 0
+            and score < 3
+            and not cross_language
+        ):
             return False
         subject = _subject_text(contract, goal)
         subject_tokens = _topic_anchors(subject)
-        if subject_tokens and not _has_subject_match(haystack=quote_tokens, subject=subject):
+        if (
+            subject_tokens
+            and not _has_subject_match(haystack=quote_tokens, subject=subject)
+            and not cross_language
+        ):
             return False
     return True
 

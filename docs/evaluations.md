@@ -12,7 +12,7 @@ Demo browsing reads persisted results only — zero provider spend.
 
 ## Registry
 
-`libs/evaluation/src/deepscout_evaluation/registry.py` defines **53 evaluator slots** per run (version `1` today). Each spec has:
+`libs/evaluation/src/deepscout_evaluation/registry.py` defines **70 evaluator slots** per run (version `1` today). Each spec has:
 
 | Field | Meaning |
 |-------|---------|
@@ -61,6 +61,8 @@ Deterministic evaluators in `run_evals.py` include:
 - Material requirement coverage and requirement-aware source-portfolio adequacy
 - Quantitative coverage and comparison completeness when applicable
 - ReportContract/final-critic compliance
+- Goal-conditioned multilingual query coverage, original source-language metadata, translation
+  provenance/leakage, requested output-language compliance, and multilingual contradiction handling
 
 `task_completion` is semantic: a `completed` status alone is insufficient. It also requires material
 coverage and a passing contract-aware final critic. `termination_correctness` applies the same rule to
@@ -93,6 +95,21 @@ uv run python scripts/retrieval_quality_benchmark.py --live
 ```
 
 Dataset: `libs/evaluation/data/retrieval_quality_benchmark_v2.json` (deterministic ground truth, not live-web dependent).
+
+The cross-language benchmark is separate and auditable:
+
+```bash
+# Language routing only — no DB or provider calls
+uv run python scripts/multilingual_retrieval_benchmark.py
+
+# PostgreSQL + configured embedding provider; reports every ablation independently
+uv run python scripts/multilingual_retrieval_benchmark.py --live --summary
+```
+
+Dataset: `libs/evaluation/data/multilingual_retrieval_benchmark_v1.json`. It covers IT→EN,
+IT→DE, EN→IT, FR→EN, DE→EN, localized aliases, stable identifiers, and a no-answer negative.
+The live command reports BM25-only, FTS-only, dense-only, two-way hybrids, three-way RRF, and the
+production full-RRF/rerank path. It is a manual provider-spend benchmark, not a CI gate.
 
 ### Benchmark v2 audit (August 2026)
 
@@ -193,7 +210,11 @@ After review, manually promote to `retrieval_production_reviewed_v1.json` with `
 
 ### Failure taxonomy
 
-Uses `RetrievalFailureClass` in contracts + `infer_retrieval_failure_class()` for stage hints (routing vs lexical vs dense vs fusion vs rerank vs graph vs compiled vs provenance).
+Uses `RetrievalFailureClass` in contracts + `infer_retrieval_failure_class()` for stage hints
+(routing vs lexical vs dense vs fusion vs rerank vs graph vs compiled vs provenance). Multilingual
+failures are separately classified as query-language mismatch, cross-language relevance false
+negative, translation-quality failure, source-language portfolio gap, alias/entity-resolution
+failure, or unsupported language pair.
 
 ### Evaluation loop (unchanged intent)
 

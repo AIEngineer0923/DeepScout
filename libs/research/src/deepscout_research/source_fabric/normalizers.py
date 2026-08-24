@@ -29,9 +29,14 @@ class _DocumentMetadataParser(HTMLParser):
         self.metadata: dict[str, str] = {}
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {key.casefold(): value or "" for key, value in attrs}
+        if tag.casefold() == "html":
+            language = (values.get("lang") or values.get("xml:lang") or "").strip()
+            if language:
+                self.metadata.setdefault("declared_language", language[:32])
+            return
         if tag.casefold() != "meta":
             return
-        values = {key.casefold(): value or "" for key, value in attrs}
         key = (values.get("property") or values.get("name") or values.get("itemprop")).casefold()
         content = values.get("content", "").strip()[:2000]
         if not content:
@@ -48,6 +53,8 @@ class _DocumentMetadataParser(HTMLParser):
             self.metadata.setdefault("creator", content[:255])
         elif key in {"og:site_name", "publisher", "application-name"}:
             self.metadata.setdefault("publisher", content[:255])
+        elif key in {"og:locale", "language", "content-language"}:
+            self.metadata.setdefault("declared_language", content[:32])
 
 
 def _html_metadata(raw: str) -> dict[str, str]:

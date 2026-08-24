@@ -137,6 +137,9 @@ export function SourcesScreen() {
                 {t("sources.type")}: {presentSourceType(source.source_kind ?? source.source_type, locale)}
               </p>
               <p>{t("sources.publisher")}: {source.publisher || source.domain || "—"}</p>
+              {source.original_language && source.original_language !== "und" ? (
+                <p>{t("sources.originalLanguage")}: {source.original_language}</p>
+              ) : null}
               <p>{t("sources.authority")}: {presentSourceAuthority(source.authority_class, locale)}</p>
               <p>{t("sources.evidenceRole")}: {presentEvidenceRole(source.evidence_role, locale)}</p>
               {source.publication_date ? <p>{t("sources.published")}: {source.publication_date}</p> : null}

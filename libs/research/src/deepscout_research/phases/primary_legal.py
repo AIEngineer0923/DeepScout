@@ -91,6 +91,9 @@ def follow_primary_legal_and_profile_urls(
             text = response_to_snapshot_text(result.body, result.content_type)[:500_000]
             if len(text.strip()) < 80:
                 continue
+            from deepscout_research.language import detect_language
+
+            detected_language = detect_language(text)
             store.add_snapshot(
                 source.id,
                 SourceSnapshotWrite(
@@ -99,6 +102,12 @@ def follow_primary_legal_and_profile_urls(
                     retrieval_metadata={
                         "final_url": result.url,
                         "extraction_method": "primary_legal_followup",
+                        "original_language": detected_language.language,
+                        "language_confidence": f"{detected_language.confidence:.3f}",
+                        "language_detection_reason": detected_language.reason,
+                        "original_source": normalized,
+                        "original_locator": normalized,
+                        "translation_state": "original",
                     },
                 ),
             )

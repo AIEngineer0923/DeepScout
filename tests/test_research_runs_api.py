@@ -140,7 +140,7 @@ def test_settings_exposes_enforced_mode_limits(api_client: TestClient) -> None:
     assert modes["quick"]["max_sources"] <= 8
     assert modes["deep"]["max_iterations"] >= 8
     assert modes["deep"]["max_sources"] >= 60
-    assert modes["quick"]["max_requirement_tasks"] == 3
+    assert modes["quick"]["max_requirement_tasks"] == 1
     assert modes["standard"]["max_requirement_tasks"] == 9
     assert modes["deep"]["max_requirement_tasks"] == 12
 

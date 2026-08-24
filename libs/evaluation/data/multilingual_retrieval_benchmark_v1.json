@@ -1,0 +1,60 @@
+{
+  "version": "multilingual-retrieval-benchmark-v1",
+  "corpus_type": "synthetic_regression",
+  "description": "Synthetic multilingual corpus for cross-language retrieval ablation. No production or user data.",
+  "documents": [
+    {
+      "id": "doc-en-science",
+      "title": "Cryogenic quantum processor calibration study",
+      "text": "The controlled experiment reports that cryogenic calibration reduced superconducting qubit readout error while preserving coherence time. The methods include repeated randomized benchmarking and uncertainty intervals."
+    },
+    {
+      "id": "doc-de-warranty",
+      "title": "Herstellergarantie für Batteriesysteme",
+      "text": "Die Herstellergarantie für das Batteriesystem gilt acht Jahre ab Erstzulassung. Maßgeblich sind die offiziellen Garantiebedingungen des Herstellers und die dort genannten Kilometergrenzen."
+    },
+    {
+      "id": "doc-it-culture",
+      "title": "Ministero della Cultura - tutela del patrimonio",
+      "text": "Il Ministero della Cultura coordina la tutela del patrimonio culturale italiano. Le procedure ufficiali sono pubblicate sul portale istituzionale e conservano i riferimenti normativi originali."
+    },
+    {
+      "id": "doc-en-climate",
+      "title": "Regional climate adaptation evidence review",
+      "text": "The review compares coastal adaptation measures using observed flood exposure, implementation cost, and uncertainty across regional scenarios."
+    },
+    {
+      "id": "doc-fr-institution",
+      "title": "Commission européenne - programme de recherche",
+      "text": "La Commission européenne publie le programme officiel de recherche et les critères d'éligibilité. Le document conserve les références juridiques applicables."
+    },
+    {
+      "id": "doc-identifiers",
+      "title": "Security advisory CVE-2026-4242",
+      "text": "CVE-2026-4242 affects package DS-CLIENT-17 before version 4.2.1. The vendor advisory lists the fixed release and verification command."
+    },
+    {
+      "id": "doc-noise",
+      "title": "Unrelated cooking note",
+      "text": "This recipe describes bread fermentation, oven temperature, and ingredient substitutions."
+    }
+  ],
+  "router_cases": [
+    {"id": "router-it-en", "query": "evidenze sulla calibrazione criogenica dei qubit", "expected_intent": "semantic"},
+    {"id": "router-it-de", "query": "garanzia ufficiale del sistema batteria", "expected_intent": "semantic"},
+    {"id": "router-en-it", "query": "official cultural heritage protection procedures", "expected_intent": "semantic"},
+    {"id": "router-fr-en", "query": "preuves sur l'adaptation climatique côtière", "expected_intent": "semantic"},
+    {"id": "router-de-en", "query": "Evidenz zur regionalen Klimaanpassung", "expected_intent": "semantic"},
+    {"id": "router-identifier", "query": "CVE-2026-4242", "expected_intent": "identifier"}
+  ],
+  "retrieval_cases": [
+    {"id": "it-query-en-doc", "language_pair": "it-en", "query": "evidenze sperimentali sulla riduzione degli errori di lettura dei qubit con calibrazione criogenica", "relevant_doc_ids": ["doc-en-science"], "relevant_phrases": ["readout error"]},
+    {"id": "it-query-de-doc", "language_pair": "it-de", "query": "durata della garanzia ufficiale del sistema batteria del produttore", "relevant_doc_ids": ["doc-de-warranty"], "relevant_phrases": ["acht Jahre"]},
+    {"id": "en-query-it-doc", "language_pair": "en-it", "query": "Italian ministry official cultural heritage protection procedures", "relevant_doc_ids": ["doc-it-culture"], "relevant_phrases": ["tutela del patrimonio"]},
+    {"id": "fr-query-en-doc", "language_pair": "fr-en", "query": "comparaison des mesures d'adaptation côtière selon l'exposition aux inondations", "relevant_doc_ids": ["doc-en-climate"], "relevant_phrases": ["flood exposure"]},
+    {"id": "de-query-en-doc", "language_pair": "de-en", "query": "regionale Klimaanpassung Hochwasserexposition Kosten und Unsicherheit", "relevant_doc_ids": ["doc-en-climate"], "relevant_phrases": ["uncertainty"]},
+    {"id": "alias-fr-en", "language_pair": "fr-en", "query": "European Commission official research eligibility programme Commission européenne", "relevant_doc_ids": ["doc-fr-institution"], "relevant_phrases": ["critères d'éligibilité"]},
+    {"id": "identifier-cross-language", "language_pair": "und-en", "query": "CVE-2026-4242 DS-CLIENT-17 versione corretta", "relevant_doc_ids": ["doc-identifiers"], "relevant_phrases": ["4.2.1"]},
+    {"id": "negative-no-answer", "language_pair": "it-none", "query": "pressione atmosferica su Marte misurata dal rover", "relevant_doc_ids": [], "relevant_phrases": []}
+  ]
+}

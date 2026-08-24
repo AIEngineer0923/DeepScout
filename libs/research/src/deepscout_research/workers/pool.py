@@ -263,6 +263,10 @@ class ResearchWorkerPool:
                         7,
                         max(minimum_attempts, base_attempts + delta + bonus),
                     )
+                    if mode == "quick":
+                        # One primary query plus at most one goal-conditioned
+                        # language/source fallback keeps Quick predictably quick.
+                        planned_attempt_limit = min(2, planned_attempt_limit)
                     planned_requests = [
                         item.request
                         for item in search_discovery_requests(
@@ -276,9 +280,11 @@ class ResearchWorkerPool:
                 max_results = research_profile(
                     run.research_mode if run else None
                 ).search_results_per_query
+                attempted_query_languages: set[str] = set()
                 for attempt, planned_request in enumerate(planned_requests):
                     request = DiscoveryRequest(
                         query=planned_request.query,
+                        query_language=planned_request.query_language,
                         max_results=max_results,
                         strategy=planned_request.strategy,
                         source_kinds=planned_request.source_kinds,
@@ -286,6 +292,8 @@ class ResearchWorkerPool:
                         topic=planned_request.topic,
                     )
                     query = request.query
+                    if request.query_language != "und":
+                        attempted_query_languages.add(request.query_language)
                     budget.reserve_tool_call(
                         run_id,
                         note=f"search:{task.task_key}:attempt:{attempt + 1}",
@@ -340,6 +348,11 @@ class ResearchWorkerPool:
                             input_summary=query,
                             output_summary=(
                                 f"{len(results)} results"
+                                + (
+                                    f"; query_language={request.query_language}"
+                                    if request.query_language != "und"
+                                    else ""
+                                )
                                 + (f" ({attempt_summary})" if attempt_summary else "")
                             ),
                             status=ToolExecutionStatus.SUCCESS,
@@ -399,7 +412,13 @@ class ResearchWorkerPool:
                     if portfolio.adequate():
                         break
                     if attempt >= 2 and portfolio.saturated():
-                        break
+                        remaining_languages = {
+                            item.query_language
+                            for item in planned_requests[attempt + 1 :]
+                            if item.query_language != "und"
+                        }
+                        if not (remaining_languages - attempted_query_languages):
+                            break
             except BudgetExhaustedError as exc:
                 store.update_task_status(
                     task.id,
@@ -607,9 +626,14 @@ class ResearchWorkerPool:
 
             for batch_query, _ in search_batches:
                 persisted_portfolio.finish_query(persisted_query_admissions.get(batch_query, 0))
-            portfolio_success = sources_added > 0 and (
-                persisted_portfolio.adequate() or (run is not None and run.research_mode == "quick")
-            )
+            portfolio_adequate = persisted_portfolio.adequate()
+            # A worker that contributed admissible sources has completed its
+            # acquisition step even when diversity remains below the desired
+            # portfolio target. Treating that partial contribution as a hard
+            # dependency failure used to block every downstream entity task.
+            # Coverage retains the inadequacy and drives bounded corrective
+            # research; it is not silently promoted to sufficient evidence.
+            portfolio_success = sources_added > 0
             if task.question_id is not None:
                 status = (
                     ResearchQuestionStatus.ANSWERED
@@ -646,12 +670,18 @@ class ResearchWorkerPool:
                     "worker_id": str(worker_id),
                     "task_key": task.task_key,
                     "sources_added": sources_added,
-                    "outcome": "completed" if portfolio_success else "blocked",
+                    "outcome": (
+                        "completed"
+                        if portfolio_adequate
+                        else "completed_with_source_gap"
+                        if portfolio_success
+                        else "blocked"
+                    ),
                     "reason": blocked_reason,
                     "search_attempts": len(search_batches),
                     "independent_publishers": len(persisted_portfolio.publisher_families),
                     "source_kinds": sorted(item.value for item in persisted_portfolio.source_kinds),
-                    "portfolio_adequate": persisted_portfolio.adequate(),
+                    "portfolio_adequate": portfolio_adequate,
                     "search_saturated": portfolio.saturated(),
                     "layer": "worker",
                 },
@@ -670,7 +700,7 @@ class ResearchWorkerPool:
                         "source_kinds": sorted(
                             item.value for item in persisted_portfolio.source_kinds
                         ),
-                        "adequate": persisted_portfolio.adequate(),
+                        "adequate": portfolio_adequate,
                         "saturated": portfolio.saturated(),
                         "query_yields": persisted_portfolio.query_yields,
                     },

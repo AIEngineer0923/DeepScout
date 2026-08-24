@@ -171,7 +171,13 @@ def _evidence_ids_for_claims(store: ResearchStore, run_id: uuid.UUID, claim_ids:
     return _collect_cited_sources(store, run_id)
 
 
-def _append_sources_cited(body: str, cited_sources, language: str) -> str:
+def _append_sources_cited(
+    body: str,
+    cited_sources,
+    language: str,
+    *,
+    store: ResearchStore | None = None,
+) -> str:
     bibliography = re.compile(r"(?im)^#{1,6}\s+(?:Sources\s+Cited|Fonti\s+citate)\s*$")
     match = bibliography.search(body)
     if match:
@@ -181,7 +187,20 @@ def _append_sources_cited(body: str, cited_sources, language: str) -> str:
     if cited_sources:
         for index, source in enumerate(cited_sources, start=1):
             label = source.title or source.domain or source.canonical_url
-            lines.append(f"{index}. [{label}]({source.canonical_url})")
+            snapshot = (
+                store.get_latest_snapshot_for_source(source.id)
+                if store is not None and getattr(source, "id", None) is not None
+                else None
+            )
+            original_language = str(
+                (snapshot.retrieval_metadata or {}).get("original_language", "und")
+                if snapshot
+                else "und"
+            )
+            language_note = (
+                f" — language: {original_language}" if original_language != "und" else ""
+            )
+            lines.append(f"{index}. [{label}]({source.canonical_url}){language_note}")
     else:
         if language.startswith("it"):
             lines.append("- Nessuna fonte citata supporta conclusioni verificate.")
@@ -244,7 +263,9 @@ def generate_report(
         cited_sources, cited_evidence_ids = _evidence_ids_for_claims(
             store, run_id, synthesized.cited_claim_ids
         )
-        body = _append_sources_cited(synthesized.body_markdown, cited_sources, language)
+        body = _append_sources_cited(
+            synthesized.body_markdown, cited_sources, language, store=store
+        )
         title = synthesized.title or report_spec.title
         if cited_evidence_ids:
             report = store.save_report(

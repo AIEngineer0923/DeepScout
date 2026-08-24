@@ -258,6 +258,49 @@ class EvidenceRow(Base):
     snapshot: Mapped[SourceSnapshotRow] = relationship(back_populates="evidence_items")
 
 
+class EntityResearchMatrixRow(Base):
+    """Versioned, domain-neutral entity/attribute evidence matrix for a run."""
+
+    __tablename__ = "entity_research_matrices"
+    __table_args__ = (Index("ix_entity_research_matrices_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    schema_version: Mapped[str] = mapped_column(String(16), nullable=False, default="3")
+    matrix: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ResearchFunnelRow(Base):
+    """Persistent source-to-deliverable yield and bounded rejection diagnostics."""
+
+    __tablename__ = "research_funnels"
+    __table_args__ = (Index("ix_research_funnels_run_id", "research_run_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    metrics: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    rejection_counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    rejection_samples: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class ContradictionRow(Base):
     __tablename__ = "contradictions"
 
@@ -1071,7 +1114,9 @@ class AuthEventRow(Base):
 class EvaluationResultRow(Base):
     __tablename__ = "evaluation_results"
     __table_args__ = (
-        UniqueConstraint("research_run_id", "evaluator_id", name="uq_evaluation_results_run_evaluator"),
+        UniqueConstraint(
+            "research_run_id", "evaluator_id", name="uq_evaluation_results_run_evaluator"
+        ),
         Index("ix_evaluation_results_run_id", "research_run_id"),
     )
 
@@ -1129,7 +1174,9 @@ class LearningCaseRow(Base):
     severity: Mapped[str] = mapped_column(String(32), nullable=False, default="medium")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     reproducibility: Mapped[str] = mapped_column(String(64), nullable=False, default="unknown")
-    architecture_version: Mapped[str] = mapped_column(String(32), nullable=False, default="learning-v1")
+    architecture_version: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="learning-v1"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -1269,7 +1316,9 @@ class LearningPolicyMonitoringRow(Base):
     owner_principal_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE")
     )
-    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     baseline_metrics: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     observed_metrics: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -1292,7 +1341,9 @@ class LearningExperimentJobRow(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     result: Mapped[dict | None] = mapped_column(JSONB)
-    cost_category: Mapped[str] = mapped_column(String(32), nullable=False, default="learning_experiment")
+    cost_category: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="learning_experiment"
+    )
     lease_owner: Mapped[str | None] = mapped_column(String(128))
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_message: Mapped[str | None] = mapped_column(Text)
