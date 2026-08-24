@@ -77,6 +77,7 @@ from deepscout_persistence.models import (
     ContradictionRow,
     DecisionClaimRow,
     DecisionRow,
+    EntityResearchMatrixRow,
     EvaluationResultRow,
     EvidenceRow,
     HumanFeedbackRow,
@@ -89,6 +90,7 @@ from deepscout_persistence.models import (
     LearningPolicyVersionRow,
     ReportEvidenceRow,
     ReportRow,
+    ResearchFunnelRow,
     ResearchJobRow,
     ResearchMonitorRow,
     ResearchPlanRow,
@@ -2717,6 +2719,73 @@ class ResearchStore:
         snap.update(extra)
         row.config_snapshot = snap
         self._session.flush()
+
+    def upsert_entity_research_matrix(
+        self, run_id: uuid.UUID, matrix: dict, *, schema_version: str = "3"
+    ) -> dict:
+        """Persist the current generic entity/attribute matrix for a run."""
+        self._require_run(run_id)
+        row = self._session.scalar(
+            select(EntityResearchMatrixRow).where(EntityResearchMatrixRow.research_run_id == run_id)
+        )
+        if row is None:
+            row = EntityResearchMatrixRow(
+                research_run_id=run_id,
+                schema_version=schema_version,
+                matrix=dict(matrix),
+            )
+            self._session.add(row)
+        else:
+            row.schema_version = schema_version
+            row.matrix = dict(matrix)
+            row.updated_at = datetime.now(UTC)
+        self._session.flush()
+        return dict(row.matrix)
+
+    def get_entity_research_matrix(self, run_id: uuid.UUID) -> dict | None:
+        row = self._session.scalar(
+            select(EntityResearchMatrixRow).where(EntityResearchMatrixRow.research_run_id == run_id)
+        )
+        return dict(row.matrix) if row is not None else None
+
+    def upsert_research_funnel(
+        self,
+        run_id: uuid.UUID,
+        *,
+        metrics: dict,
+        rejection_counts: dict,
+        rejection_samples: list[dict],
+    ) -> dict:
+        """Persist bounded, machine-readable source-to-evidence diagnostics."""
+        self._require_run(run_id)
+        row = self._session.scalar(
+            select(ResearchFunnelRow).where(ResearchFunnelRow.research_run_id == run_id)
+        )
+        if row is None:
+            row = ResearchFunnelRow(research_run_id=run_id)
+            self._session.add(row)
+        row.metrics = dict(metrics)
+        row.rejection_counts = dict(rejection_counts)
+        row.rejection_samples = list(rejection_samples)[:50]
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+        return {
+            "metrics": dict(row.metrics),
+            "rejection_counts": dict(row.rejection_counts),
+            "rejection_samples": list(row.rejection_samples),
+        }
+
+    def get_research_funnel(self, run_id: uuid.UUID) -> dict | None:
+        row = self._session.scalar(
+            select(ResearchFunnelRow).where(ResearchFunnelRow.research_run_id == run_id)
+        )
+        if row is None:
+            return None
+        return {
+            "metrics": dict(row.metrics or {}),
+            "rejection_counts": dict(row.rejection_counts or {}),
+            "rejection_samples": list(row.rejection_samples or []),
+        }
 
     def list_source_preferences(self, run_id: uuid.UUID) -> list[SourcePreferenceRead]:
         rows = self._session.scalars(

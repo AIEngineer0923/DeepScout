@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from deepscout_research.retrieval.models import RetrievedChunk
@@ -16,13 +17,28 @@ def rerank_candidates(
     limit: int,
 ) -> list[RetrievedChunk]:
     query_tokens = {token.lower() for token in query.split() if len(token) >= 3}
+    identifiers = {
+        token.casefold()
+        for token in re.findall(r"\b[A-Za-z0-9][A-Za-z0-9_.:/+-]{2,}\b", query)
+        if any(character.isdigit() or character.isupper() for character in token)
+    }
+    mixed_signal_ranking = any(item.dense_rank is not None for item in candidates) and any(
+        item.bm25_rank is not None or item.lexical_rank is not None for item in candidates
+    )
     scored: list[tuple[float, RetrievedChunk]] = []
     for item in candidates:
-        exact = sum(1 for token in query_tokens if token in item.text.lower())
+        lowered_text = item.text.casefold()
+        exact = min(3, sum(1 for token in query_tokens if token in lowered_text))
+        identifier_hits = min(2, sum(1 for token in identifiers if token in lowered_text))
         recency = 0.0
         if item.retrieved_at is not None:
             recency = item.retrieved_at.timestamp() / 1e12
-        score = item.fused_score + 0.02 * exact + recency
+        # In a fused dense/lexical result, RRF remains authoritative across
+        # languages and ordinary token overlap is only a tie-breaker. For a
+        # standalone candidate set, exact overlap remains a meaningful rerank
+        # signal. Stable identifiers retain a stronger boost in both paths.
+        exact_weight = 0.001 if mixed_signal_ranking else 0.02
+        score = item.fused_score + exact_weight * exact + 0.01 * identifier_hits + recency
         scored.append((score, item))
     scored.sort(key=lambda pair: pair[0], reverse=True)
 

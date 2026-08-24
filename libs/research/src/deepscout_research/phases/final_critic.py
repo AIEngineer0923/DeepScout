@@ -18,6 +18,7 @@ from deepscout_core.domain.research_profiles import research_profile
 from deepscout_persistence.store import ResearchStore
 
 from deepscout_research.contracts.coverage import evaluate_coverage
+from deepscout_research.contracts.deliverables import validate_report_deliverable
 from deepscout_research.contracts.evidence_relevance import claim_specificity_allowed
 from deepscout_research.contracts.extract import (
     contract_from_snapshot,
@@ -75,6 +76,7 @@ def run_final_answer_critic(
     issues: list[str] = []
     reason_codes: list[str] = []
     unresolved: list[str] = []
+    deliverable_valid = True
 
     if not body.strip():
         return FinalCriticResult(
@@ -107,6 +109,20 @@ def run_final_answer_critic(
         if arithmetic_errors:
             issues.append("Allocation table arithmetic does not match its stated total")
             reason_codes.append("ARITHMETIC_CONSTRAINT_MISMATCH")
+        deliverable_validation = validate_report_deliverable(body, contract.deliverable)
+        deliverable_valid = deliverable_validation.valid
+        store.merge_config_snapshot(
+            run_id,
+            {
+                "deliverable_validation": deliverable_validation.model_dump(mode="json"),
+            },
+        )
+        if not deliverable_valid:
+            issues.extend(
+                f"Requested deliverable constraint failed: {item}"
+                for item in deliverable_validation.issues[:10]
+            )
+            reason_codes.append("DELIVERABLE_CONSTRAINT_MISMATCH")
         cov = coverage or evaluate_coverage(store, run_id, contract)
         for entry in cov.entries:
             req = next(
@@ -216,6 +232,29 @@ def run_final_answer_critic(
 
     reason_codes = list(dict.fromkeys(reason_codes))
     unresolved = list(dict.fromkeys(unresolved))
+    if contract is not None:
+        store.merge_config_snapshot(
+            run_id,
+            {
+                "answer_completeness": {
+                    "deliverable_complete": deliverable_valid,
+                    "evidence_complete": not unresolved,
+                    "unresolved_requirement_ids": unresolved[:15],
+                }
+            },
+        )
+    if not deliverable_valid:
+        return FinalCriticResult(
+            verdict=FinalCriticVerdict.REVISION_REQUIRED,
+            issues=issues[:20],
+            reason_codes=reason_codes[:20],
+            unresolved_requirements=unresolved[:15],
+            revision_notes=(
+                "Repair the requested deliverable itself: return one complete Markdown table "
+                "with the exact requested entity count, category quotas, and allocation total. "
+                "Keep sparse-evidence rows but label their confidence/uncertainty explicitly."
+            ),
+        )
     if unresolved:
         profile = research_profile(row.research_mode if row else None)
         run = store.get_run(run_id)

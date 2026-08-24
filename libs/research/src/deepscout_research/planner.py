@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from deepscout_core.domain.contracts import ResearchLanguageStrategy
 from deepscout_core.domain.enums import AgentRole, PlanDecomposition, ResearchPhase
 from deepscout_core.domain.schemas import (
     PlannerOutput,
@@ -54,7 +55,10 @@ def build_research_plan(
     structured_model = model.with_structured_output(PlannerStructuredOutput, include_raw=True)
     language_note = (
         f"Write planner approach, success criteria, and research questions in {output_language}. "
-        "This is the research output language, not the product UI language."
+        "This is the research output language, not the product UI language. "
+        "Independently choose goal-conditioned source/query languages. Preserve entity names, "
+        "identifiers, APIs, and technical terms. Emit a small set of native, non-mechanical "
+        "multilingual_queries for material requirements only; do not add languages cosmetically."
     )
     phase_instructions = (
         "Classify decomposition, then emit the smallest valid DAG."
@@ -123,6 +127,17 @@ def build_research_plan(
     if not isinstance(parsed, PlannerStructuredOutput):
         parsed = PlannerStructuredOutput.model_validate(parsed)
     draft = _structured_to_planner_output(parsed)
+    draft.language_strategy.output_language = output_language
+    if (
+        not draft.language_strategy.query_variants
+        and draft.language_strategy.user_language == "und"
+    ):
+        draft.language_strategy.user_language = output_language
+        draft.language_strategy.primary_query_language = output_language
+        draft.language_strategy.language_reason = (
+            "Conservative fallback: use the requested output language until a "
+            "goal-conditioned language expansion is justified."
+        )
     if planner_spec.prompt_version == "1":
         return repair_plan(draft)
     from deepscout_research.runtime.dependency_validator import finalize_plan
@@ -180,6 +195,18 @@ def _structured_to_planner_output(parsed: PlannerStructuredOutput) -> PlannerOut
         decomposition=decomposition,
         questions=list(parsed.questions),
         tasks=tasks,
+        language_strategy=ResearchLanguageStrategy(
+            user_language=parsed.user_language or "und",
+            primary_query_language=parsed.primary_query_language or "en",
+            additional_query_languages=list(dict.fromkeys(parsed.additional_query_languages))[:6],
+            expected_primary_source_languages=list(
+                dict.fromkeys(parsed.expected_primary_source_languages)
+            )[:6],
+            translation_required=bool(parsed.translation_required),
+            language_confidence=min(1.0, max(0.0, float(parsed.language_confidence or 0.0))),
+            language_reason=(parsed.language_reason or "")[:1000],
+            query_variants=parsed.multilingual_queries[:24],
+        ),
     )
 
 

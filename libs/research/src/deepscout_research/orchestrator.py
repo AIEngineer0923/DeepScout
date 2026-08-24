@@ -257,6 +257,92 @@ class ResearchOrchestrator:
             events=list(self._events),
         )
 
+    def _pause_for_contract_review(
+        self, run_id: uuid.UUID, iterations: int
+    ) -> OrchestratorResult | None:
+        """Pause on material, machine-detected user-constraint ambiguity."""
+        import re
+
+        from deepscout_core.domain.enums import ReviewReasonCode
+
+        from deepscout_research.contracts.extract import contract_from_snapshot
+        from deepscout_research.hitl import HumanReviewService, PolicyVerdict, evaluate_policy
+
+        row = self._store.get_run_row(run_id)
+        contract = contract_from_snapshot(row.config_snapshot if row else None)
+        if contract is None or not contract.constraint_conflicts:
+            return None
+        if (
+            evaluate_policy(ReviewReasonCode.HUMAN_INPUT_REQUIRED, self._settings)
+            != PolicyVerdict.REQUIRE_REVIEW
+        ):
+            return None
+        values = list(
+            dict.fromkeys(
+                value
+                for conflict in contract.constraint_conflicts
+                for value in re.findall(r"\d+(?:[.,]\d+)?", conflict)
+            )
+        )
+        service = HumanReviewService(self._store, self._settings)
+        italian = contract.output_language.casefold().startswith("it")
+        title = "Chiarisci i vincoli in conflitto" if italian else "Clarify conflicting constraints"
+        question = (
+            (
+                "La richiesta contiene valori incompatibili per lo stesso vincolo: "
+                + "; ".join(contract.constraint_conflicts[:5])
+                + ". Rispondi con il valore da applicare al risultato finale."
+            )
+            if italian
+            else (
+                "The request contains incompatible values for the same constraint: "
+                + "; ".join(contract.constraint_conflicts[:5])
+                + ". Reply with the value that should govern the final deliverable."
+            )
+        )
+        review_id = service.create_human_input_review(
+            run_id,
+            title=title,
+            question=question,
+            context={
+                "conflicts": contract.constraint_conflicts[:10],
+                "conflict_values": values[:20],
+            },
+        )
+        self._store.set_termination_reason(run_id, "awaiting_human_input")
+        self._store.update_run_status(run_id, ResearchRunStatus.PAUSED)
+        self._store.append_review_event(
+            review_id,
+            run_id,
+            event_type="paused",
+            actor_source="system",
+            actor_identity="orchestrator",
+        )
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.RUN_PAUSED,
+                run_id=run_id,
+                payload={
+                    "reason": "awaiting_human_input",
+                    "review_request_id": str(review_id),
+                },
+            )
+        )
+        self._emit(
+            ResearchEvent(
+                event_type=ResearchEventType.REVIEW_REQUESTED,
+                run_id=run_id,
+                payload={"review_request_id": str(review_id)},
+            )
+        )
+        self._store.commit()
+        return OrchestratorResult(
+            run_id=run_id,
+            final_status=ResearchRunStatus.PAUSED,
+            iterations=iterations,
+            events=list(self._events),
+        )
+
     @traceable(name="research_run_execute", run_type="chain")
     def execute(self, run_id: uuid.UUID) -> OrchestratorResult:
         run = self._store.get_run(run_id)
@@ -282,6 +368,9 @@ class ResearchOrchestrator:
         iterations = 0
         try:
             self.build_plan(run_id, goal=run.goal)
+            contract_pause = self._pause_for_contract_review(run_id, iterations)
+            if contract_pause is not None:
+                return contract_pause
             self._seed_institutional_profiles(run_id)
             self._store.commit()
             initial_iteration_cap = max(
@@ -513,7 +602,12 @@ class ResearchOrchestrator:
             existing_tasks=self._store.list_tasks(run_id),
         )
         if supplemental:
-            self._store.append_tasks(run_id, supplemental)
+            capacity = max(
+                0,
+                mode_profile.max_requirement_tasks - len(self._store.list_tasks(run_id)),
+            )
+            if capacity:
+                self._store.append_tasks(run_id, supplemental[:capacity])
         self._store.commit()
         self._emit(
             ResearchEvent(
@@ -657,18 +751,22 @@ class ResearchOrchestrator:
         )
         refreshed_tasks = self._store.list_tasks(run_id)
         evidence_count = len(self._store.list_evidence(run_id))
-        from deepscout_research.runtime.replan import evaluate_replan
+        from deepscout_research.runtime.replan import ReplanDecision, evaluate_replan
         from deepscout_research.runtime.sufficiency import evaluate_sufficiency
 
         row = self._store.get_run_row(run_id)
         replans_used = int(getattr(row, "replans_used", 0) or 0) if row else 0
         last_sources = sum(item.sources_added for item in results)
-        replan = evaluate_replan(
-            settings=self._settings,
-            replans_used=replans_used,
-            tasks=refreshed_tasks,
-            last_batch_sources=last_sources,
-            evidence_count=evidence_count,
+        replan = (
+            evaluate_replan(
+                settings=self._settings,
+                replans_used=replans_used,
+                tasks=refreshed_tasks,
+                last_batch_sources=last_sources,
+                evidence_count=evidence_count,
+            )
+            if run.research_mode != "quick"
+            else ReplanDecision(False, (), "quick_path_no_global_replan")
         )
         if replan.apply:
             added = self._store.append_tasks(run_id, list(replan.new_tasks))
@@ -997,6 +1095,29 @@ class ResearchOrchestrator:
         except Exception:
             logger.exception("Verify phase failed", extra={"run_id": str(run_id)})
             verify_stats = {}
+        try:
+            from deepscout_research.phases.entity_matrix import (
+                build_entity_research_matrix,
+            )
+
+            matrix = build_entity_research_matrix(self._store, run_id)
+            funnel = self._store.get_research_funnel(run_id)
+            if funnel is not None:
+                metrics = dict(funnel.get("metrics") or {})
+                metrics["matrix_fields_populated"] = matrix.fields_populated
+                self._store.upsert_research_funnel(
+                    run_id,
+                    metrics=metrics,
+                    rejection_counts=dict(funnel.get("rejection_counts") or {}),
+                    rejection_samples=list(funnel.get("rejection_samples") or []),
+                )
+            verify_stats = {
+                **verify_stats,
+                "matrix_entities": len(matrix.entities),
+                "matrix_fields_populated": matrix.fields_populated,
+            }
+        except Exception:
+            logger.exception("Entity research matrix phase failed", extra={"run_id": str(run_id)})
         self._store.commit()
         self._emit(
             ResearchEvent(

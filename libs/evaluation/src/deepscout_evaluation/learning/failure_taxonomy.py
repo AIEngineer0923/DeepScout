@@ -22,6 +22,7 @@ class FailureClass(StrEnum):
     RUNTIME_FAILURE = "runtime_failure"
     SECURITY_FAILURE = "security_failure"
     HITL_FAILURE = "hitl_failure"
+    MULTILINGUAL_FAILURE = "multilingual_failure"
     OPPORTUNITY = "opportunity"
 
 
@@ -44,6 +45,14 @@ _RETRIEVAL_MAP: dict[RetrievalFailureClass, FailureClass] = {
     RetrievalFailureClass.NO_ANSWER_FALSE_POSITIVE: FailureClass.RETRIEVAL_FAILURE,
     RetrievalFailureClass.NO_ANSWER_FALSE_NEGATIVE: FailureClass.RETRIEVAL_FAILURE,
     RetrievalFailureClass.CONTENT_EXTRACTION_FAILURE: FailureClass.EVIDENCE_FAILURE,
+    RetrievalFailureClass.QUERY_LANGUAGE_MISMATCH: FailureClass.MULTILINGUAL_FAILURE,
+    RetrievalFailureClass.CROSS_LANGUAGE_RELEVANCE_FALSE_NEGATIVE: (
+        FailureClass.MULTILINGUAL_FAILURE
+    ),
+    RetrievalFailureClass.TRANSLATION_QUALITY_FAILURE: FailureClass.MULTILINGUAL_FAILURE,
+    RetrievalFailureClass.SOURCE_LANGUAGE_PORTFOLIO_GAP: FailureClass.MULTILINGUAL_FAILURE,
+    RetrievalFailureClass.ENTITY_ALIAS_RESOLUTION_FAILURE: FailureClass.MULTILINGUAL_FAILURE,
+    RetrievalFailureClass.MULTILINGUAL_RETRIEVAL_FAILURE: FailureClass.MULTILINGUAL_FAILURE,
 }
 
 _EVALUATOR_FAILURE_MAP: dict[str, FailureClass] = {
@@ -66,10 +75,17 @@ _EVALUATOR_FAILURE_MAP: dict[str, FailureClass] = {
     "pii_leakage": FailureClass.SECURITY_FAILURE,
     "prompt_injection": FailureClass.SECURITY_FAILURE,
     "ssrf_urls": FailureClass.SECURITY_FAILURE,
+    "multilingual_query_coverage": FailureClass.MULTILINGUAL_FAILURE,
+    "source_language_metadata": FailureClass.MULTILINGUAL_FAILURE,
+    "translation_provenance": FailureClass.MULTILINGUAL_FAILURE,
+    "output_language_compliance": FailureClass.MULTILINGUAL_FAILURE,
+    "translation_leakage": FailureClass.MULTILINGUAL_FAILURE,
+    "multilingual_contradiction_handling": FailureClass.MULTILINGUAL_FAILURE,
 }
 
 _CAUSAL_ORDER: tuple[FailureClass, ...] = (
     FailureClass.PLANNING_FAILURE,
+    FailureClass.MULTILINGUAL_FAILURE,
     FailureClass.RETRIEVAL_FAILURE,
     FailureClass.EVIDENCE_FAILURE,
     FailureClass.CLAIM_FAILURE,
@@ -86,9 +102,7 @@ _CAUSAL_ORDER: tuple[FailureClass, ...] = (
 
 def from_retrieval_failure(value: str | RetrievalFailureClass) -> FailureClass:
     try:
-        parsed = (
-            value if isinstance(value, RetrievalFailureClass) else RetrievalFailureClass(value)
-        )
+        parsed = value if isinstance(value, RetrievalFailureClass) else RetrievalFailureClass(value)
     except ValueError:
         return FailureClass.RETRIEVAL_FAILURE
     return _RETRIEVAL_MAP.get(parsed, FailureClass.RETRIEVAL_FAILURE)

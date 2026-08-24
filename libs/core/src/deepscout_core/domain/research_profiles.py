@@ -22,7 +22,7 @@ class ResearchModeProfile:
 
 
 _PROFILES: dict[ResearchModeName, ResearchModeProfile] = {
-    "quick": ResearchModeProfile("quick", 3, 2, 1, 2, 1, 10_000),
+    "quick": ResearchModeProfile("quick", 1, 2, 1, 1, 1, 10_000),
     "standard": ResearchModeProfile("standard", 9, 5, 2, 3, 2, 50_000),
     "deep": ResearchModeProfile("deep", 12, 8, 3, 3, 3, 100_000),
 }

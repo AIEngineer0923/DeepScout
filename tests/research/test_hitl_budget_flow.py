@@ -125,6 +125,67 @@ def test_human_feedback_cannot_resolve_review(store, settings) -> None:
 
 
 @pytest.mark.postgres
+def test_human_input_response_resolves_constraint_and_resumes_once(store, settings) -> None:
+    run = store.create_run(
+        ResearchRunCreate(goal="Choose within 500 or 1000 credits"),
+        settings,
+        config_snapshot={
+            "research_contract": {
+                "schema_version": "3",
+                "primary_question": "Choose within 500 or 1000 credits",
+                "constraint_conflicts": ["budget_total: 1000, 500 credits"],
+                "numeric_constraints": [
+                    {
+                        "constraint_id": "N1",
+                        "metric": "budget_total",
+                        "value": "1000",
+                        "unit": "credits",
+                    },
+                    {
+                        "constraint_id": "N2",
+                        "metric": "budget_total",
+                        "value": "500",
+                        "unit": "credits",
+                    },
+                ],
+                "deliverable": {"kind": "allocation", "budget_total": "500"},
+            }
+        },
+    )
+    service = HumanReviewService(store, settings)
+    review_id = service.create_human_input_review(
+        run.id,
+        title="Clarify budget",
+        question="Which budget should govern?",
+        context={"conflict_values": ["1000", "500"]},
+    )
+    store.update_run_status(run.id, ResearchRunStatus.PAUSED)
+
+    result = service.resolve_review(
+        run_id=run.id,
+        review_id=review_id,
+        decision_kind=ReviewDecisionKind.RESPOND,
+        source="api",
+        decision_payload={"response": "Use 500 credits for the final allocation."},
+    )
+
+    assert result.applied is True
+    assert result.status == ReviewRequestStatus.RESPONDED
+    assert store.get_run(run.id).status == ResearchRunStatus.PENDING
+    snapshot = store.get_run_row(run.id).config_snapshot
+    assert snapshot["research_contract"]["constraint_conflicts"] == []
+    assert snapshot["research_contract"]["deliverable"]["budget_total"] == "500"
+    with pytest.raises(ValueError, match="not pending"):
+        service.resolve_review(
+            run_id=run.id,
+            review_id=review_id,
+            decision_kind=ReviewDecisionKind.RESPOND,
+            source="api",
+            decision_payload={"response": "500"},
+        )
+
+
+@pytest.mark.postgres
 def test_cancel_supersedes_pending_reviews(store, settings) -> None:
     run = store.create_run(
         ResearchRunCreate(goal="cancel hitl", budget=settings.default_research_budget()),

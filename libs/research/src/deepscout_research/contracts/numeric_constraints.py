@@ -9,9 +9,9 @@ from deepscout_core.domain.contracts import NumericConstraint
 
 _CONSTRAINT_PATTERN = re.compile(
     r"(?P<metric>budget(?:\s+(?:totale|total))?|total\s+budget|"
-    r"(?:totale|total|sum|somma)\s+(?:budget|cost|costo|allocation|allocazione))"
-    r"[^\d]{0,32}(?P<value>\d{1,9}(?:[.,]\d{1,4})?)"
-    r"\s*(?P<unit>credits?|crediti|usd|eur|euro|€|\$)?",
+    r"(?:totale|total|sum|somma)(?:\s+(?:budget|cost|costo|allocation|allocazione))?)"
+    r"[^\d]{0,72}(?P<value>\d{1,9}(?:[.,]\d{1,4})?)"
+    r"\s*(?P<unit>crediti|credits?|usd|eur|euro|€|\$)?",
     re.I,
 )
 
@@ -31,9 +31,14 @@ def extract_numeric_constraints(goal: str) -> tuple[list[NumericConstraint], lis
     seen: set[tuple[str, str, str]] = set()
     for index, match in enumerate(_CONSTRAINT_PATTERN.finditer(goal), start=1):
         raw_metric = match.group("metric").casefold()
-        metric = "budget_total" if "budget" in raw_metric else "total"
-        value = str(_decimal(match.group("value")))
         unit = (match.group("unit") or "").casefold()
+        metric = (
+            "budget_total"
+            if "budget" in raw_metric
+            or unit in {"credit", "credits", "crediti", "usd", "eur", "euro", "€", "$"}
+            else "total"
+        )
+        value = str(_decimal(match.group("value")))
         key = (metric, value, unit)
         if key in seen:
             continue

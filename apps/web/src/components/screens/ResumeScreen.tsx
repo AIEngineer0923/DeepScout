@@ -16,11 +16,13 @@ export function ResumeScreen() {
   const { locale } = useI18n();
   const router = useRouter();
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
+  const [pendingReviewType, setPendingReviewType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workspace || workspace.status !== "paused") {
       setPendingReviewId(null);
+      setPendingReviewType(null);
       return;
     }
     api
@@ -28,8 +30,12 @@ export function ResumeScreen() {
       .then((rows) => {
         const pending = rows.find((row) => row.status === "pending");
         setPendingReviewId(pending ? String(pending.id) : null);
+        setPendingReviewType(pending ? String(pending.proposed_action_type) : null);
       })
-      .catch(() => setPendingReviewId(null));
+      .catch(() => {
+        setPendingReviewId(null);
+        setPendingReviewType(null);
+      });
   }, [workspace]);
 
   if (!workspace) return <p className="empty">{t("resume.loading")}</p>;
@@ -66,11 +72,13 @@ export function ResumeScreen() {
           <h2>{t("reviews.waiting")}</h2>
           <p>{t("reviews.subtitle")}</p>
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn primary" disabled={!pendingReviewId} onClick={() => void approvePending()}>
-              {t("reviews.approve")}
-            </button>
+            {pendingReviewType === "budget_extension" ? (
+              <button className="btn primary" disabled={!pendingReviewId} onClick={() => void approvePending()}>
+                {t("reviews.approve")}
+              </button>
+            ) : null}
             <Link className="btn" href="/reviews">
-              {t("nav.reviews")}
+              {pendingReviewType === "human_input" ? t("reviews.yourResponse") : t("nav.reviews")}
             </Link>
           </div>
           {error ? <p className="error">{error}</p> : null}

@@ -120,31 +120,46 @@ test.describe("interaction", () => {
   });
 
   test("dashboard and New Research launch through the same default pipeline", async ({ page }) => {
-    await mockApi(page);
     const payloads: Array<Record<string, unknown>> = [];
-    await page.route("**/api/v1/research-runs", async (route) => {
-      if (route.request().method() === "POST") {
-        const body = route.request().postDataJSON() as Record<string, unknown>;
-        payloads.push(body);
-        await route.fulfill({ json: { id: FIXTURE_RUN_ID } });
-        return;
-      }
-      await route.continue();
-    });
-    await page.route(`**/api/v1/research-runs/${FIXTURE_RUN_ID}/execute`, async (route) => {
-      await route.fulfill({ json: { run_id: FIXTURE_RUN_ID, job_id: FIXTURE_RUN_ID } });
-    });
+    const configureLaunchPage = async (target: Page) => {
+      await mockApi(target);
+      await target.route("**/api/v1/research-runs", async (route) => {
+        if (route.request().method() === "POST") {
+          const body = route.request().postDataJSON() as Record<string, unknown>;
+          payloads.push(body);
+          await route.fulfill({ json: { id: FIXTURE_RUN_ID } });
+          return;
+        }
+        await route.continue();
+      });
+      await target.route(
+        `**/api/v1/research-runs/${FIXTURE_RUN_ID}/execute`,
+        async (route) => {
+          await route.fulfill({
+            json: { run_id: FIXTURE_RUN_ID, job_id: FIXTURE_RUN_ID },
+          });
+        },
+      );
+    };
+    await configureLaunchPage(page);
 
     const goal = "Compare two public cloud inference services.";
     await page.goto("/dashboard");
     await page.getByTestId("dashboard-research-goal").fill(goal);
     await page.getByTestId("dashboard-start-research").click();
     await expect.poll(() => payloads.length).toBe(1);
+    await expect(page).toHaveURL(`/research/${FIXTURE_RUN_ID}`);
+    await expect(page.getByTestId("research-header")).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
-    await page.goto("/research/new");
-    await page.getByTestId("research-goal").fill(goal);
-    await page.getByTestId("start-research").click();
+    const newResearchPage = await page.context().newPage();
+    await configureLaunchPage(newResearchPage);
+    await newResearchPage.goto("/research/new");
+    await newResearchPage.getByTestId("research-goal").fill(goal);
+    await newResearchPage.getByTestId("start-research").click();
     await expect.poll(() => payloads.length).toBe(2);
+    await expect(newResearchPage).toHaveURL(`/research/${FIXTURE_RUN_ID}`);
+    await expect(newResearchPage.getByTestId("research-header")).toBeVisible();
 
     expect(payloads[0]).toEqual(payloads[1]);
     expect(payloads[0]).toMatchObject({

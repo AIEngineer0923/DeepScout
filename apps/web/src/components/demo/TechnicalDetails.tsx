@@ -60,6 +60,20 @@ export function TechnicalDetails({ workspace }: { workspace: Workspace }) {
               <dd>{presentOutputLanguage(workspace.output_language, locale)}</dd>
             </div>
           ) : null}
+          {Object.keys(workspace.language?.execution?.actual_query_languages ?? {}).length ? (
+            <div>
+              <dt>{t("research.languages")}</dt>
+              <dd>
+                {Object.keys(workspace.language?.execution?.actual_query_languages ?? {}).join(", ")}
+              </dd>
+            </div>
+          ) : null}
+          {Object.keys(workspace.language?.execution?.source_languages ?? {}).length ? (
+            <div>
+              <dt>{t("research.sourceLanguages")}</dt>
+              <dd>{Object.keys(workspace.language?.execution?.source_languages ?? {}).join(", ")}</dd>
+            </div>
+          ) : null}
         </dl>
       ) : null}
     </section>

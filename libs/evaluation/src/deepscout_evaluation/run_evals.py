@@ -20,6 +20,7 @@ from deepscout_research.contracts.coverage import evaluate_coverage
 from deepscout_research.contracts.extract import contract_from_snapshot
 from deepscout_research.contracts.source_authority import classify_source_authority
 from deepscout_research.contracts.source_portfolio import source_family
+from deepscout_research.language import detect_language, normalize_language_tag
 from deepscout_research.source_fabric.strategy import QueryStrategy, plan_source_strategy
 from deepscout_research.tasks.graph import TaskGraph, TaskGraphError
 
@@ -267,6 +268,80 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         if contradictions
         else None
     )
+    language_strategy = contract.language_strategy if contract else None
+    language_execution = dict(config_snapshot.get("language_execution") or {})
+    actual_query_languages = {
+        normalize_language_tag(item)
+        for item in (language_execution.get("actual_query_languages") or {})
+    } - {"und"}
+    planned_query_languages = (
+        {
+            normalize_language_tag(language_strategy.primary_query_language),
+            *(
+                normalize_language_tag(item)
+                for item in language_strategy.additional_query_languages
+            ),
+        }
+        - {"und"}
+        if language_strategy
+        else set()
+    )
+    multilingual_applicable = bool(language_strategy and len(planned_query_languages) > 1)
+    multilingual_query_coverage = (
+        normalize_language_tag(language_strategy.primary_query_language) in actual_query_languages
+        and actual_query_languages.issubset(planned_query_languages)
+        if multilingual_applicable
+        else None
+    )
+    language_observability_applicable = bool(
+        language_execution
+        or (
+            language_strategy
+            and (
+                language_strategy.query_variants
+                or language_strategy.translation_required
+                or language_strategy.expected_primary_source_languages
+            )
+        )
+    )
+    snapshot_languages = [
+        normalize_language_tag((item.retrieval_metadata or {}).get("original_language"))
+        for item in snapshots
+    ]
+    source_language_metadata = (
+        all(item != "und" for item in snapshot_languages)
+        if snapshots and language_observability_applicable
+        else None
+    )
+    evidence_original_states = [
+        str((item.extraction_metadata or {}).get("translation_state") or "") == "original"
+        and normalize_language_tag((item.extraction_metadata or {}).get("original_language"))
+        != "und"
+        for item in evidence
+    ]
+    translation_provenance = (
+        all(evidence_original_states) if evidence and language_observability_applicable else None
+    )
+    translation_leakage = (
+        translation_provenance and quote_ok == len(evidence)
+        if evidence and language_observability_applicable
+        else None
+    )
+    detected_report_language = (
+        detect_language(report.body_markdown).language if report is not None else "und"
+    )
+    requested_output_language = normalize_language_tag(run.output_language)
+    output_language_compliance = (
+        detected_report_language == requested_output_language
+        if report is not None and detected_report_language != "und"
+        else None
+    )
+    cross_language_contradictions = bool(
+        contradictions and len(set(snapshot_languages) - {"und"}) > 1
+    )
+    multilingual_contradiction_handling = (
+        contradiction_resolution_rate == 1.0 if cross_language_contradictions else None
+    )
 
     results: dict[str, object] = {
         "run_id": str(run_id),
@@ -344,6 +419,12 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
         "forbidden_tool": forbidden_tool_ok,
         "retrieval_duplicate_rate": duplicate_rate,
         "retrieval_cross_run_isolation": isolation_ok,
+        "multilingual_query_coverage": multilingual_query_coverage,
+        "source_language_metadata": source_language_metadata,
+        "translation_provenance": translation_provenance,
+        "output_language_compliance": output_language_compliance,
+        "translation_leakage": translation_leakage,
+        "multilingual_contradiction_handling": multilingual_contradiction_handling,
         "task_count": len(tasks),
         "source_count": len(sources),
         "evidence_count": len(evidence),
@@ -364,4 +445,34 @@ def evaluate_research_run(store: ResearchStore, run_id: UUID) -> dict[str, objec
     if not contradictions:
         results["contradiction_resolution_rate__status"] = "not_applicable"
         results["contradiction_resolution_rate__reason"] = "No contradiction was detected."
+    if not multilingual_applicable:
+        results["multilingual_query_coverage__status"] = "not_applicable"
+        results["multilingual_query_coverage__reason"] = (
+            "The goal-conditioned strategy did not require language expansion."
+        )
+    if not snapshots or not language_observability_applicable:
+        results["source_language_metadata__status"] = "not_applicable"
+        results["source_language_metadata__reason"] = (
+            "No source snapshot was acquired."
+            if not snapshots
+            else "This legacy run has no language execution metadata."
+        )
+    if not evidence or not language_observability_applicable:
+        for evaluator_id in ("translation_provenance", "translation_leakage"):
+            results[f"{evaluator_id}__status"] = "not_applicable"
+            results[f"{evaluator_id}__reason"] = (
+                "No evidence quote was admitted."
+                if not evidence
+                else "This legacy run has no language execution metadata."
+            )
+    if report is None or detected_report_language == "und":
+        results["output_language_compliance__status"] = "unavailable"
+        results["output_language_compliance__reason"] = (
+            "No report exists or deterministic language detection is inconclusive."
+        )
+    if not cross_language_contradictions:
+        results["multilingual_contradiction_handling__status"] = "not_applicable"
+        results["multilingual_contradiction_handling__reason"] = (
+            "No contradiction spans multiple detected source languages."
+        )
     return results

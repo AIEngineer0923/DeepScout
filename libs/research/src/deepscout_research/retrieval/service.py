@@ -134,7 +134,11 @@ class RetrievalService:
         session = self._store._session
         source_ids = request.source_ids or None
         strategy = resolve_strategy(self._settings)
-        mode = route.mode if route.mode in {"dense", "lexical", "hybrid"} else strategy_to_mode(strategy)
+        mode = (
+            route.mode
+            if route.mode in {"dense", "lexical", "hybrid"}
+            else strategy_to_mode(strategy)
+        )
 
         dense_ranked: list[uuid.UUID] = []
         lexical_ranked: list[uuid.UUID] = []
@@ -161,9 +165,7 @@ class RetrievalService:
             lexical_scores = {item_id: score for item_id, score in lexical_hits}
 
         if route.use_bm25 and mode in {"lexical", "hybrid"}:
-            chunk_rows = list_chunks_for_run(
-                session, run_id=request.run_id, source_ids=source_ids
-            )
+            chunk_rows = list_chunks_for_run(session, run_id=request.run_id, source_ids=source_ids)
             index = build_bm25_index(
                 [
                     (
@@ -199,8 +201,16 @@ class RetrievalService:
             dense_ranked = [item_id for item_id, _ in dense_hits]
             dense_scores = {item_id: score for item_id, score in dense_hits}
 
-        rank_lists = [lst for lst in (bm25_ranked, lexical_ranked, dense_ranked) if lst]
-        fused = reciprocal_rank_fusion(rank_lists) if rank_lists else {}
+        ranked_channels = [
+            ("bm25", bm25_ranked),
+            ("fts", lexical_ranked),
+            ("dense", dense_ranked),
+        ]
+        rank_lists = [ranked for _, ranked in ranked_channels if ranked]
+        channel_names = [name for name, ranked in ranked_channels if ranked]
+        semantic_dense_weight = 2.25 if route.intent.value == "semantic" else 1.0
+        weights = [semantic_dense_weight if name == "dense" else 1.0 for name in channel_names]
+        fused = reciprocal_rank_fusion(rank_lists, weights=weights) if rank_lists else {}
         ordered_ids = sorted(fused, key=fused.get, reverse=True)
 
         compiled_candidates = self._compiled_candidates(
@@ -304,9 +314,7 @@ class RetrievalService:
         )
         out: list[RetrievedChunk] = []
         for row in rows:
-            claim = (
-                self._store._session.get(ClaimRow, row.claim_id) if row.claim_id else None
-            )
+            claim = self._store._session.get(ClaimRow, row.claim_id) if row.claim_id else None
             if claim is None or claim.source_id is None:
                 continue
             snapshot_id = uuid.UUID(int=0)
@@ -336,7 +344,9 @@ class RetrievalService:
             )
         return out
 
-    def _graph_candidates(self, request: RetrievalQuery, *, route, limit: int) -> list[RetrievedChunk]:
+    def _graph_candidates(
+        self, request: RetrievalQuery, *, route, limit: int
+    ) -> list[RetrievedChunk]:
         if not route.use_graph:
             return []
         hits = graph_search_statements(
@@ -347,9 +357,7 @@ class RetrievalService:
         )
         out: list[RetrievedChunk] = []
         for row, reason in hits:
-            claim = (
-                self._store._session.get(ClaimRow, row.claim_id) if row.claim_id else None
-            )
+            claim = self._store._session.get(ClaimRow, row.claim_id) if row.claim_id else None
             if claim is None or claim.source_id is None:
                 continue
             text = sanitize_retrieved_text(row.statement_text)

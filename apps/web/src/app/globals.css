@@ -2349,6 +2349,8 @@ html[data-visual="1"] *::after {
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--ds-line);
   border-radius: 10px;
 }
@@ -2378,8 +2380,17 @@ html[data-visual="1"] *::after {
     max-width: none;
   }
   .rich-table {
-    min-width: 480px;
+    min-width: 620px;
     font-size: 13px;
+  }
+  .rich-table th,
+  .rich-table td {
+    padding: 9px 10px;
+    max-width: 260px;
+    overflow-wrap: anywhere;
+  }
+  .review-response .input {
+    min-height: 120px;
   }
 }
 @media (max-width: 768px) {

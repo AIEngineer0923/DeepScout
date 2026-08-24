@@ -35,7 +35,8 @@ PLANNER_V2 = PromptSpec(
     input_contract="Goal, budget summary, domain constraints.",
     output_contract=(
         "PlannerOutput schema: decomposition plus tasks with task_key, objective, "
-        "depends_on, completion_criteria, parallel_safe, expected_output, priority."
+        "depends_on, completion_criteria, parallel_safe, expected_output, priority; plus a "
+        "goal-conditioned language strategy and bounded native-language query variants."
     ),
     context_policy="Goal and budget only; no raw web pages, evidence, or worker history.",
     tool_policy="No web or network tools.",
@@ -58,6 +59,11 @@ PLANNER_V2 = PromptSpec(
         "and dependency_reason names the missing entity or measurement. "
         "Each task must include completion_criteria, allowed_tools (web_search only unless already allowed), "
         "priority, expected_output, and question_text matching the objective. "
+        "Separate user/output language from research languages. Select the language of likely authoritative "
+        "primary evidence from the goal, entity, geography, jurisdiction, domain, and source class. Generate "
+        "native terminology (not mechanical copies) in only the languages with expected information gain. "
+        "Set each multilingual query's language, relevant requirement IDs, reason, and whether it targets a "
+        "primary source. Keep canonical identifiers and proper names unchanged. "
         "Do not browse, invent sources, create evidence, change budgets, create monitors, or pin sources."
     ),
 )

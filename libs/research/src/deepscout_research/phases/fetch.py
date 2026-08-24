@@ -116,12 +116,27 @@ def fetch_sources_for_run(store: ResearchStore, run_id: uuid.UUID, *, max_source
                     extra={"run_id": str(run_id), "url": source.canonical_url},
                 )
                 continue
+            from deepscout_research.language import detect_language
+
+            detected_language = detect_language(
+                text,
+                metadata_language=result.metadata.get("declared_language"),
+            )
+            retrieval_metadata = {
+                **result.metadata,
+                "original_language": detected_language.language,
+                "language_confidence": f"{detected_language.confidence:.3f}",
+                "language_detection_reason": detected_language.reason,
+                "original_source": source.canonical_url,
+                "original_locator": source.canonical_url,
+                "translation_state": "original",
+            }
             store.add_snapshot(
                 source.id,
                 SourceSnapshotWrite(
                     content=text,
                     mime_type=result.mime_type,
-                    retrieval_metadata=result.metadata,
+                    retrieval_metadata=retrieval_metadata,
                 ),
             )
             store.append_run_event(
@@ -131,6 +146,7 @@ def fetch_sources_for_run(store: ResearchStore, run_id: uuid.UUID, *, max_source
                     "source_id": str(source.id),
                     "source_kind": result.metadata.get("source_kind", "unknown"),
                     "connector": result.metadata.get("connector", "secure_http"),
+                    "original_language": detected_language.language,
                     "layer": "tool",
                 },
             )

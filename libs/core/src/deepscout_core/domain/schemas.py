@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from deepscout_core.domain.budget import ResearchBudget
+from deepscout_core.domain.contracts import LanguageQueryVariant, ResearchLanguageStrategy
 from deepscout_core.domain.enums import (
     ContradictionEvidenceStatus,
     PlanDecomposition,
@@ -120,6 +121,14 @@ class PlannerStructuredOutput(BaseModel):
     decomposition: str = "unspecified"
     questions: list[PlannerQuestion]
     tasks: list[PlannerStructuredTask] = Field(default_factory=list)
+    user_language: str = "und"
+    primary_query_language: str = "en"
+    additional_query_languages: list[str] = Field(default_factory=list)
+    expected_primary_source_languages: list[str] = Field(default_factory=list)
+    translation_required: bool = False
+    language_confidence: float = 0.5
+    language_reason: str = ""
+    multilingual_queries: list[LanguageQueryVariant] = Field(default_factory=list)
 
 
 class PlannerOutput(BaseModel):
@@ -130,6 +139,7 @@ class PlannerOutput(BaseModel):
     decomposition: PlanDecomposition = PlanDecomposition.UNSPECIFIED
     questions: list[PlannerQuestion] = Field(default_factory=list, max_length=20)
     tasks: list[PlannerTask] = Field(default_factory=list, max_length=12)
+    language_strategy: ResearchLanguageStrategy = Field(default_factory=ResearchLanguageStrategy)
 
     @model_validator(mode="after")
     def fill_questions_from_tasks(self) -> "PlannerOutput":

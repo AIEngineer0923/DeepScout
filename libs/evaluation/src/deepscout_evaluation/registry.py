@@ -491,6 +491,55 @@ BUILTIN_EVALUATOR_MATRIX: tuple[EvaluatorSpec, ...] = (
         EvaluatorApplicability.OFFLINE_ONLY,
         "RAGAS faithfulness when references exist",
     ),
+    _spec(
+        "multilingual_query_coverage",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Goal-conditioned planned research languages are represented in executed queries",
+    ),
+    _spec(
+        "source_language_metadata",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Fetched source snapshots retain content-level original-language metadata",
+    ),
+    _spec(
+        "translation_provenance",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Evidence distinguishes immutable originals from derived translations",
+    ),
+    _spec(
+        "output_language_compliance",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Final report language matches the requested output language when detectable",
+    ),
+    _spec(
+        "translation_leakage",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Translated presentation never replaces the original evidence quote",
+    ),
+    _spec(
+        "multilingual_contradiction_handling",
+        "multilingual",
+        EvaluatorMethod.DETERMINISTIC_CODE,
+        EvaluatorApplicability.ACTIVE_NOW,
+        "Cross-language contradictions retain independent evidence and explicit status",
+    ),
+    _spec(
+        "cross_language_entity_resolution",
+        "multilingual",
+        EvaluatorMethod.LLM_AS_JUDGE,
+        EvaluatorApplicability.OFFLINE_ONLY,
+        "Localized aliases resolve only with identifier/domain/context support",
+    ),
 )
 
 

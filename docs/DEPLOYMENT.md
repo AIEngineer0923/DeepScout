@@ -25,8 +25,8 @@ Do not bind `0.0.0.0` unless you understand that MODE A has no login.
 
 The versioned release stack is the supported no-build container path. It uses two public images:
 
-- `ghcr.io/francescoveryra-dot/deepscout-api:0.1.2` for the migration, API, and worker roles;
-- `ghcr.io/francescoveryra-dot/deepscout-web:0.1.2` for the Next.js frontend.
+- `ghcr.io/francescoveryra-dot/deepscout-api:0.1.3` for the migration, API, and worker roles;
+- `ghcr.io/francescoveryra-dot/deepscout-web:0.1.3` for the Next.js frontend.
 
 PostgreSQL/pgvector and Redis remain separate upstream services. From a checkout of the matching
 release tag:
@@ -39,7 +39,7 @@ curl --fail http://127.0.0.1:8000/ready
 curl --fail http://127.0.0.1:3000
 ```
 
-The one-shot `migrate` service applies Alembic head `016` before API/worker startup. The local
+The one-shot `migrate` service applies Alembic head `017` before API/worker startup. The local
 database credentials and loopback-only ports in this compose file are for a trusted workstation,
 not an Internet-facing deployment. Research calls remain unavailable until the operator adds their
 own provider credentials to `.env`.

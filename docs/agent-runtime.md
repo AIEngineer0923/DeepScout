@@ -1,6 +1,59 @@
 # Agent runtime internals
 
-How DeepScout's research runtime actually works (v0.1.2). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+How DeepScout's research runtime actually works (v0.1.3). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+
+## Answerability and constrained deliverables
+
+Contract schema v3 classifies the requested answer shape independently of the research domain. For
+entity sets, shortlists, rankings, portfolios, allocations, and itineraries, the runtime discovers a
+candidate universe before deeper attribute research, persists a sparse `EntityResearchMatrix`, and
+concentrates synthesis on plausible/finalist entities. Each field carries source/evidence IDs,
+confidence, freshness, status, uncertainty, and conflict state.
+
+The extraction phase may reuse several requirement-scoped queries against one fetched snapshot.
+Its persisted funnel separates discovery, admission, fetch, indexing, retrieval, evidence candidates,
+admission/rejection, claims, and matrix population. Rejection counts remain machine-readable while
+normal user interfaces show product language rather than pipeline identifiers.
+
+Before publication, deterministic validation checks the actual rendered deliverable: exact item
+count, category quotas, allocation total, include/exclude rules, and required comparison subjects.
+This is separate from evidence completeness. Sparse non-critical fields can remain estimated or
+unknown without deleting an otherwise useful deliverable.
+
+Quick mode is a one-task path with no global replan. Standard and Deep retain bounded corrective
+research. A source contribution below the desired diversity threshold can unblock dependent work,
+but coverage continues to record and correct the portfolio gap.
+
+Follow-ups classify freshness, contradiction, constraint change, deeper research, or continuation.
+Non-freshness children may reuse a bounded set of parent snapshots with explicit lineage; parent
+report prose remains untrusted historical data. Material constraint conflicts create a durable
+human-input review, and a response updates the selected contract value before resuming the same run.
+
+## Multilingual and cross-language research
+
+The planner persists a goal-conditioned `ResearchLanguageStrategy` in contract schema v3. User
+language, requested report language, primary query language, additional query languages, and
+expected primary-source languages are separate fields. Native query variants retain named entities,
+aliases, legal identifiers, versions, dates, and requirement IDs; the runtime does not implement an
+English-first query rewrite.
+
+Query-language breadth remains mode-bounded: Quick executes at most two planned language variants,
+Standard three, and Deep five. A successful primary-language search may stop without cosmetic
+translation, while unresolved source-portfolio or requirement gaps can activate the next planned
+language. Every executed variant and strategy transition is recorded in tool/run metadata.
+
+Acquisition stores the original document or caption text and detects its language from declared
+metadata plus bounded content/script checks. Evidence quotes always point to that immutable original
+snapshot. The report model may explain or synthesize evidence in the requested output language, but
+translated prose is derived presentation: it cannot replace the original quote, URL, title, locator,
+or source language. No separate machine-translation service or translated evidence store is used in
+v0.1.3.
+
+Cross-language semantic retrieval uses the configured multilingual embedding space. For semantic
+intent, dense retrieval receives the stronger RRF contribution; BM25 and PostgreSQL FTS remain
+useful language-local/identifier channels. Identifier intent keeps balanced lexical signals. The
+deterministic reranker treats exact overlap as a small tie-breaker in mixed dense/lexical results so
+that a language mismatch cannot erase a strong dense candidate.
 
 For a shorter overview see [architecture-overview.md](architecture-overview.md). For file locations see [repository-map.md](repository-map.md).
 
@@ -60,6 +113,7 @@ Important snapshot keys:
 | Key | Set by | Purpose |
 |-----|--------|---------|
 | `research_contract` | Planner | Requirements, source constraints, evidence standard |
+| `research_contract.language_strategy` | Planner | User/output/query/source languages and native variants |
 | `report_contract` | Planner | Report structure expectations |
 | `coverage_map` | Corrective loop | Requirement coverage tracking |
 | `verified_entities` | Entity verification gate | Unlocks dependent DAG tasks |
@@ -203,6 +257,9 @@ All modes use the same material-completeness semantics. They differ only in boun
 | Quick | 3 | 2 | 1 | 2 | 1 | 10,000 |
 | Standard | 9 | 5 | 2 | 3 | 2 | 50,000 |
 | Deep | 12 | 8 | 3 | 3 | 3 | 100,000 |
+
+Native query-language variants are additionally capped at 2 / 3 / 5 for Quick / Standard / Deep.
+These are ceilings, not quotas: unused translations are not generated merely to fill the cap.
 
 Quick budgets remain capped at 2 iterations / 8 sources / 16 tool calls. Standard uses the run's
 normal budget (defaults: 5 / 40 / 80). Deep floors are 8 iterations / 60 sources / 120 tool calls.

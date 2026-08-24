@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-CONTRACT_SCHEMA_VERSION = "2"
+CONTRACT_SCHEMA_VERSION = "3"
 
 
 class SourceConstraintMode(StrEnum):
@@ -144,6 +144,61 @@ class ReportType(StrEnum):
     GENERAL_RESEARCH = "general_research"
 
 
+class DeliverableKind(StrEnum):
+    """User-facing shape of the requested answer, independent of subject matter."""
+
+    NARRATIVE = "narrative"
+    ENTITY_SET = "entity_set"
+    SHORTLIST = "shortlist"
+    RANKING = "ranking"
+    PORTFOLIO = "portfolio"
+    ALLOCATION = "allocation"
+    ITINERARY = "itinerary"
+    COMPARISON = "comparison"
+
+
+class MatrixFieldStatus(StrEnum):
+    KNOWN = "known"
+    ESTIMATED = "estimated"
+    CONFLICTING = "conflicting"
+    UNKNOWN = "unknown"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class MatrixConflictState(StrEnum):
+    NONE = "none"
+    UNRESOLVED = "unresolved"
+    RESOLVED = "resolved"
+
+
+class LanguageQueryVariant(BaseModel):
+    """One goal-conditioned native-language search expression.
+
+    The query is presentation-independent: it may differ from both the user's
+    prompt language and the requested report language.
+    """
+
+    language: str = Field(min_length=2, max_length=32)
+    query: str = Field(min_length=1, max_length=500)
+    requirement_ids: list[str] = Field(default_factory=list, max_length=10)
+    reason: str = Field(default="", max_length=500)
+    expected_primary_source: bool = False
+
+
+class ResearchLanguageStrategy(BaseModel):
+    """Decouples interaction/output language from evidence discovery languages."""
+
+    user_language: str = Field(default="und", min_length=2, max_length=32)
+    output_language: str = Field(default="en", min_length=2, max_length=32)
+    primary_query_language: str = Field(default="en", min_length=2, max_length=32)
+    additional_query_languages: list[str] = Field(default_factory=list, max_length=6)
+    expected_primary_source_languages: list[str] = Field(default_factory=list, max_length=6)
+    translation_required: bool = False
+    language_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    language_reason: str = Field(default="", max_length=1000)
+    query_variants: list[LanguageQueryVariant] = Field(default_factory=list, max_length=24)
+
+
 class FinalCriticVerdict(StrEnum):
     PASS = "pass"
     REVISION_REQUIRED = "revision_required"
@@ -181,6 +236,12 @@ class RetrievalFailureClass(StrEnum):
     NO_ANSWER_FALSE_POSITIVE = "no_answer_false_positive"
     NO_ANSWER_FALSE_NEGATIVE = "no_answer_false_negative"
     CONTENT_EXTRACTION_FAILURE = "content_extraction_failure"
+    QUERY_LANGUAGE_MISMATCH = "query_language_mismatch"
+    CROSS_LANGUAGE_RELEVANCE_FALSE_NEGATIVE = "cross_language_relevance_false_negative"
+    TRANSLATION_QUALITY_FAILURE = "translation_quality_failure"
+    SOURCE_LANGUAGE_PORTFOLIO_GAP = "source_language_portfolio_gap"
+    ENTITY_ALIAS_RESOLUTION_FAILURE = "entity_alias_resolution_failure"
+    MULTILINGUAL_RETRIEVAL_FAILURE = "multilingual_retrieval_failure"
 
 
 class LegalReference(BaseModel):
@@ -247,6 +308,88 @@ class NumericConstraint(BaseModel):
     source_text: str = Field(default="", max_length=500)
 
 
+class CategoryQuota(BaseModel):
+    """A generic requested count for one category in a selected entity set."""
+
+    category_key: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=200)
+    exact_count: int | None = Field(default=None, ge=0, le=1000)
+    minimum_count: int | None = Field(default=None, ge=0, le=1000)
+    maximum_count: int | None = Field(default=None, ge=0, le=1000)
+    source_text: str = Field(default="", max_length=500)
+
+
+class EntityAttributeGoal(BaseModel):
+    """An attribute the research should populate for candidate entities."""
+
+    attribute_key: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=500)
+    requirement_ids: list[str] = Field(default_factory=list, max_length=10)
+    critical: bool = True
+    materiality: Literal["central", "secondary"] = "central"
+    unit: str = Field(default="", max_length=32)
+
+
+class DeliverableSpec(BaseModel):
+    """Mechanically checkable answer shape inferred from the user's request."""
+
+    kind: DeliverableKind = DeliverableKind.NARRATIVE
+    entity_type: str = Field(default="item", max_length=120)
+    exact_item_count: int | None = Field(default=None, ge=0, le=1000)
+    minimum_item_count: int | None = Field(default=None, ge=0, le=1000)
+    maximum_item_count: int | None = Field(default=None, ge=0, le=1000)
+    category_quotas: list[CategoryQuota] = Field(default_factory=list, max_length=50)
+    budget_total: str = Field(default="", max_length=64)
+    budget_unit: str = Field(default="", max_length=32)
+    must_include: list[str] = Field(default_factory=list, max_length=50)
+    must_exclude: list[str] = Field(default_factory=list, max_length=50)
+    alternatives_per_entity: int | None = Field(default=None, ge=0, le=20)
+    comparison_subjects: list[str] = Field(default_factory=list, max_length=30)
+    attribute_goals: list[EntityAttributeGoal] = Field(default_factory=list, max_length=50)
+
+
+class EntityResearchField(BaseModel):
+    attribute_key: str = Field(min_length=1, max_length=120)
+    value: str = Field(default="", max_length=8000)
+    unit: str = Field(default="", max_length=32)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    freshness: str = Field(default="", max_length=64)
+    source_ids: list[str] = Field(default_factory=list, max_length=30)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=30)
+    requirement_ids: list[str] = Field(default_factory=list, max_length=20)
+    status: MatrixFieldStatus = MatrixFieldStatus.UNKNOWN
+    uncertainty: str = Field(default="", max_length=1000)
+    conflict_state: MatrixConflictState = MatrixConflictState.NONE
+
+
+class EntityResearchEntity(BaseModel):
+    entity_id: str = Field(min_length=1, max_length=128)
+    entity_name: str = Field(min_length=1, max_length=300)
+    entity_type: str = Field(default="item", max_length=120)
+    category: str = Field(default="", max_length=120)
+    stage: Literal["candidate", "plausible", "finalist", "selected"] = "candidate"
+    fields: list[EntityResearchField] = Field(default_factory=list, max_length=100)
+
+
+class EntityResearchMatrix(BaseModel):
+    schema_version: str = CONTRACT_SCHEMA_VERSION
+    entities: list[EntityResearchEntity] = Field(default_factory=list, max_length=500)
+    attribute_goals: list[EntityAttributeGoal] = Field(default_factory=list, max_length=50)
+    candidate_count: int = Field(default=0, ge=0)
+    plausible_count: int = Field(default=0, ge=0)
+    finalist_count: int = Field(default=0, ge=0)
+    fields_populated: int = Field(default=0, ge=0)
+
+
+class DeliverableValidationResult(BaseModel):
+    valid: bool = False
+    checks: dict[str, bool] = Field(default_factory=dict)
+    observed: dict[str, str | int | float | list[str] | dict[str, int]] = Field(
+        default_factory=dict
+    )
+    issues: list[str] = Field(default_factory=list, max_length=50)
+
+
 class AnswerRequirement(BaseModel):
     requirement_id: str = Field(min_length=1, max_length=32)
     text: str = Field(min_length=1, max_length=2000)
@@ -267,6 +410,7 @@ class ResearchContract(BaseModel):
     primary_question: str = Field(min_length=1, max_length=8000)
     user_intent: str = Field(default="", max_length=4000)
     output_language: str = Field(default="en", min_length=2, max_length=16)
+    language_strategy: ResearchLanguageStrategy = Field(default_factory=ResearchLanguageStrategy)
     evidence_standard: EvidenceStandard = EvidenceStandard.CREDIBLE
     requirements: list[AnswerRequirement] = Field(default_factory=list, max_length=30)
     source_constraints: list[SourceConstraint] = Field(default_factory=list, max_length=20)
@@ -282,6 +426,7 @@ class ResearchContract(BaseModel):
     required_timeframes: list[str] = Field(default_factory=list, max_length=10)
     uncertainty_requirements: list[str] = Field(default_factory=list, max_length=10)
     user_facing_questions: list[str] = Field(default_factory=list, max_length=15)
+    deliverable: DeliverableSpec = Field(default_factory=DeliverableSpec)
 
 
 class ReportSectionSpec(BaseModel):
@@ -306,6 +451,8 @@ class ReportContract(BaseModel):
     include_sources_cited: bool = True
     include_sources_consulted: bool = False
     include_questions_answered: bool = False
+    answer_first: bool = True
+    deliverable_kind: DeliverableKind = DeliverableKind.NARRATIVE
 
 
 class SourceAuthorityMetadata(BaseModel):

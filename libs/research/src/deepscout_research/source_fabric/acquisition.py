@@ -102,10 +102,17 @@ def _youtube_content(url: str) -> NormalizedContent:
     tracks = tracklist.get("captionTracks") or []
     transcript_lines: list[str] = []
     transcript_url = ""
+    caption_language = ""
+    caption_representation = "none"
     if tracks:
-        selected = next(
-            (item for item in tracks if str(item.get("languageCode") or "").startswith("en")),
-            tracks[0],
+        # The platform orders its native caption tracks. Do not silently replace
+        # original-language speech with an English translated track.
+        selected = tracks[0]
+        caption_language = str(selected.get("languageCode") or "")[:32]
+        caption_representation = (
+            "platform_auto_caption"
+            if str(selected.get("kind") or "").casefold() == "asr"
+            else "platform_caption"
         )
         transcript_url = str(selected.get("baseUrl") or "")
         if transcript_url:
@@ -149,6 +156,9 @@ def _youtube_content(url: str) -> NormalizedContent:
             "publication_date": publish_date[:64],
             "transcript_available": str(bool(transcript_lines)).lower(),
             "transcript_url": transcript_url[:2000],
+            "caption_language": caption_language,
+            "caption_representation": caption_representation,
+            "declared_language": caption_language,
             "locator_scheme": "video_timestamp" if transcript_lines else "video",
             "original_url": url,
         },
