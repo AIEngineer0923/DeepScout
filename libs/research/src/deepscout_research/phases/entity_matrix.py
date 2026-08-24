@@ -40,6 +40,63 @@ _ENTITY_NOISE = {
     "serie a",
     "sources",
 }
+_GENERIC_ENTITY_TOKENS = {
+    "about",
+    "adeguamento",
+    "affordable",
+    "analysis",
+    "advantages",
+    "balanced",
+    "best",
+    "better",
+    "budget",
+    "build",
+    "category",
+    "choice",
+    "check",
+    "competitor",
+    "considerations",
+    "contents",
+    "context",
+    "codice",
+    "current",
+    "designed",
+    "entry-level",
+    "for",
+    "feel",
+    "high-quality",
+    "guide",
+    "guida",
+    "how",
+    "insights",
+    "key",
+    "lightest",
+    "list",
+    "lowest",
+    "market",
+    "mid-range",
+    "new",
+    "nuovo",
+    "over",
+    "portable",
+    "premium",
+    "price",
+    "prezzo",
+    "pros",
+    "cons",
+    "range",
+    "results",
+    "same",
+    "service",
+    "selezionare",
+    "solutions",
+    "supporto",
+    "the",
+    "this",
+    "questo",
+    "vat-inclusive",
+    "wrap",
+}
 
 
 def _entity_id(name: str) -> str:
@@ -55,6 +112,17 @@ def _entity_names(text: str) -> list[str]:
             continue
         if value.isdigit() or re.fullmatch(r"20\d{2}", value):
             continue
+        tokens = value.split()
+        normalized_tokens = [token.casefold().strip("'’-.") for token in tokens]
+        # Numeric measurements and table headings are attributes, not entities.
+        if tokens[0][0].isdigit() or all(
+            token in _GENERIC_ENTITY_TOKENS for token in normalized_tokens
+        ):
+            continue
+        if normalized_tokens[0] in _GENERIC_ENTITY_TOKENS:
+            continue
+        if len(set(normalized_tokens)) != len(normalized_tokens):
+            continue
         # A capitalized sentence opener is usually prose, not an entity. Keep
         # it when it is a multi-token name, acronym, or recurs in the sentence.
         if match.start() == 0 and " " not in value and not value.isupper():
@@ -62,6 +130,24 @@ def _entity_names(text: str) -> list[str]:
         if value not in names:
             names.append(value)
     return names[:12]
+
+
+def _entity_signal(name: str) -> int:
+    """Prefer stable identifiers and proper multi-token names over prose fragments."""
+    tokens = name.split()
+    has_number = any(any(char.isdigit() for char in token) for token in tokens)
+    has_mixed_case = any(
+        any(char.islower() for char in token[1:])
+        and any(char.isupper() for char in token[1:])
+        for token in tokens
+    )
+    has_acronym = any(token.isupper() and 2 <= len(token) <= 8 for token in tokens)
+    return (
+        (3 if has_number else 0)
+        + (2 if has_mixed_case else 0)
+        + (1 if has_acronym else 0)
+        + (1 if len(tokens) >= 2 else -1)
+    )
 
 
 def _category(text: str, contract: ResearchContract) -> str:
@@ -208,14 +294,20 @@ def build_entity_research_matrix(
             )
         )
 
-    entities.sort(key=lambda entity: (-len(entity.fields), entity.entity_name.casefold()))
+    entities.sort(
+        key=lambda entity: (
+            -_entity_signal(entity.entity_name),
+            -len(entity.fields),
+            entity.entity_name.casefold(),
+        )
+    )
     # Progressive narrowing is explicit and deterministic: retain the bounded
     # evidence-rich universe, while later report synthesis may focus on the top
     # viable subset requested by the deliverable.
     entities = entities[:200]
     plausible = sum(item.stage == "plausible" for item in entities)
-    finalist_target = contract.deliverable.exact_item_count or min(30, len(entities))
-    for entity in entities[: min(finalist_target * 2, len(entities))]:
+    finalist_target = contract.deliverable.exact_item_count or min(10, len(entities))
+    for entity in entities[: min(finalist_target, len(entities))]:
         if entity.stage == "plausible":
             entity.stage = "finalist"
     matrix = EntityResearchMatrix(

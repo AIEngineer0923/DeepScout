@@ -147,10 +147,14 @@ def test_quick_single_language_reserves_a_relaxed_fallback_query() -> None:
     )
 
     assert len(requests) == 2
-    assert requests[0].request.query.startswith("site:docs.python.org ")
-    assert '"' not in requests[0].request.query
-    assert " OR " not in requests[0].request.query
+    assert requests[0].request.query.startswith("site:docs.python.org/3.13 ")
+    assert '"free-threaded"' in requests[0].request.query
+    assert " OR " in requests[0].request.query
     assert requests[1].request.query != requests[0].request.query
+    assert requests[1].request.query.startswith("site:docs.python.org ")
+    assert '"' not in requests[1].request.query
+    assert " OR " not in requests[1].request.query
+    assert [item.request.query_language for item in requests] == ["en", "en"]
     assert "official technical documentation" in requests[1].request.query
 
 

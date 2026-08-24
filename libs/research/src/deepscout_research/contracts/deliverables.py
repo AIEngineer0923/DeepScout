@@ -44,7 +44,11 @@ _QUOTA = re.compile(
 _EXACT_COUNT = re.compile(
     r"\b(?:build|choose|select|shortlist|rank|propose|return|costruisci|scegli|"
     r"seleziona|proponi|restituisci)\s+(?:a\s+|an\s+|una?\s+)?"
-    r"(?P<count>\d{1,3})\s+(?P<label>[\wÀ-ÿ -]{2,40})",
+    r"(?:of\s+|di\s+)?(?:exactly\s+|esattamente\s+)?"
+    r"(?P<count>\d{1,3})\s+"
+    r"(?P<label>[\wÀ-ÿ-]{2,30}(?:\s+[\wÀ-ÿ-]{2,30}){0,4}?)"
+    r"(?=\s+(?:available|with|under|within|for|that|which|and|"
+    r"disponibil\w*|con|entro|per|che|e)\b|[,.;:\n]|$)",
     re.I,
 )
 _NON_CATEGORY_LABELS = {
@@ -176,7 +180,7 @@ def infer_deliverable_spec(
     exact_match = _EXACT_COUNT.search(goal)
     if exact_match and int(exact_match.group("count")) <= 1000:
         exact_count = exact_count or int(exact_match.group("count"))
-        entity_type = _clean_label(exact_match.group("label")).split(" ")[0][:120] or "item"
+        entity_type = _clean_label(exact_match.group("label")).split(" ")[-1][:120] or "item"
 
     lowered = goal.casefold()
     selection_requested = bool(
@@ -223,7 +227,9 @@ def infer_deliverable_spec(
         must_include=_list_after(
             r"(?:must\s+include|includi\s+obbligatoriamente)\s*[:]?\s*([^\n]+)", goal
         ),
-        must_exclude=_list_after(r"(?:must\s+exclude|exclude|escludi)\s*[:]?\s*([^\n]+)", goal),
+        must_exclude=_list_after(
+            r"\b(?:must\s+exclude|exclude|escludi)\b\s*[:]?\s*([^\n]+)", goal
+        ),
         alternatives_per_entity=alternatives,
         comparison_subjects=comparisons[:30],
         attribute_goals=_attribute_goals(requirements),
