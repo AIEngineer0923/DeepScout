@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 from deepscout_core.domain.contracts import (
@@ -10,11 +11,18 @@ from deepscout_core.domain.contracts import (
     ResearchLanguageStrategy,
     SourceClass,
 )
-from deepscout_research.contracts.evidence_relevance import is_search_result_relevant
+from deepscout_research.contracts.evidence_relevance import (
+    is_search_result_relevant,
+    planned_query_language,
+)
 from deepscout_research.contracts.extract import _preferred_classes
 from deepscout_research.contracts.query_planning import search_discovery_requests
 from deepscout_research.fetch.secure import FetchResult
-from deepscout_research.language import detect_language, normalize_language_tag
+from deepscout_research.language import (
+    detect_language,
+    language_execution_summary,
+    normalize_language_tag,
+)
 from deepscout_research.retrieval.fusion import reciprocal_rank_fusion
 from deepscout_research.retrieval.models import RetrievedChunk
 from deepscout_research.retrieval.rerank import rerank_candidates
@@ -190,6 +198,33 @@ def test_cross_language_bridge_survives_policy_enrichment() -> None:
         goal=contract.primary_question,
         contract=contract,
     )
+    assert planned_query_language(enriched_query, contract) == "de"
+
+
+def test_language_summary_maps_enriched_query_to_planned_variant() -> None:
+    class Store:
+        def list_search_candidates(self, _run_id):
+            return [
+                SimpleNamespace(
+                    query=(
+                        "Herstellergarantie Batteriesystem Dauer offizielle "
+                        "Garantiebedingungen official technical documentation"
+                    )
+                )
+            ]
+
+        def list_snapshots_for_run(self, _run_id):
+            return []
+
+        def list_tool_executions(self, _run_id):
+            return []
+
+        def list_evidence(self, _run_id):
+            return []
+
+    summary = language_execution_summary(Store(), uuid4(), contract=_contract())
+
+    assert summary["actual_query_languages"] == {"de": 1}
 
 
 def test_html_declared_language_is_preserved_for_content_level_detection() -> None:

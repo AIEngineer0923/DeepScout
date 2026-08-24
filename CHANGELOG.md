@@ -29,6 +29,8 @@ No unreleased changes yet.
   headings or measurements are not promoted as entity finalists.
 - Run-scoped search preference routing now preserves the planner's query-language metadata instead
   of resetting enriched native-language requests to `und`.
+- Language execution summaries and evidence metadata match policy-enriched queries back to their
+  planned native variants instead of relying on brittle byte-for-byte equality.
 
 ## [0.1.3] - 2026-08-24
 

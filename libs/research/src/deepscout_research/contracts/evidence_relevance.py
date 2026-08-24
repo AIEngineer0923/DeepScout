@@ -132,7 +132,7 @@ def _subject_text(contract: ResearchContract | None, goal: str) -> str:
     return subject.strip(" ,;:-")
 
 
-def _planned_query_language(query: str, contract: ResearchContract | None) -> str:
+def planned_query_language(query: str, contract: ResearchContract | None) -> str:
     from deepscout_research.language import detect_language, normalize_language_tag
 
     normalized = " ".join(query.casefold().split())
@@ -185,7 +185,7 @@ def is_search_result_relevant(
         # admission gate before dense retrieval can run.
         from deepscout_research.language import detect_language
 
-        planned_language = _planned_query_language(query, contract)
+        planned_language = planned_query_language(query, contract)
         if planned_language != detect_language(goal).language:
             return len(query_overlap) >= 2 or bool(
                 haystack & (_explicit_identifiers(query) | _explicit_identifiers(subject))
@@ -239,7 +239,7 @@ def is_evidence_relevant(
         quote_tokens = _tokens(quote)
         from deepscout_research.language import detect_language
 
-        planned_language = _planned_query_language(query, contract)
+        planned_language = planned_query_language(query, contract)
         cross_language = planned_language != detect_language(goal).language
         if (
             goal_tokens

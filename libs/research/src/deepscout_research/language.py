@@ -128,9 +128,12 @@ def language_execution_summary(store: Any, run_id: Any, *, contract: Any = None)
     }
 
     def _query_language(query: str) -> str:
-        return planned_variants.get(
-            " ".join(query.casefold().split()), detect_language(query).language
-        )
+        exact = planned_variants.get(" ".join(query.casefold().split()))
+        if exact is not None:
+            return exact
+        from deepscout_research.contracts.evidence_relevance import planned_query_language
+
+        return planned_query_language(query, contract)
 
     query_languages = Counter(_query_language(query) for query in unique_queries)
     source_languages = Counter(
