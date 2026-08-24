@@ -25,7 +25,7 @@ services:
       retries: 20
 
   migrate:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.1}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -37,7 +37,7 @@ services:
     restart: "no"
 
   api:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.1}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -58,7 +58,7 @@ services:
         condition: service_healthy
 
   worker:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.1}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
 
   web:
-    image: ${DEEPSCOUT_WEB_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-web:0.1.1}
+    image: ${DEEPSCOUT_WEB_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-web:0.1.2}
     ports:
       - "${DEEPSCOUT_WEB_BIND:-127.0.0.1:3000}:3000"
     depends_on:

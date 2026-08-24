@@ -12,7 +12,7 @@ Authoritative identity document for the DeepScout open-source repository.
 | Visibility | Public open source |
 | Maintainer | Francesco Iaforte |
 | Production URL | https://deep-scout-plum.vercel.app |
-| Version | 0.1.1 |
+| Version | 0.1.2 |
 | Status | Active development on `main` — MODE B hosted + public demos shipped |
 
 ## Repository

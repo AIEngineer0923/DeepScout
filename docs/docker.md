@@ -19,16 +19,16 @@ machine or private network.
 Check out the release whose compose file you intend to run:
 
 ```bash
-git clone --branch v0.1.1 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.2 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 ```
 
-The default v0.1.1 images are:
+The default v0.1.2 images are:
 
 ```text
-ghcr.io/francescoveryra-dot/deepscout-api:0.1.1
-ghcr.io/francescoveryra-dot/deepscout-web:0.1.1
+ghcr.io/francescoveryra-dot/deepscout-api:0.1.2
+ghcr.io/francescoveryra-dot/deepscout-web:0.1.2
 ```
 
 They are public and support `linux/amd64` and `linux/arm64`. The API image is deliberately reused
