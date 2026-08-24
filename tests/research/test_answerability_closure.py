@@ -6,6 +6,7 @@ from deepscout_research.contracts.deliverables import (
 )
 from deepscout_research.contracts.numeric_constraints import extract_numeric_constraints
 from deepscout_research.followup import classify_followup
+from deepscout_research.phases.entity_matrix import _entity_names
 
 
 def test_allocation_contract_extracts_generic_quotas_and_conflicting_budgets() -> None:
@@ -91,6 +92,38 @@ def test_imperative_build_still_requests_a_structured_deliverable() -> None:
     )
 
     assert spec.kind.value == "portfolio"
+
+
+def test_shortlist_of_exactly_count_and_excluded_alternative_are_not_confused() -> None:
+    spec = infer_deliverable_spec(
+        goal=(
+            "Create a shortlist of exactly 3 current laptops. Rank the three and provide "
+            "one excluded alternative with the exclusion reason."
+        ),
+        requirements=[],
+        numeric_constraints=[],
+    )
+
+    assert spec.kind.value == "ranking"
+    assert spec.exact_item_count == 3
+    assert spec.entity_type == "laptops"
+    assert spec.must_exclude == []
+
+
+def test_entity_matrix_discards_table_headings_and_measurements() -> None:
+    text = (
+        "Pros and Cons Category Key Advantages Considerations Budget Range. "
+        "Dell Pro 14 Premium weighs 1.21 kg. Lenovo ThinkPad T14 Gen 5 has 16 GB RAM. "
+        "About HP Laptop Prices in Italy."
+    )
+
+    names = _entity_names(text)
+
+    assert "Dell Pro 14 Premium" in names
+    assert "Lenovo ThinkPad T14 Gen" in names
+    assert not any(name.startswith("Pros and Cons") for name in names)
+    assert not any(name.startswith("About HP") for name in names)
+    assert not any(name.startswith("16 GB") for name in names)
 
 
 def test_quick_profile_is_one_task_and_followups_have_explicit_intent() -> None:

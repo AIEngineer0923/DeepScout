@@ -40,6 +40,52 @@ _ENTITY_NOISE = {
     "serie a",
     "sources",
 }
+_GENERIC_ENTITY_TOKENS = {
+    "about",
+    "affordable",
+    "analysis",
+    "advantages",
+    "balanced",
+    "best",
+    "better",
+    "budget",
+    "build",
+    "category",
+    "choice",
+    "check",
+    "competitor",
+    "considerations",
+    "contents",
+    "context",
+    "current",
+    "designed",
+    "entry-level",
+    "for",
+    "feel",
+    "high-quality",
+    "how",
+    "insights",
+    "key",
+    "lightest",
+    "list",
+    "lowest",
+    "market",
+    "mid-range",
+    "new",
+    "over",
+    "portable",
+    "premium",
+    "price",
+    "pros",
+    "cons",
+    "range",
+    "results",
+    "same",
+    "service",
+    "solutions",
+    "the",
+    "wrap",
+}
 
 
 def _entity_id(name: str) -> str:
@@ -54,6 +100,19 @@ def _entity_names(text: str) -> list[str]:
         if not value or value.casefold() in _ENTITY_NOISE:
             continue
         if value.isdigit() or re.fullmatch(r"20\d{2}", value):
+            continue
+        tokens = value.split()
+        normalized_tokens = [token.casefold().strip("'’-.") for token in tokens]
+        # Numeric measurements and table headings are attributes, not entities.
+        if tokens[0][0].isdigit() or all(
+            token in _GENERIC_ENTITY_TOKENS for token in normalized_tokens
+        ):
+            continue
+        if normalized_tokens[0] in _GENERIC_ENTITY_TOKENS and not any(
+            any(char.isdigit() for char in token) for token in tokens[1:]
+        ):
+            continue
+        if len(set(normalized_tokens)) != len(normalized_tokens):
             continue
         # A capitalized sentence opener is usually prose, not an entity. Keep
         # it when it is a multi-token name, acronym, or recurs in the sentence.
@@ -214,8 +273,8 @@ def build_entity_research_matrix(
     # viable subset requested by the deliverable.
     entities = entities[:200]
     plausible = sum(item.stage == "plausible" for item in entities)
-    finalist_target = contract.deliverable.exact_item_count or min(30, len(entities))
-    for entity in entities[: min(finalist_target * 2, len(entities))]:
+    finalist_target = contract.deliverable.exact_item_count or min(10, len(entities))
+    for entity in entities[: min(finalist_target, len(entities))]:
         if entity.stage == "plausible":
             entity.stage = "finalist"
     matrix = EntityResearchMatrix(

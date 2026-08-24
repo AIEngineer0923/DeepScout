@@ -23,6 +23,9 @@ No unreleased changes yet.
   planned, and relaxes brittle quoted/site-path syntax without discarding the requested domain.
 - Search-result relevance keeps dotted version/decimal identifiers intact and recognizes planned
   multilingual variants after deterministic source-policy enrichment.
+- English `shortlist of exactly N` requests now retain their exact cardinality; an instruction to
+  provide an excluded alternative is not mistaken for a named exclusion, and generic table
+  headings or measurements are not promoted as entity finalists.
 
 ## [0.1.3] - 2026-08-24
 
