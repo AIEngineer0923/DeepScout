@@ -192,6 +192,18 @@ def test_search_result_relevance_rejects_unrelated_authoritative_result() -> Non
     )
 
 
+def test_search_relevance_preserves_version_numbers_in_subject() -> None:
+    assert is_search_result_relevant(
+        title="Python support for free threading",
+        snippet="The free-threaded build can disable the GIL.",
+        query="site:docs.python.org free-threaded PEP 703 disable-gil",
+        goal=(
+            "Spiega le novità di Python 3.13 sul free-threading. "
+            "Distingui stato sperimentale e limiti."
+        ),
+    )
+
+
 def test_evidence_relevance_requires_quote_to_name_research_subject() -> None:
     goal = (
         "Compare hybrid RAG, GraphRAG, and long-context retrieval architectures for a "
