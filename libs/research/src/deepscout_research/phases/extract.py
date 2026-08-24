@@ -144,7 +144,10 @@ def extract_claims_for_run(
     evidence_created = 0
     retrieved_used = 0
     row = store.get_run_row(run_id)
-    from deepscout_research.contracts.evidence_relevance import is_evidence_relevant
+    from deepscout_research.contracts.evidence_relevance import (
+        is_evidence_relevant,
+        planned_query_language,
+    )
     from deepscout_research.contracts.extract import contract_from_snapshot
     from deepscout_research.contracts.source_authority import is_source_admissible
 
@@ -419,7 +422,7 @@ def extract_claims_for_run(
                             "query_language": (
                                 normalize_language_tag(planned_variant.language)
                                 if planned_variant
-                                else "und"
+                                else planned_query_language(raw_query, contract)
                             ),
                             "original_language": normalize_language_tag(
                                 (snapshot.retrieval_metadata or {}).get("original_language")
