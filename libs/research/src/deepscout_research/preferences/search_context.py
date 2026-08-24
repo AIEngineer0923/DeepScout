@@ -87,6 +87,7 @@ class RunScopedSearchProvider:
         opts = search_provider_options(resolved)
         routed = request.__class__(
             query=enriched,
+            query_language=request.query_language,
             max_results=request.max_results,
             strategy=request.strategy,
             source_kinds=request.source_kinds,

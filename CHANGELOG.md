@@ -27,6 +27,8 @@ No unreleased changes yet.
 - English `shortlist of exactly N` requests now retain their exact cardinality; an instruction to
   provide an excluded alternative is not mistaken for a named exclusion, and generic table
   headings or measurements are not promoted as entity finalists.
+- Run-scoped search preference routing now preserves the planner's query-language metadata instead
+  of resetting enriched native-language requests to `und`.
 
 ## [0.1.3] - 2026-08-24
 
