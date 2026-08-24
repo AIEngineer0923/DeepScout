@@ -70,6 +70,29 @@ def test_report_deliverable_validator_rejects_prose_only_claim_of_completeness()
     assert result.issues == ["deliverable_table_missing"]
 
 
+def test_technical_build_requirement_remains_a_narrative_deliverable() -> None:
+    spec = infer_deliverable_spec(
+        goal=(
+            "Explain Python free-threading, including experimental status, "
+            "build requirements, startup flags, limitations, and GIL impact."
+        ),
+        requirements=[],
+        numeric_constraints=[],
+    )
+
+    assert spec.kind.value == "narrative"
+
+
+def test_imperative_build_still_requests_a_structured_deliverable() -> None:
+    spec = infer_deliverable_spec(
+        goal="Build a portfolio with a total budget of 500 EUR.",
+        requirements=[],
+        numeric_constraints=[],
+    )
+
+    assert spec.kind.value == "portfolio"
+
+
 def test_quick_profile_is_one_task_and_followups_have_explicit_intent() -> None:
     assert research_profile("quick").max_requirement_tasks == 1
     assert classify_followup("Find newer evidence published this month") == "freshness"
