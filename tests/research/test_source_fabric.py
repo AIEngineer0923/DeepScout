@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -232,4 +233,6 @@ def test_public_youtube_path_preserves_timestamp_or_honest_metadata() -> None:
         normalized = _youtube_content("https://youtube.com/watch?v=x")
     assert "[00:01:23] Measured result" in normalized.text
     assert normalized.metadata["transcript_available"] == "true"
-    assert normalized.metadata["original_url"].startswith("https://youtube.com")
+    original_url = urlsplit(normalized.metadata["original_url"])
+    assert original_url.scheme == "https"
+    assert original_url.hostname == "youtube.com"
