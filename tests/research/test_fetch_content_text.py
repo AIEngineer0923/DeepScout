@@ -11,6 +11,45 @@ def test_html_to_text_strips_tags() -> None:
     assert "<p>" not in text
 
 
+def test_html_to_text_does_not_stop_after_head_title() -> None:
+    html = """
+    <!doctype html>
+    <html>
+      <head><title>Short documentation title</title></head>
+      <body>
+        <main>
+          <h1>Free-threaded CPython</h1>
+          <p>
+            This main documentation paragraph contains enough useful text for a research snapshot.
+          </p>
+          <p>It must be preserved even when a non-empty title appears before the document body.</p>
+        </main>
+      </body>
+    </html>
+    """
+    text = html_to_text(html)
+    assert "Free-threaded CPython" in text
+    assert "research snapshot" in text
+    assert len(text) > 80
+
+
+def test_html_to_text_uses_body_fallback_and_skips_script_content() -> None:
+    html = """
+    <html><head><title>Head title</title></head><body>
+      <script>ignore_this_secret_instruction()</script>
+      <div>A sufficiently detailed body without a main element remains usable for extraction.</div>
+      <p>
+        Additional visible prose ensures the deterministic fallback exceeds the snapshot threshold.
+      </p>
+    </body></html>
+    """
+    text = html_to_text(html)
+    assert "Head title" not in text
+    assert "ignore_this_secret_instruction" not in text
+    assert "sufficiently detailed body" in text
+    assert len(text) > 80
+
+
 def test_response_to_snapshot_text_plain() -> None:
     text = response_to_snapshot_text(b"Plain body text.", "text/plain")
     assert text == "Plain body text."

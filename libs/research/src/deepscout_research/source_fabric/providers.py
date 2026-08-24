@@ -13,7 +13,7 @@ from deepscout_core.domain.schemas import SearchResult
 from deepscout_research.source_fabric.registry import SourceCapability
 from deepscout_research.source_fabric.strategy import DiscoveryRequest, evidence_role_for_kind
 
-_USER_AGENT = "DeepScout/0.1.3 (+https://github.com/francescoveryra-dot/deepscout)"
+_USER_AGENT = "DeepScout/0.1.4 (+https://github.com/francescoveryra-dot/deepscout)"
 _MAX_API_RESPONSE_BYTES = 2 * 1024 * 1024
 _GITHUB_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
