@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import io
 import json
+import multiprocessing
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Any
 
+from defusedxml import ElementTree as ET
 from pypdf import PdfReader
 
 from deepscout_research.fetch.content_text import html_to_text, normalize_plain_text
@@ -124,7 +125,7 @@ def normalize_xml(body: bytes) -> str:
     return "\n".join(lines)[:500_000]
 
 
-def normalize_pdf(body: bytes) -> NormalizedContent:
+def _extract_pdf(body: bytes) -> tuple[str, int]:
     reader = PdfReader(io.BytesIO(body), strict=False)
     if reader.is_encrypted:
         try:
@@ -139,12 +140,57 @@ def normalize_pdf(body: bytes) -> NormalizedContent:
         if sum(len(item) for item in parts) >= 500_000:
             break
     text = "\n".join(parts)[:500_000]
+    return text, len(reader.pages)
+
+
+def _pdf_worker(body: bytes, output) -> None:
+    try:
+        try:
+            import resource
+
+            memory_limit = 512 * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+            resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
+        except (ImportError, OSError, ValueError):
+            pass
+        output.send(("ok", _extract_pdf(body)))
+    except BaseException as exc:
+        output.send(("error", type(exc).__name__))
+    finally:
+        output.close()
+
+
+def normalize_pdf(body: bytes) -> NormalizedContent:
+    if len(body) > 8_000_000 or not body.lstrip().startswith(b"%PDF-"):
+        raise ValueError("invalid_or_oversized_pdf")
+    context = multiprocessing.get_context("spawn")
+    output, worker_output = context.Pipe(duplex=False)
+    process = context.Process(target=_pdf_worker, args=(body, worker_output), daemon=True)
+    process.start()
+    worker_output.close()
+    try:
+        if not output.poll(12):
+            if process.is_alive():
+                raise ValueError("pdf_parser_timeout")
+            raise ValueError("pdf_parser_failed")
+        status, result = output.recv()
+    except EOFError as exc:
+        raise ValueError("pdf_parser_failed") from exc
+    finally:
+        output.close()
+        process.join(timeout=2)
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=2)
+    if status != "ok":
+        raise ValueError(f"pdf_parser_failed:{result}")
+    text, page_count = result
     return NormalizedContent(
         text=text,
         mime_type="application/pdf",
         metadata={
             "extraction_method": "pypdf_text",
-            "page_count": str(len(reader.pages)),
+            "page_count": str(page_count),
             "locator_scheme": "page",
         },
     )
@@ -152,16 +198,24 @@ def normalize_pdf(body: bytes) -> NormalizedContent:
 
 def normalize_fetch_result(result: FetchResult) -> NormalizedContent:
     lowered = result.content_type.casefold()
+    base_type = lowered.split(";", 1)[0].strip()
     stripped = result.body.lstrip()
-    if "pdf" in lowered or stripped.startswith(b"%PDF-"):
+    if base_type == "application/pdf" or stripped.startswith(b"%PDF-"):
         return normalize_pdf(result.body)
-    if "json" in lowered or stripped.startswith((b"{", b"[")):
+    if base_type in {"application/json", "application/ld+json"} or stripped.startswith(
+        (b"{", b"[")
+    ):
         return NormalizedContent(
             text=normalize_json(result.body),
             mime_type=result.content_type,
             metadata={"extraction_method": "bounded_json_tree"},
         )
-    if any(item in lowered for item in ("xml", "rss", "atom")) or stripped.startswith(b"<?xml"):
+    if base_type in {
+        "application/xml",
+        "text/xml",
+        "application/rss+xml",
+        "application/atom+xml",
+    } or stripped.startswith(b"<?xml"):
         return NormalizedContent(
             text=normalize_xml(result.body),
             mime_type=result.content_type,
@@ -171,12 +225,24 @@ def normalize_fetch_result(result: FetchResult) -> NormalizedContent:
                 **_xml_metadata(result.body),
             },
         )
+    is_html = base_type in {"text/html", "application/xhtml+xml"} or stripped[
+        :20
+    ].casefold().startswith((b"<!doctype", b"<html"))
+    if not is_html and base_type not in {
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+    }:
+        raise ValueError(f"unsupported_content_type:{base_type or 'missing'}")
     charset = "utf-8"
     match = re.search(r"charset=([^;\s]+)", lowered)
     if match:
         charset = match.group(1).strip("\"'")
-    raw = result.body.decode(charset, errors="replace")
-    if "html" in lowered or stripped[:20].casefold().startswith((b"<!doctype", b"<html")):
+    try:
+        raw = result.body.decode(charset, errors="replace")
+    except LookupError:
+        raw = result.body.decode("utf-8", errors="replace")
+    if is_html:
         return NormalizedContent(
             text=html_to_text(raw)[:500_000],
             mime_type=result.content_type,

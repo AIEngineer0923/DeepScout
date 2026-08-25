@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from deepscout_core.domain.schemas import WebVitalWrite
-from fastapi import APIRouter, Depends, HTTPException
+from deepscout_core.settings import Settings, get_settings
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from deepscout_api.access import load_access, require_user
 from deepscout_api.deps import get_research_store
 
 router = APIRouter(prefix="/api/v1/rum", tags=["rum"])
@@ -34,7 +36,14 @@ def _route_allowed(route: str) -> bool:
 
 
 @router.post("/vitals", status_code=204)
-def ingest_vitals(body: WebVitalWrite, store=Depends(get_research_store)) -> None:
+def ingest_vitals(
+    body: WebVitalWrite,
+    request: Request,
+    store=Depends(get_research_store),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if settings.is_hosted():
+        require_user(load_access(request, store._session, settings))
     if body.source not in ALLOWED_SOURCE:
         raise HTTPException(status_code=400, detail="invalid source")
     if body.device_class not in ALLOWED_DEVICE:

@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
-from deepscout_core.domain.schemas import ResearchRunCreate
+from deepscout_core.domain.schemas import (
+    ClaimWrite,
+    EvidenceWrite,
+    ResearchRunCreate,
+    SourceSnapshotWrite,
+    SourceWrite,
+)
 from deepscout_core.settings import Settings
 from deepscout_persistence.identity import create_session, upsert_oauth_principal
+from deepscout_persistence.models import OAuthStateRow, ResearchRunRow
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 from tests.db_helpers import database_url
 
 pytestmark = pytest.mark.postgres
@@ -92,15 +101,63 @@ def test_demo_is_read_only_for_anonymous(hosted_client) -> None:
         is_public_demo=True,
         public_slug=f"demo-{uuid4().hex[:8]}",
     )
+    source, _ = store.add_source(
+        demo.id,
+        SourceWrite(canonical_url="https://example.test/public", title="Public source"),
+    )
+    snapshot = store.add_snapshot(
+        source.id,
+        SourceSnapshotWrite(
+            content="PRIVATE SSN 000-00-0000. Public evidence quote for the demo.",
+            mime_type="text/plain",
+        ),
+    )
+    claim = store.add_claim(
+        demo.id,
+        ClaimWrite(statement="Public evidence quote for the demo.", source_id=source.id),
+    )
+    store.attach_evidence(
+        claim.id,
+        EvidenceWrite(
+            snapshot_id=snapshot.id,
+            quote="Public evidence quote for the demo.",
+            locator="public excerpt",
+        ),
+    )
     session.commit()
     try:
         assert hosted_client.get(f"/api/v1/research-runs/{demo.id}").status_code == 200
+        assert hosted_client.get(f"/api/v1/research-runs/{demo.id}/workspace").status_code == 200
+        snapshot_response = hosted_client.get(
+            f"/api/v1/research-runs/{demo.id}/snapshots/{snapshot.id}"
+        )
+        assert snapshot_response.status_code == 200
+        assert "Public evidence quote for the demo." in snapshot_response.text
+        assert "PRIVATE SSN" not in snapshot_response.text
+        private_paths = [
+            f"/api/v1/research-runs/{demo.id}/events",
+            f"/api/v1/research-runs/{demo.id}/evaluations",
+            f"/api/v1/research-runs/{demo.id}/export?format=json",
+            f"/api/v1/research-runs/{demo.id}/source-preferences",
+            f"/api/v1/research-runs/{demo.id}/reviews",
+            f"/api/v1/knowledge/search?run_id={demo.id}&q=test",
+            f"/api/v1/knowledge/graph?run_id={demo.id}",
+        ]
+        for path in private_paths:
+            assert hosted_client.get(path).status_code == 404, path
         execute = hosted_client.post(f"/api/v1/research-runs/{demo.id}/execute")
         assert execute.status_code in {401, 403, 404}
     finally:
         from deepscout_persistence.identity import delete_principal_data
 
-        delete_principal_data(session, user_a.id)
+        user_id = user_a.id
+        session.expunge_all()
+        session.execute(
+            delete(ResearchRunRow)
+            .where(ResearchRunRow.id == demo.id)
+            .execution_options(synchronize_session=False)
+        )
+        delete_principal_data(session, user_id)
         session.commit()
         session.close()
 
@@ -110,7 +167,40 @@ def test_open_redirect_rejected() -> None:
 
     assert safe_next_path("https://evil.test", "/") == "/"
     assert safe_next_path("//evil.test", "/") == "/"
+    assert safe_next_path(r"/\evil.test", "/") == "/"
+    assert safe_next_path("/account\nLocation: https://evil.test", "/,/account") == "/"
     assert safe_next_path("/account", "/,/account") == "/account"
+
+
+def test_oauth_callback_is_bound_to_initiating_browser(hosted_client) -> None:
+    started = hosted_client.get(
+        "/api/v1/auth/login/github?next=/account",
+        follow_redirects=False,
+    )
+    assert started.status_code == 302
+    state = parse_qs(urlsplit(started.headers["location"]).query)["state"][0]
+    browser_binding = started.cookies.get("ds_oauth_state_github")
+    assert browser_binding is not None
+    assert browser_binding != state
+    assert state.endswith(f".{browser_binding}")
+    assert len(browser_binding) >= 32
+
+    from deepscout_api.app import app
+
+    victim = TestClient(app)
+    response = victim.get(
+        f"/api/v1/auth/callback/github?state={state}&code=attacker-code",
+        follow_redirects=False,
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "invalid oauth state"
+
+    session = _session()
+    try:
+        session.execute(delete(OAuthStateRow).where(OAuthStateRow.state == state))
+        session.commit()
+    finally:
+        session.close()
 
 
 def test_user_b_cannot_mutate_or_export_user_a(hosted_client) -> None:

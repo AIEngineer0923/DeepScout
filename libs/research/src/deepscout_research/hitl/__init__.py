@@ -120,9 +120,7 @@ class HumanReviewService:
             PolicyVerdict.REQUIRE_REVIEW
         ):
             raise ValueError("budget extension review not required by policy")
-        run = self._store.get_run(run_id)
-        if run is None:
-            raise LookupError(f"run {run_id} not found")
+        run = self._store.lock_run(run_id)
         existing = self._store.get_pending_review(run_id, ReviewReasonCode.BUDGET_EXTENSION)
         if existing is not None:
             return existing.id
@@ -191,8 +189,7 @@ class HumanReviewService:
             PolicyVerdict.REQUIRE_REVIEW
         ):
             raise ValueError("human input review not required by policy")
-        if self._store.get_run(run_id) is None:
-            raise LookupError(f"run {run_id} not found")
+        self._store.lock_run(run_id)
         existing = self._store.get_pending_review(run_id, ReviewReasonCode.HUMAN_INPUT_REQUIRED)
         if existing is not None:
             return existing.id
@@ -234,7 +231,7 @@ class HumanReviewService:
     ) -> ResolveResult:
         if source not in AUTHORITATIVE_SOURCES:
             raise PermissionError("review resolution requires authoritative source")
-        review = self._store.get_review_request(review_id)
+        review = self._store.lock_review_request(review_id)
         if review is None or review.research_run_id != run_id:
             raise LookupError("review not found for run")
         if review.status in {

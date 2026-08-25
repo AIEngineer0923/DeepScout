@@ -3,7 +3,7 @@
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     environment:
       POSTGRES_USER: deepscout
       POSTGRES_PASSWORD: deepscout
@@ -17,7 +17,7 @@ services:
       retries: 20
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -25,7 +25,7 @@ services:
       retries: 20
 
   migrate:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.5}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -35,9 +35,15 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
 
   api:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.5}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -56,9 +62,15 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
 
   worker:
-    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.2}
+    image: ${DEEPSCOUT_API_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-api:0.1.5}
     env_file:
       - ${DEEPSCOUT_ENV_FILE:-../../.env}
     environment:
@@ -73,14 +85,27 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
 
   web:
-    image: ${DEEPSCOUT_WEB_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-web:0.1.2}
+    image: ${DEEPSCOUT_WEB_IMAGE:-ghcr.io/francescoveryra-dot/deepscout-web:0.1.5}
     ports:
       - "${DEEPSCOUT_WEB_BIND:-127.0.0.1:3000}:3000"
     depends_on:
       api:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   postgres_data:

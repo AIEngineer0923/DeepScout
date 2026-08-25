@@ -23,7 +23,12 @@ function markdownComponents(): Components {
   return {
     a: ({ href, children }) => {
       if (!href) return <span>{children}</span>;
-      if (href.startsWith("/")) {
+      if (
+        href.startsWith("/") &&
+        !href.startsWith("//") &&
+        !href.includes("\\") &&
+        !/[\u0000-\u001F\u007F]/.test(href)
+      ) {
         return (
           <a href={href} className="rich-link">
             {children}

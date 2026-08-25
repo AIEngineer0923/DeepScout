@@ -17,6 +17,9 @@ MUTATING_PREFIXES = (
     "/api/v1/research-monitors",
     "/api/v1/research-templates",
     "/api/v1/account",
+    "/api/v1/learning",
+    "/api/v1/evaluations",
+    "/api/v1/rum",
     "/api/v1/auth/logout",
     "/api/v1/smoke/",
 )
@@ -64,20 +67,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _allow(self, key: str, limit: int, window_s: int) -> bool:
         now = time.monotonic()
         with self._lock:
+            if key not in self._hits and len(self._hits) >= self._max_keys:
+                stale = [
+                    existing
+                    for existing, values in self._hits.items()
+                    if not values or now - values[-1] > window_s
+                ]
+                for existing in stale:
+                    self._hits.pop(existing, None)
+                if len(self._hits) >= self._max_keys:
+                    return False
             bucket = self._hits[key]
             while bucket and now - bucket[0] > window_s:
                 bucket.popleft()
             if len(bucket) >= limit:
                 return False
             bucket.append(now)
-            if len(self._hits) > self._max_keys:
-                stale = [
-                    existing
-                    for existing, values in self._hits.items()
-                    if existing != key and (not values or now - values[-1] > window_s)
-                ]
-                for existing in stale:
-                    self._hits.pop(existing, None)
             return True
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -91,8 +96,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         else:
             return await call_next(request)
         client = request.client.host if request.client else "unknown"
+        # Cookies are attacker-controlled until the session has been validated.
+        # Always enforce this middleware's bounded client-address bucket; otherwise
+        # rotating arbitrary ds_session values bypasses limits and exhausts keys.
+        identity = f"client:{client}"
         general_ok = self._allow(
-            f"all:{client}",
+            f"all:{identity}",
             settings.rate_limit_max_requests,
             settings.rate_limit_window_s,
         )
@@ -101,8 +110,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         mutating = request.method in MUTATING_METHODS and any(
             request.url.path.startswith(prefix) for prefix in MUTATING_PREFIXES
         )
-        if mutating and not self._allow(
-            f"mutate:{client}",
+        oauth_start = (
+            request.method == "GET"
+            and request.url.path.startswith("/api/v1/auth/login/")
+        )
+        if (mutating or oauth_start) and not self._allow(
+            f"mutate:{identity}",
             settings.rate_limit_mutating_max,
             settings.rate_limit_window_s,
         ):

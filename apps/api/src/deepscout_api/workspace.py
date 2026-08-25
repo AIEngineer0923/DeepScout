@@ -15,6 +15,7 @@ from deepscout_research.demo.presentation import (
     normalize_locale,
     resolve_presentation,
 )
+from deepscout_research.demo.sanitization import sanitize_public_value
 from deepscout_research.source_fabric.strategy import evidence_role_for_kind
 
 
@@ -340,7 +341,13 @@ def assemble_workspace(
     evals_started = time.perf_counter()
     terminal = run.status in TERMINAL_RESEARCH_RUN_STATUSES
     do_evals = include_evals if include_evals is not None else terminal
-    eval_rows = load_evaluation_rows(store, run_id, include_evals=do_evals, backfill=terminal)
+    is_public_demo = bool(row.is_public_demo) if row else False
+    eval_rows = load_evaluation_rows(
+        store,
+        run_id,
+        include_evals=do_evals,
+        backfill=terminal and not is_public_demo,
+    )
     evals_ms = (time.perf_counter() - evals_started) * 1000
 
     completed_tasks = [task for task in tasks if task.status.value == "completed"]
@@ -509,6 +516,16 @@ def assemble_workspace(
         loc = normalize_locale(locale)
         presentation = resolve_presentation(row.config_snapshot, slug, loc)
         payload["presentation"] = build_presentation_payload(payload, presentation, locale=loc)
+        payload["activity"] = []
+        payload["source_preferences"] = []
+        payload["runtime"] = {
+            "lineage_kind": payload["runtime"]["lineage_kind"],
+            "replans_used": payload["runtime"]["replans_used"],
+        }
+        for task in payload["tasks"]:
+            task.pop("allowed_tools", None)
+            task.pop("worker_id", None)
+        payload = sanitize_public_value(payload)
     return payload
 
 
@@ -528,7 +545,7 @@ def snapshot_detail(store: ResearchStore, run_id: UUID, snapshot_id: UUID) -> di
     related_evidence = [
         item for item in workspace["evidence"] if item["snapshot_id"] == str(snapshot.id)
     ]
-    return {
+    payload = {
         "run_id": str(run_id),
         "snapshot": {
             "id": str(snapshot.id),
@@ -547,3 +564,10 @@ def snapshot_detail(store: ResearchStore, run_id: UUID, snapshot_id: UUID) -> di
             (item for item in workspace["sources"] if item["id"] == str(source.id)), None
         ),
     }
+    row = store.get_run_row(run_id)
+    if row and row.is_public_demo:
+        payload["snapshot"]["content_text"] = "\n\n".join(
+            item["quote"] for item in related_evidence if item.get("quote")
+        )[:32_000]
+        return sanitize_public_value(payload)
+    return payload

@@ -25,3 +25,28 @@ def test_rate_limit_blocks_mutating_burst() -> None:
     assert client.post("/api/v1/research-runs").status_code == 200
     assert client.post("/api/v1/research-runs").status_code == 200
     assert client.post("/api/v1/research-runs").status_code == 429
+
+
+def test_rotating_untrusted_session_cookies_cannot_bypass_limit() -> None:
+    settings = Settings(
+        _env_file=None,
+        RATE_LIMIT_ENABLED=True,
+        RATE_LIMIT_MUTATING_MAX=2,
+        RATE_LIMIT_MAX_REQUESTS=100,
+        RATE_LIMIT_WINDOW_S=60,
+    )
+    app = Starlette(routes=[Route("/api/v1/research-runs", _ok, methods=["POST"])])
+    app.add_middleware(RateLimitMiddleware, settings=settings)
+    client = TestClient(app)
+
+    for token in ("fake-session-1", "fake-session-2"):
+        response = client.post(
+            "/api/v1/research-runs",
+            headers={"cookie": f"ds_session={token}"},
+        )
+        assert response.status_code == 200
+    blocked = client.post(
+        "/api/v1/research-runs",
+        headers={"cookie": "ds_session=fake-session-3"},
+    )
+    assert blocked.status_code == 429

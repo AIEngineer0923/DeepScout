@@ -30,7 +30,7 @@ jobs:
       short_revision: ${{ steps.version.outputs.short_revision }}
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: deepscout
           POSTGRES_PASSWORD: deepscout
@@ -66,9 +66,11 @@ jobs:
           python scripts/check_release_version.py --tag "$RELEASE_TAG"
           version="${RELEASE_TAG#v}"
           revision="$(git rev-parse HEAD)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "revision=$revision" >> "$GITHUB_OUTPUT"
-          echo "short_revision=${revision:0:7}" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$version"
+            echo "revision=$revision"
+            echo "short_revision=${revision:0:7}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Protect immutable published releases
         run: |
@@ -224,7 +226,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      attestations: write
       contents: read
+      id-token: write
       packages: write
     strategy:
       matrix:
@@ -263,6 +267,7 @@ jobs:
             type=raw,value=latest
 
       - name: Create multi-architecture manifest
+        id: manifest
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
         run: |
@@ -279,10 +284,45 @@ jobs:
           test "${#sources[@]}" -eq 2
           docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
           docker buildx imagetools inspect "$IMAGE:${{ needs.validate.outputs.version }}"
+          digest="$(docker buildx imagetools inspect \
+            "$IMAGE:${{ needs.validate.outputs.version }}" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          test -n "$digest"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest published manifest provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
+
+  security-scan:
+    name: Scan ${{ matrix.image }} release image
+    needs: [validate, merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [deepscout-api, deepscout-web]
+    steps:
+      - name: Scan image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ needs.validate.outputs.version }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
+          scanners: vuln
 
   release:
     name: Publish GitHub Release
-    needs: [validate, merge]
+    needs: [validate, merge, security-scan]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

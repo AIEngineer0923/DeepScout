@@ -1786,6 +1786,18 @@ class ResearchStore:
         self._session.flush()
         return _run_to_read(row)
 
+    def lock_run(self, run_id: uuid.UUID) -> ResearchRunRead:
+        """Acquire the run row lock for compound state transitions."""
+        row = self._session.scalar(
+            select(ResearchRunRow)
+            .where(ResearchRunRow.id == run_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is None:
+            raise LookupError(f"ResearchRun {run_id} not found")
+        return _run_to_read(row)
+
     def create_review_request(
         self,
         *,
@@ -1821,6 +1833,15 @@ class ResearchStore:
 
     def get_review_request(self, review_id: uuid.UUID) -> ReviewRequestRow | None:
         return self._session.get(ReviewRequestRow, review_id)
+
+    def lock_review_request(self, review_id: uuid.UUID) -> ReviewRequestRow | None:
+        """Serialize review resolution so its decision and side effects apply once."""
+        return self._session.scalar(
+            select(ReviewRequestRow)
+            .where(ReviewRequestRow.id == review_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def get_pending_review(
         self, run_id: uuid.UUID, reason_code: ReviewReasonCode
@@ -2057,7 +2078,10 @@ class ResearchStore:
         note: str = "",
     ) -> ResearchRunRow:
         row = self._session.execute(
-            select(ResearchRunRow).where(ResearchRunRow.id == run_id).with_for_update()
+            select(ResearchRunRow)
+            .where(ResearchRunRow.id == run_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one()
         budget = _budget_from_run(row)
         consumption = _consumption_from_run(row)
@@ -2237,17 +2261,26 @@ class ResearchStore:
         self._pending_notifies.add(run_id)
         return row
 
-    def list_run_events(self, run_id: uuid.UUID, *, after_sequence: int = 0) -> list[RunEventRow]:
+    def list_run_events(
+        self,
+        run_id: uuid.UUID,
+        *,
+        after_sequence: int = 0,
+        limit: int | None = None,
+    ) -> list[RunEventRow]:
         self._require_run(run_id)
+        stmt = (
+            select(RunEventRow)
+            .where(
+                RunEventRow.research_run_id == run_id,
+                RunEventRow.sequence > after_sequence,
+            )
+            .order_by(RunEventRow.sequence)
+        )
+        if limit is not None:
+            stmt = stmt.limit(max(1, min(limit, 1000)))
         return list(
-            self._session.scalars(
-                select(RunEventRow)
-                .where(
-                    RunEventRow.research_run_id == run_id,
-                    RunEventRow.sequence > after_sequence,
-                )
-                .order_by(RunEventRow.sequence)
-            ).all()
+            self._session.scalars(stmt).all()
         )
 
     def record_token_usage(
@@ -2851,8 +2884,20 @@ class ResearchStore:
             copied += 1
         return copied
 
-    def count_monitors(self) -> int:
-        return int(self._session.scalar(select(func.count()).select_from(ResearchMonitorRow)) or 0)
+    def lock_principal_quota(self, principal_id: uuid.UUID | None) -> None:
+        """Serialize per-principal quota checks and resource creation in PostgreSQL."""
+        bind = self._session.get_bind()
+        if principal_id is None or bind.dialect.name != "postgresql":
+            return
+        digest = hashlib.sha256(f"quota:{principal_id}".encode()).digest()
+        lock_key = int.from_bytes(digest[:8], byteorder="big", signed=True)
+        self._session.execute(select(func.pg_advisory_xact_lock(lock_key)))
+
+    def count_monitors(self, owner_principal_id: uuid.UUID | None = None) -> int:
+        stmt = select(func.count()).select_from(ResearchMonitorRow)
+        if owner_principal_id is not None:
+            stmt = stmt.where(ResearchMonitorRow.owner_principal_id == owner_principal_id)
+        return int(self._session.scalar(stmt) or 0)
 
     def count_active_runs(self, owner_principal_id: uuid.UUID) -> int:
         return int(

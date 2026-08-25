@@ -5,9 +5,10 @@ from __future__ import annotations
 import html
 import json
 import re
-import xml.etree.ElementTree as ET
 from enum import StrEnum
 from urllib.parse import urlparse
+
+from defusedxml import ElementTree as ET
 
 from deepscout_research.fetch.secure import SecureFetchError, secure_fetch
 from deepscout_research.source_fabric.normalizers import (

@@ -1,14 +1,17 @@
 import asyncio
 import re
 from datetime import datetime
+from threading import Lock
 from uuid import UUID
 
 from deepscout_core.domain.schemas import ResearchRunCreate, ResearchRunRead, SourcePreferenceWrite
 from deepscout_core.security.csv import render_csv
 from deepscout_core.settings import Settings, get_settings
 from deepscout_evaluation.registry import BUILTIN_EVALUATOR_MATRIX
+from deepscout_persistence.identity import resolve_session
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore, _usage_summary_from_run
+from deepscout_research.demo.sanitization import sanitize_text
 from deepscout_research.jobs.service import JobService
 from deepscout_research.streaming.notify import NotifyWaiter
 from deepscout_research.streaming.policy import layer_for
@@ -27,11 +30,46 @@ from deepscout_api.deps_auth import ReadRunDep, WriteRunDep
 from deepscout_api.workspace import assemble_workspace, snapshot_detail
 
 router = APIRouter(prefix="/api/v1/research-runs", tags=["research-runs"])
+_SSE_MAX_PER_IDENTITY = 4
+_sse_counts: dict[str, int] = {}
+_sse_lock = Lock()
 
 
-def _require_run(request: Request, store, settings: Settings, run_id: UUID, *, write: bool):
+def _acquire_sse_slot(identity: str) -> bool:
+    with _sse_lock:
+        current = _sse_counts.get(identity, 0)
+        if current >= _SSE_MAX_PER_IDENTITY:
+            return False
+        _sse_counts[identity] = current + 1
+        return True
+
+
+def _release_sse_slot(identity: str) -> None:
+    with _sse_lock:
+        current = _sse_counts.get(identity, 0)
+        if current <= 1:
+            _sse_counts.pop(identity, None)
+        else:
+            _sse_counts[identity] = current - 1
+
+
+def _require_run(
+    request: Request,
+    store,
+    settings: Settings,
+    run_id: UUID,
+    *,
+    write: bool,
+    allow_public_demo: bool = False,
+):
     access = load_access(request, store._session, settings)
-    return authorize_run(store, run_id, access, write=write)
+    return authorize_run(
+        store,
+        run_id,
+        access,
+        write=write,
+        allow_public_demo=allow_public_demo,
+    )
 
 
 def _snapshot(
@@ -215,6 +253,8 @@ def create_research_run(
 ) -> ResearchRunRead:
     access = load_access(request, store._session, settings)
     owner_id = owner_for_create(access)
+    if settings.is_hosted():
+        store.lock_principal_quota(owner_id)
     if (
         settings.is_hosted()
         and store.count_active_runs(owner_id) >= settings.hosted_max_concurrent_runs_per_user
@@ -311,10 +351,12 @@ def get_research_run(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> ResearchRunRead:
-    _require_run(request, store, settings, run_id, write=False)
+    row = _require_run(request, store, settings, run_id, write=False, allow_public_demo=True)
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
+    if row.is_public_demo:
+        return run.model_copy(update={"goal": sanitize_text(run.goal)})
     return run
 
 
@@ -327,7 +369,15 @@ def stream_run_events(
     settings: Settings = Depends(get_settings),
     store=Depends(get_research_store),
 ):
-    _require_run(request, store, settings, run_id, write=False)
+    access = load_access(request, store._session, settings)
+    authorize_run(store, run_id, access, write=False)
+    session_token = request.cookies.get("ds_session")
+    expected_principal_id = access.principal_id
+    stream_identity = (
+        str(expected_principal_id)
+        if expected_principal_id is not None
+        else (request.client.host if request.client else "local")
+    )
     factory = get_session_factory(settings.database_url)
     probe = factory()
     try:
@@ -337,6 +387,8 @@ def stream_run_events(
         probe.close()
 
     start_after = parse_last_event_id(last_event_id, after)
+    if not _acquire_sse_slot(stream_identity):
+        raise HTTPException(status_code=429, detail="Concurrent event stream limit reached")
 
     async def event_generator():
         last_sequence = start_after
@@ -346,15 +398,30 @@ def stream_run_events(
             "cancelled",
             "budget_exhausted",
         }
-        waiter = NotifyWaiter(settings.listen_database_url())
+        waiter = None
         try:
+            waiter = NotifyWaiter(settings.listen_database_url())
             while True:
                 if await request.is_disconnected():
                     break
                 session = factory()
                 try:
                     store = ResearchStore(session)
-                    events = store.list_run_events(run_id, after_sequence=last_sequence)
+                    if settings.is_hosted():
+                        principal = resolve_session(session, session_token or "")
+                        row = store.get_run_row(run_id)
+                        if (
+                            principal is None
+                            or principal.id != expected_principal_id
+                            or row is None
+                            or row.owner_principal_id != principal.id
+                        ):
+                            break
+                    events = store.list_run_events(
+                        run_id,
+                        after_sequence=last_sequence,
+                        limit=200,
+                    )
                     payloads = []
                     for event in events:
                         last_sequence = event.sequence
@@ -385,7 +452,9 @@ def stream_run_events(
                 timeout = 0.4 if status == "running" else 0.8
                 await asyncio.to_thread(waiter.wait, run_id, timeout)
         finally:
-            waiter.close()
+            if waiter is not None:
+                waiter.close()
+            _release_sse_slot(stream_identity)
 
     return StreamingResponse(
         event_generator(),
@@ -404,7 +473,7 @@ def get_research_run_summary(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> RunSummaryResponse:
-    _require_run(request, store, settings, run_id, write=False)
+    row = _require_run(request, store, settings, run_id, write=False, allow_public_demo=True)
     run = store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -413,7 +482,7 @@ def get_research_run_summary(
     return RunSummaryResponse(
         run_id=run.id,
         status=run.status.value,
-        goal=run.goal,
+        goal=sanitize_text(run.goal) if row.is_public_demo else run.goal,
         termination_reason=run.termination_reason,
         task_count=len(store.list_tasks(run_id)),
         source_count=len(store.list_sources(run_id)),
@@ -439,7 +508,7 @@ def get_research_run_workspace(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    _require_run(request, store, settings, run_id, write=False)
+    _require_run(request, store, settings, run_id, write=False, allow_public_demo=True)
     payload = assemble_workspace(store, run_id, include_evals=include_evals, locale=x_ui_locale)
     payload.pop("_task_by_id", None)
     timings = payload.get("timings_ms") or {}
@@ -787,7 +856,7 @@ def get_snapshot(
     store=Depends(get_research_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    _require_run(request, store, settings, run_id, write=False)
+    _require_run(request, store, settings, run_id, write=False, allow_public_demo=True)
     try:
         return snapshot_detail(store, run_id, snapshot_id)
     except LookupError as exc:

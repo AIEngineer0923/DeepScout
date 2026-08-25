@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+
 import pytest
 from deepscout_core.domain.enums import (
     HumanFeedbackTarget,
@@ -13,6 +16,9 @@ from deepscout_core.domain.enums import (
 from deepscout_core.domain.schemas import ResearchRunCreate
 from deepscout_core.settings import Settings
 from deepscout_core.types import ProviderKind
+from deepscout_persistence.models import ResearchRunRow
+from deepscout_persistence.session import get_session_factory
+from deepscout_persistence.store import ResearchStore
 from deepscout_research.approval import (
     ApprovalDecision,
     is_authoritative_approval,
@@ -24,6 +30,8 @@ from deepscout_research.hitl import (
     evaluate_policy,
     payload_hash,
 )
+from sqlalchemy import delete
+from tests.db_helpers import database_url
 
 
 @pytest.fixture
@@ -102,6 +110,61 @@ def test_budget_review_binding_and_idempotent_approve(store, settings) -> None:
     final = store.get_run(run.id)
     assert final is not None
     assert final.budget.max_iterations == base_iter + 2
+
+
+@pytest.mark.postgres
+def test_parallel_budget_approvals_apply_exactly_once(postgres_ready, settings) -> None:
+    factory = get_session_factory(database_url())
+    setup = factory()
+    try:
+        setup_store = ResearchStore(setup)
+        run = setup_store.create_run(
+            ResearchRunCreate(goal="parallel HITL", budget=settings.default_research_budget()),
+            settings,
+        )
+        review_id = HumanReviewService(setup_store, settings).create_budget_extension_review(run.id)
+        setup_store.update_run_status(run.id, ResearchRunStatus.PAUSED)
+        base_iterations = run.budget.max_iterations
+        setup.commit()
+    finally:
+        setup.close()
+
+    barrier = Barrier(2)
+
+    def approve() -> bool:
+        session = factory()
+        try:
+            barrier.wait(timeout=5)
+            result = HumanReviewService(ResearchStore(session), settings).resolve_review(
+                run_id=run.id,
+                review_id=review_id,
+                decision_kind=ReviewDecisionKind.APPROVE,
+                source="api",
+            )
+            session.commit()
+            return result.applied
+        finally:
+            session.close()
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            applied = list(pool.map(lambda _: approve(), range(2)))
+        assert sorted(applied) == [False, True]
+
+        verify = factory()
+        try:
+            final = ResearchStore(verify).get_run(run.id)
+            assert final is not None
+            assert final.budget.max_iterations == base_iterations + 2
+        finally:
+            verify.close()
+    finally:
+        cleanup = factory()
+        try:
+            cleanup.execute(delete(ResearchRunRow).where(ResearchRunRow.id == run.id))
+            cleanup.commit()
+        finally:
+            cleanup.close()
 
 
 @pytest.mark.postgres

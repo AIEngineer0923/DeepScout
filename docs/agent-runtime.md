@@ -1,6 +1,6 @@
 # Agent runtime internals
 
-How DeepScout's research runtime actually works (v0.1.4). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+How DeepScout's research runtime actually works (v0.1.5). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
 
 ## Answerability and constrained deliverables
 
@@ -47,7 +47,7 @@ metadata plus bounded content/script checks. Evidence quotes always point to tha
 snapshot. The report model may explain or synthesize evidence in the requested output language, but
 translated prose is derived presentation: it cannot replace the original quote, URL, title, locator,
 or source language. No separate machine-translation service or translated evidence store is used in
-v0.1.4.
+v0.1.5.
 
 Cross-language semantic retrieval uses the configured multilingual embedding space. For semantic
 intent, dense retrieval receives the stronger RRF contribution; BM25 and PostgreSQL FTS remain
@@ -60,6 +60,20 @@ For a shorter overview see [architecture-overview.md](architecture-overview.md).
 ## Core idea
 
 **The orchestrator is application authority.** LLMs assist specific phases with structured outputs. They do not own run lifecycle, tenancy, budgets, tool authorization, or persistence.
+
+Hosted workers install LangSmith configuration only inside the current run's execution
+context and restore a credential-free process baseline afterward. A tenant's vaulted
+observability key therefore cannot leak into the next tenant's run, and maintainer
+environment credentials are never the hosted worker baseline.
+
+Budget checks include persisted token/source/tool limits and real elapsed time from the
+run start timestamp. Elapsed wall time is checked before planning, iterations, tool calls,
+source admission, and phase transitions. Reaching it terminates with
+`wall_time_budget_exhausted`; it does not enter provider-backed finalization.
+
+Quote resolution establishes provenance, not factual truth. A claim with one source and a
+quote that resolves to its immutable snapshot is `partially_verified`; `verified` requires
+matching evidence from at least two distinct sources.
 
 ```text
 PostgreSQL domain state  = source of truth (runs, tasks, evidence, budget, events)

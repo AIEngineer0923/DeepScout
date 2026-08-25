@@ -18,6 +18,14 @@ class ResearchBudget:
     max_tool_calls: int = 80
 
     def __post_init__(self) -> None:
+        hard_limits = {
+            "max_iterations": 100,
+            "max_wall_time_seconds": 86_400,
+            "max_total_tokens": 10_000_000,
+            "max_cost_usd": 1_000.0,
+            "max_sources": 10_000,
+            "max_tool_calls": 20_000,
+        }
         for name in (
             "max_iterations",
             "max_wall_time_seconds",
@@ -29,6 +37,9 @@ class ResearchBudget:
                 raise ValueError(f"{name} must be non-negative")
         if self.max_cost_usd < 0:
             raise ValueError("max_cost_usd must be non-negative")
+        for name, maximum in hard_limits.items():
+            if getattr(self, name) > maximum:
+                raise ValueError(f"{name} must not exceed {maximum}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,3 +173,7 @@ class BudgetLedger:
 
 class BudgetExhaustedError(Exception):
     """Raised when a budget limit would be exceeded."""
+
+
+class WallTimeBudgetExhaustedError(BudgetExhaustedError):
+    """Raised when real elapsed run time reaches the configured limit."""

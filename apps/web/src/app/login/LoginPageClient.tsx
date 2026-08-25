@@ -8,7 +8,13 @@ import { useT } from "@/i18n/context";
 
 function safeNextPath(raw: string | null): string {
   const candidate = (raw || "/onboarding").trim();
-  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("://")) {
+  if (
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.includes("://") ||
+    candidate.includes("\\") ||
+    /[\u0000-\u001F\u007F]/.test(candidate)
+  ) {
     return "/onboarding";
   }
   return candidate;

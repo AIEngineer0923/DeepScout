@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from deepscout_research.retrieval.chunking import estimate_tokens
 from deepscout_research.retrieval.models import RetrievedChunk
-from deepscout_research.retrieval.security import wrap_as_untrusted_data
+from deepscout_research.retrieval.security import looks_like_injection, wrap_as_untrusted_data
 from deepscout_research.retrieval.spec import CONTEXT_TOKEN_BUDGET
 
 
@@ -34,6 +34,8 @@ def assemble_context(
 def isolated_prompt_blocks(chunks: list[RetrievedChunk]) -> list[str]:
     blocks = []
     for chunk in assemble_context(chunks):
+        if looks_like_injection(chunk.text):
+            continue
         locator = chunk.locator
         blocks.append(f"{locator}\n{wrap_as_untrusted_data(chunk.text)}")
     return blocks

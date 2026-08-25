@@ -19,16 +19,16 @@ machine or private network.
 Check out the release whose compose file you intend to run:
 
 ```bash
-git clone --branch v0.1.4 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.5 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 ```
 
-The default v0.1.4 images are:
+The default v0.1.5 images are:
 
 ```text
-ghcr.io/francescoveryra-dot/deepscout-api:0.1.4
-ghcr.io/francescoveryra-dot/deepscout-web:0.1.4
+ghcr.io/francescoveryra-dot/deepscout-api:0.1.5
+ghcr.io/francescoveryra-dot/deepscout-web:0.1.5
 ```
 
 They are public and support `linux/amd64` and `linux/arm64`. The API image is deliberately reused
@@ -133,11 +133,13 @@ non-root `deepscout` user:
 - `.dockerignore` excludes `.env*`, `.git`, virtual environments, Node modules, build output,
   tests, local transcripts, and editor state.
 - Both application images run as an unprivileged user.
+- The API image uses a pinned Alpine base; release Compose drops all application
+  capabilities, enables `no-new-privileges`, uses read-only roots, and provides bounded tmpfs mounts.
 - Provider, OAuth, database, Railway, Vercel, and Supabase credentials are runtime configuration;
   none are build arguments or image content.
 - Production containers use `uv.lock` and `package-lock.json`.
-- Release manifests include OCI source/version/revision/license labels plus SBOM and provenance
-  attestations in GHCR.
+- Release manifests include OCI source/version/revision/license labels, SBOM and BuildKit
+  provenance, GitHub artifact attestations, and a blocking HIGH/CRITICAL vulnerability scan.
 - Local compose ports bind to `127.0.0.1`. Do not publish MODE A directly to the Internet.
 
 For hosted OAuth/BYOK requirements and generic infrastructure topology, see

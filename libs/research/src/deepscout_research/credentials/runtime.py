@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from uuid import UUID
 
 from deepscout_core.deployment import CredentialProvider, DeploymentMode
@@ -16,6 +19,61 @@ from deepscout_research.credentials.vault import CredentialVault, decode_master_
 
 class HostedCredentialError(RuntimeError):
     """User vault cannot satisfy a hosted provider call."""
+
+
+_LANGSMITH_ENV_KEYS = (
+    "LANGSMITH_TRACING",
+    "LANGSMITH_API_KEY",
+    "LANGSMITH_PROJECT",
+    "LANGSMITH_WORKSPACE_ID",
+    "LANGSMITH_ENDPOINT",
+    "LANGCHAIN_TRACING_V2",
+    "LANGCHAIN_API_KEY",
+)
+
+
+def _apply_observability_environment(settings: Settings, *, hosted_baseline: bool = False) -> None:
+    tracing = (
+        not hosted_baseline
+        and settings.langsmith_tracing
+        and settings.langsmith_api_key is not None
+    )
+    values = {
+        "LANGSMITH_TRACING": "true" if tracing else "false",
+        "LANGSMITH_API_KEY": (
+            settings.langsmith_api_key.get_secret_value() if tracing else None
+        ),
+        "LANGSMITH_PROJECT": settings.langsmith_project if tracing else None,
+        "LANGSMITH_WORKSPACE_ID": settings.langsmith_workspace_id if tracing else None,
+        "LANGSMITH_ENDPOINT": settings.langsmith_endpoint if tracing else None,
+        "LANGCHAIN_TRACING_V2": None,
+        "LANGCHAIN_API_KEY": None,
+    }
+    for key, value in values.items():
+        if value:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
+
+
+def configure_process_observability(settings: Settings) -> None:
+    """Keep hosted processes free of operator tracing credentials between tenant runs."""
+    _apply_observability_environment(settings, hosted_baseline=settings.is_hosted())
+
+
+@contextmanager
+def run_observability_environment(settings: Settings) -> Iterator[None]:
+    """Install one run's tracing credentials and restore the process baseline afterwards."""
+    previous = {key: os.environ.get(key) for key in _LANGSMITH_ENV_KEYS}
+    _apply_observability_environment(settings)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def vault_from_settings(settings: Settings) -> CredentialVault | None:

@@ -8,6 +8,7 @@ from deepscout_research.demo.presentation import (
     normalize_locale,
     resolve_presentation,
 )
+from deepscout_research.demo.sanitization import sanitize_public_value
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 
@@ -34,7 +35,7 @@ def _demo_card(row: ResearchRunRow, metrics: dict[str, int], *, locale: str | No
     item["presentation_locale"] = loc
     if presentation and presentation.get("goal"):
         item["goal"] = presentation["goal"]
-    return item
+    return sanitize_public_value(item)
 
 
 @router.get("/demos")

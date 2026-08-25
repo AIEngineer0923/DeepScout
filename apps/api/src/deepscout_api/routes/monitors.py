@@ -57,7 +57,12 @@ def create_monitor_route(
 ) -> dict:
     access = load_access(request, store._session, settings)
     try:
-        row = create_monitor(store, body, owner_principal_id=owner_for_create(access))
+        row = create_monitor(
+            store,
+            body,
+            settings,
+            owner_principal_id=owner_for_create(access),
+        )
         store.commit()
         return _serialize(store, row)
     except ValueError as exc:

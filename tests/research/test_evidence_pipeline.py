@@ -55,8 +55,9 @@ def test_extract_and_verify_claims_from_snapshot(store, settings) -> None:
     assert stats["evidence_created"] == 1
 
     verify_stats = verify_claims_for_run(store, run.id)
-    assert verify_stats["verified"] == 1
+    assert verify_stats["verified"] == 0
+    assert verify_stats["partially_verified"] == 1
     claims = store.list_claims(run.id)
     assert len(claims) == 1
-    assert claims[0].verification_status.value == "verified"
+    assert claims[0].verification_status.value == "partially_verified"
     assert "nickel manganese cobalt" in claims[0].statement.lower()

@@ -7,7 +7,10 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from deepscout_core.domain.budget import BudgetExhaustedError
+from deepscout_core.domain.budget import (
+    BudgetExhaustedError,
+    WallTimeBudgetExhaustedError,
+)
 from deepscout_core.domain.enums import (
     ResearchPhase,
     ResearchQuestionStatus,
@@ -186,6 +189,7 @@ class ResearchOrchestrator:
         run = self._store.get_run(run_id)
         if run is not None and run.status == ResearchRunStatus.CANCELLED:
             raise RunCancelledError(f"Research run {run_id} cancelled")
+        self._budget.ensure_wall_time_available(run_id)
 
     def _emit(self, event: ResearchEvent) -> None:
         self._events.append(event)
@@ -367,6 +371,7 @@ class ResearchOrchestrator:
 
         iterations = 0
         try:
+            self._ensure_active(run_id)
             self.build_plan(run_id, goal=run.goal)
             contract_pause = self._pause_for_contract_review(run_id, iterations)
             if contract_pause is not None:
@@ -459,6 +464,23 @@ class ResearchOrchestrator:
             return OrchestratorResult(
                 run_id=run_id,
                 final_status=ResearchRunStatus.CANCELLED,
+                iterations=iterations,
+                events=list(self._events),
+            )
+        except WallTimeBudgetExhaustedError:
+            reason = "wall_time_budget_exhausted"
+            self._store.set_termination_reason(run_id, reason)
+            self._store.update_run_status(run_id, ResearchRunStatus.BUDGET_EXHAUSTED)
+            self._emit(
+                ResearchEvent(
+                    event_type=ResearchEventType.RUN_BUDGET_EXHAUSTED,
+                    run_id=run_id,
+                    payload={"reason": reason},
+                )
+            )
+            return OrchestratorResult(
+                run_id=run_id,
+                final_status=ResearchRunStatus.BUDGET_EXHAUSTED,
                 iterations=iterations,
                 events=list(self._events),
             )

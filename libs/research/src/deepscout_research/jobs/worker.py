@@ -11,6 +11,11 @@ from deepscout_core.domain.enums import TERMINAL_RESEARCH_RUN_STATUSES
 from deepscout_core.settings import get_settings
 from deepscout_persistence.session import get_session_factory
 from deepscout_persistence.store import ResearchStore
+from deepscout_research.credentials.runtime import (
+    configure_process_observability,
+    resolve_run_settings,
+    run_observability_environment,
+)
 from deepscout_research.jobs.service import JobService
 from deepscout_research.orchestrator import ResearchOrchestrator
 from deepscout_research.search.tavily import TavilyWebSearchProvider
@@ -37,10 +42,7 @@ def _persist_job_completion(
 
 def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
     settings = get_settings()
-    configure = __import__(
-        "deepscout_api.main", fromlist=["configure_observability"]
-    ).configure_observability
-    configure(settings)
+    configure_process_observability(settings)
     owner = _owner_id()
     session_factory = get_session_factory(settings.database_url)
 
@@ -86,8 +88,6 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
         run_id = job.research_run_id
         lease_token = job.lease_token or ""
         try:
-            from deepscout_research.credentials.runtime import resolve_run_settings
-
             run = store.get_run(run_id)
             if run is None:
                 raise LookupError(f"Research run not found: {run_id}")
@@ -105,9 +105,10 @@ def run_worker(*, poll_interval_s: float = 2.0, once: bool = False) -> None:
             session.commit()
             run_settings = resolve_run_settings(store, settings, run_id)
             web_search = TavilyWebSearchProvider(run_settings)
-            with build_discovery_router(run_settings, web_search) as search:
-                orchestrator = ResearchOrchestrator(store, run_settings, search)
-                orchestrator.execute(run_id)
+            with run_observability_environment(run_settings):
+                with build_discovery_router(run_settings, web_search) as search:
+                    orchestrator = ResearchOrchestrator(store, run_settings, search)
+                    orchestrator.execute(run_id)
             _persist_job_completion(jobs, session, job_id, owner, lease_token)
         except Exception as exc:
             session.rollback()

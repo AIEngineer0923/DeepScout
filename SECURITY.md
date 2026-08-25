@@ -64,7 +64,7 @@ Recommended defaults for a workstation:
 
 Internet-facing deployment requires, at minimum:
 
-- an authenticating reverse proxy or future first-party auth
+- MODE B first-party OAuth with all required session, OAuth, and vault settings configured
 - HTTPS
 - production CORS origins
 - `RATE_LIMIT_ENABLED=true`
@@ -79,6 +79,9 @@ Internet-facing deployment requires, at minimum:
   use and is a blocker for exposing MODE A to the public Internet.
 - **MODE B authorization is principal ownership**, not UUID secrecy. Public demo rows
   are an explicit published projection (`is_public_demo`), not “null owner means public”.
+  Anonymous access is limited to the run summary, sanitized workspace, and sanitized
+  snapshot presentation; events, reviews, exports, preferences, and knowledge internals
+  remain owner-only.
 - **Credentials are encrypted at rest (AES-GCM), not zero-knowledge.** The API process
   decrypts user vault keys to call the providers the user configured.
 - **Research domain data in Postgres is not end-to-end encrypted.** Infrastructure
@@ -88,8 +91,10 @@ Internet-facing deployment requires, at minimum:
   LangSmith workspace. Maintainer tracing is not used for hosted user research.
 - **No SOC 2 / ISO 27001 / HIPAA / GDPR-compliance claim.** This is security engineering
   for a portfolio OSS deployment, not a certified control program.
-- **Fetched documents.** HTML is converted to text; PDFs are discarded rather
-  than parsed. There is no general-purpose file-upload API.
+- **Fetched documents.** MIME types and magic bytes are allowlisted. PDF text extraction
+  runs in a time- and memory-bounded subprocess. There is no general-purpose file-upload API.
+- **Rate limiting.** The built-in limiter is a bounded per-process defense. Multi-instance
+  hosted deployments must also enforce distributed limits at the edge or gateway.
 - **DNS rebinding residual.** Fetch pins TCP connect to the DNS result used
   for the private-IP check, with TLS SNI/certificate still bound to the
   original hostname. Exotic resolver/NAT64 cases should still be treated as
@@ -103,6 +108,8 @@ Internet-facing deployment requires, at minimum:
 - `pip-audit` and `npm audit --audit-level=high`
 - CodeQL `security-extended` for Python and JavaScript/TypeScript
 - Dependabot for npm, pip, and GitHub Actions
+- Release-image Trivy gate for HIGH/CRITICAL vulnerabilities
+- OCI SBOM, BuildKit provenance, and GitHub artifact attestations for release manifests
 
 ## AI-specific risks
 
@@ -111,6 +118,7 @@ Internet-facing deployment requires, at minimum:
 - Denial-of-wallet via unbounded loops or repeated execute/resume
 - Checkpoint replay across the wrong run/task
 
-Mitigations: layered prompts, schema-bounded structured output, deterministic
-tool allowlists, ResearchBudget, run/task-scoped LangGraph thread IDs,
-secure fetch with IP pinning, and export sanitization.
+Mitigations: layered prompts, schema-bounded structured output, multilingual injection
+screening with flagged chunks excluded from model context, deterministic tool allowlists,
+ResearchBudget with real wall-clock enforcement, run/task-scoped LangGraph thread IDs,
+secure fetch with IP pinning, and public/export sanitization.

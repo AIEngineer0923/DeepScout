@@ -75,6 +75,7 @@ def authorize_run(
     access: AccessContext,
     *,
     write: bool,
+    allow_public_demo: bool = False,
 ) -> ResearchRunRow:
     row = store.get_run_row(run_id)
     if row is None:
@@ -85,7 +86,11 @@ def authorize_run(
     if row.is_public_demo:
         if write:
             raise HTTPException(status_code=403, detail="Public demo is read-only")
-        return row
+        if allow_public_demo:
+            return row
+        if access.principal is not None and row.owner_principal_id == access.principal.id:
+            return row
+        raise HTTPException(status_code=404, detail="Research run not found")
     if access.principal is not None and row.owner_principal_id == access.principal.id:
         return row
     raise HTTPException(status_code=404, detail="Research run not found")
@@ -119,7 +124,13 @@ def safe_next_path(raw: str | None, allowlist: str) -> str:
     allowed = {item.strip() or "/" for item in allowlist.split(",") if item.strip()}
     allowed.add("/")
     candidate = (raw or "/").strip()
-    if not candidate.startswith("/") or candidate.startswith("//") or "://" in candidate:
+    if (
+        not candidate.startswith("/")
+        or candidate.startswith("//")
+        or "://" in candidate
+        or "\\" in candidate
+        or any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate)
+    ):
         return "/"
     if candidate in allowed or any(
         candidate.startswith(prefix.rstrip("/") + "/") for prefix in allowed if prefix != "/"

@@ -27,9 +27,20 @@ def monitor_status(row: ResearchMonitorRow, *, child_running: bool = False) -> s
 
 
 def create_monitor(
-    store: ResearchStore, payload: ResearchMonitorCreate, *, owner_principal_id=None
+    store: ResearchStore,
+    payload: ResearchMonitorCreate,
+    settings: Settings,
+    *,
+    owner_principal_id=None,
 ) -> ResearchMonitorRow:
-    if store.count_monitors() >= MAX_MONITORS:
+    if settings.is_hosted():
+        store.lock_principal_quota(owner_principal_id)
+        if (
+            store.count_monitors(owner_principal_id)
+            >= settings.hosted_max_monitors_per_user
+        ):
+            raise ValueError("hosted per-user monitor limit reached")
+    elif store.count_monitors() >= MAX_MONITORS:
         raise ValueError("MODE A monitor limit reached")
     now = datetime.now(UTC)
     row = store.create_monitor(
@@ -53,6 +64,18 @@ def dispatch_due_monitors(
     jobs = JobService(store)
     for row in claimed:
         try:
+            if settings.is_hosted():
+                store.lock_principal_quota(row.owner_principal_id)
+                if (
+                    row.owner_principal_id is None
+                    or store.count_active_runs(row.owner_principal_id)
+                    >= settings.hosted_max_concurrent_runs_per_user
+                ):
+                    store.release_monitor_lease(
+                        row.id,
+                        next_run_at=now + timedelta(minutes=15),
+                    )
+                    continue
             if store.monitor_has_active_run(row.id):
                 store.release_monitor_lease(row.id, next_run_at=row.next_run_at or now)
                 continue

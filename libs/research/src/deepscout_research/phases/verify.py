@@ -50,22 +50,27 @@ def verify_claims_for_run(store: ResearchStore, run_id: uuid.UUID) -> dict[str, 
             continue
 
         matches = 0
+        matched_source_ids: set[uuid.UUID] = set()
         for item in evidence_items:
             snapshot = store.get_snapshot(item.snapshot_id)
             if snapshot is None:
                 continue
             if locate_quote_in_content(item.quote, snapshot.content_text, min_len=8):
                 matches += 1
+                matched_source_ids.add(snapshot.source_id)
 
-        if matches == len(evidence_items):
+        if matches == len(evidence_items) and len(matched_source_ids) >= 2:
             store.update_claim_verification(claim.id, ClaimVerificationStatus.VERIFIED)
             verified += 1
-        elif matches > 0:
+        elif matches == len(evidence_items):
             store.update_claim_verification(claim.id, ClaimVerificationStatus.PARTIALLY_VERIFIED)
             partial += 1
         else:
-            store.update_claim_verification(claim.id, ClaimVerificationStatus.REFUTED)
-            refuted += 1
+            store.update_claim_verification(
+                claim.id,
+                ClaimVerificationStatus.INSUFFICIENT_EVIDENCE,
+            )
+            insufficient += 1
 
     return {
         "verified": verified,
