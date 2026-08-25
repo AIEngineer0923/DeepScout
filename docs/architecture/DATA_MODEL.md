@@ -39,7 +39,9 @@ Terminal runs cannot implicitly restart to `running`.
 
 `pending` → `supported` → `verified` | `partially_verified` | `refuted` | `insufficient_evidence`
 
-Verified statuses require at least one evidence row.
+`partially_verified` requires matching snapshot-backed evidence. `verified` additionally
+requires matching evidence from at least two distinct sources; quote existence proves
+provenance, not objective truth.
 
 ## Domain invariants (enforced in code)
 

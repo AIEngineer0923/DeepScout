@@ -12,7 +12,7 @@ export function presentToolName(tool: string, locale: Locale): string {
   return TOOL_LABELS[key]?.[locale] ?? tool.replaceAll("_", " ");
 }
 
-export function presentToolList(tools: string[], locale: Locale): string {
-  if (!tools.length) return "—";
+export function presentToolList(tools: string[] | undefined, locale: Locale): string {
+  if (!tools?.length) return "—";
   return tools.map((tool) => presentToolName(tool, locale)).join(", ");
 }

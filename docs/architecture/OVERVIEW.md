@@ -13,12 +13,13 @@ DeepScout is a monorepo production-first system for autonomous, source-aware res
 │  libs/research               Orchestrator + phases      │
 │  libs/core                   Domain, budgets, schemas   │
 │  libs/providers              LLM + embedding factory    │
-│  libs/retrieval              RAG pipeline               │
-│  libs/security               Fetch guard, sanitization  │
-│  libs/observability          LangSmith tagging          │
+│  libs/persistence            ORM, vectors, migrations   │
+│  libs/evaluation             Evaluation registry        │
+│  libs/research/retrieval     RAG pipeline               │
+│  libs/research/fetch         Fetch guard, sanitization  │
 ├─────────────────────────────────────────────────────────┤
 │  PostgreSQL + pgvector       Evidence graph + vectors   │
-│  Redis                       Cache, rate limits, jobs   │
+│  Redis                       Optional cache / signaling │
 └─────────────────────────────────────────────────────────┘
 ```
 

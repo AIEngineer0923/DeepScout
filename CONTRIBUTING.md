@@ -7,7 +7,7 @@ Thanks for contributing. This is a real monorepo — keep changes focused and te
 - Git
 - Docker (Postgres + Redis for local dev)
 - Python 3.12+
-- Node.js 20 LTS
+- Node.js 22 LTS
 - [uv](https://docs.astral.sh/uv/) for Python
 
 ## Setup

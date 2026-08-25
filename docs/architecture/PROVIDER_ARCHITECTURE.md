@@ -22,7 +22,7 @@ EMBEDDING_MODEL=<model-id>
 ## Factory pattern
 
 ```text
-apps/api, libs/research, libs/retrieval
+apps/api, libs/research
         │
         ▼
   build_llm_provider(settings)   ← only entry point
@@ -36,7 +36,7 @@ apps/api, libs/research, libs/retrieval
 
 ## Model defaults
 
-Centralized in `libs/providers/defaults.py` (Phase 1).
+Centralized under `libs/providers/src/deepscout_providers/`.
 
 Model IDs must be verified against **current official docs** before implementation:
 

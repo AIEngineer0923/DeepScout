@@ -49,6 +49,8 @@ Five **completed** research runs, read-only:
 - No provider/model calls while browsing demo pages
 - Evaluation results are pre-persisted deterministic rows
 - Mutations (new research, pin/exclude, etc.) are blocked for anonymous users
+- Public workspace fields are a reduced projection; internal task tool assignments are omitted
+- Server-side report exports and live SSE are owner-only; visitors can still copy rendered report text
 
 ## Reference deployment architecture
 

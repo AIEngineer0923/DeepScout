@@ -6,14 +6,14 @@ Contributor reference. For setup steps see [local-development.md](local-developm
 
 - Remote: `https://github.com/francescoveryra-dot/deepscout.git`
 - Default branch: `main`
-- Version: **0.1.4** (see root `pyproject.toml`)
+- Version: **0.1.6** (see root `pyproject.toml`)
 
 ## Stack
 
 | Component | Version |
 |-----------|---------|
 | Python | 3.12+ |
-| Node.js | 20 LTS |
+| Node.js | 22 LTS |
 | PostgreSQL | 16+ with pgvector |
 | Redis | 7+ (optional in hosted prod) |
 | Docker | current stable |

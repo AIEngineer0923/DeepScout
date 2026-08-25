@@ -170,8 +170,8 @@ export type Workspace = {
     objective: string;
     status: string;
     depends_on: string[];
-    allowed_tools: string[];
-    worker_id: string | null;
+    allowed_tools?: string[];
+    worker_id?: string | null;
     index: number;
     display_name: string;
     started_at: string | null;

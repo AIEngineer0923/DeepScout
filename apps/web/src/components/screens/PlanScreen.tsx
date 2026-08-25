@@ -10,6 +10,7 @@ import { useDemoReadOnly } from "@/components/DemoReadOnlyContext";
 import { displayGoal, displayTaskObjective, dependsOnLabels } from "@/presentation/demo";
 import { useI18n } from "@/i18n/context";
 import { ClampedText } from "@/components/ClampedText";
+import { presentToolList } from "@/presentation/tools";
 
 export function PlanScreen() {
   const { workspace } = useRun();
@@ -124,10 +125,12 @@ export function PlanScreen() {
                   <dt>{t("plan.retries")}</dt>
                   <dd>{task.retries}</dd>
                 </div>
-                <div className="kv-row">
-                  <dt>{t("workers.allowed")}</dt>
-                  <dd>{task.allowed_tools.join(", ") || "—"}</dd>
-                </div>
+                {task.allowed_tools?.length ? (
+                  <div className="kv-row">
+                    <dt>{t("workers.allowed")}</dt>
+                    <dd>{presentToolList(task.allowed_tools, locale)}</dd>
+                  </div>
+                ) : null}
               </dl>
               <Link className="btn" style={{ width: "100%", marginTop: 12 }} href={`/research/${workspace.run_id}/workers`}>
                 {t("plan.openWorker")} →

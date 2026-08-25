@@ -28,6 +28,14 @@ Local compose default is in `.env.example` (lab password only).
 | `DEEPSCOUT_PROCESS_ROLE` | `api` | `api` or `worker` |
 | `CORS_ORIGINS` | localhost | Comma-separated origins |
 | `PUBLIC_BASE_URL` | — | Hosted: canonical web URL for OAuth redirects |
+| `RATE_LIMIT_ENABLED` | `false` | Required for Internet-facing MODE B |
+| `RATE_LIMIT_MAX_REQUESTS` | `120` | Per-client requests in each window |
+| `RATE_LIMIT_MUTATING_MAX` | `20` | Stricter limit for protected mutations |
+| `RATE_LIMIT_WINDOW_S` | `60` | Limiter window in seconds |
+| `MAX_REQUEST_BYTES` | `1000000` | API request-body ceiling |
+
+The built-in limiter is bounded and process-local. Multi-instance deployments must add a
+distributed limit at the edge or gateway; Redis is not currently the rate-limit authority.
 
 ## LLM providers (MODE A or maintainer)
 
@@ -114,7 +122,9 @@ Language detection and query planning introduce no translation dependency or ext
 | `LANGSMITH_TRACING` | `true`/`false` |
 | `LANGSMITH_PROJECT` | Project name |
 
-Hosted users control tracing via account settings; maintainer keys are not used for user runs.
+Hosted users control tracing via account settings. The worker establishes a credential-free
+process baseline, applies only the owner's vaulted LangSmith configuration for that run, and
+restores the baseline afterward; maintainer keys are not used for hosted user research.
 
 ## Frontend (Vercel)
 

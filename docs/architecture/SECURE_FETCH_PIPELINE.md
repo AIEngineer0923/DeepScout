@@ -1,6 +1,6 @@
 # Secure Fetch Pipeline
 
-**Must be implemented before live Internet ingestion goes to production.**
+This is the production ingestion boundary for untrusted Internet content.
 
 ## Flow
 
@@ -9,11 +9,11 @@ URL input
   → URL policy (scheme, length, blocklist)
   → DNS resolve
   → IP classification (block private, loopback, link-local, metadata)
-  → HEAD request (size, content-type)
   → bounded GET (timeout, max bytes, max redirects)
-  → store raw blob (UUID path)
-  → safe text extraction (MIME-aware)
-  → sanitize for prompt injection patterns
+  → explicit MIME / magic-byte admission
+  → bounded text extraction (PDFs in an isolated subprocess)
+  → Unicode normalization and multilingual injection screening
+  → exclude flagged chunks from model context
   → SourceSnapshot record
 ```
 
@@ -27,11 +27,17 @@ URL input
 | Oversized download | Content-Length + streaming byte cap |
 | Decompression bomb | Max uncompressed ratio / bytes |
 | MIME spoof | Magic bytes + allowlist |
-| Prompt injection | DATA blocks; never execute retrieved instructions |
+| Prompt injection | DATA blocks; multilingual markers excluded from model context |
+| Parser exhaustion | PDF byte/page/output/CPU/memory/wall-time bounds in a spawned process |
+| XML entity abuse | `defusedxml` parser |
 
 ## Implementation location
 
-`libs/security/fetch/` (Phase 4)
+- Network policy and DNS-pinned acquisition:
+  `libs/research/src/deepscout_research/fetch/`
+- MIME-aware normalization and isolated parsing:
+  `libs/research/src/deepscout_research/source_fabric/normalizers.py`
+- Snapshot persistence: `libs/persistence/`
 
 ## Content rule
 

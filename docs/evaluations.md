@@ -5,7 +5,9 @@ DeepScout records evaluation results per terminal research run in PostgreSQL (`e
 ## When evaluations run
 
 1. **At finalization** — orchestrator calls `persist_research_evaluations` when a run reaches a terminal status.
-2. **On read (legacy backfill)** — if a terminal run has no rows yet, the API computes deterministic evaluators once, persists, and returns them. Second read uses stored rows only (no recompute).
+2. **On owner read (legacy backfill)** — if a terminal private run has no rows yet, the API
+   computes deterministic evaluators once, persists, and returns them. Public-demo reads never
+   backfill or mutate evaluation state.
 3. **Operator backfill** — `scripts/backfill_evaluation_results.py` for bounded batch backfill (no provider calls).
 
 Demo browsing reads persisted results only — zero provider spend.
@@ -288,7 +290,8 @@ flowchart LR
 - Learning ≠ promotion: improvement requires post-promotion measurement (monitoring, cohort comparison, rollback)
 - User feedback is an untrusted signal; HITL review events are authoritative — neither overrides security invariants
 
-See [ADR-018](../architecture/adr/ADR-018-continuous-learning.md) and [CONTINUOUS_LEARNING.md](../architecture/CONTINUOUS_LEARNING.md).
+See [ADR-018](architecture/adr/ADR-018-continuous-learning.md) and
+[CONTINUOUS_LEARNING.md](architecture/CONTINUOUS_LEARNING.md).
 
 Legacy scripts still useful for focused checks:
 

@@ -86,6 +86,6 @@ External web content and raw user feedback never skip review.
 ## Consequences
 
 - Operators gain tenant-scoped learning case storage, policy versioning APIs, and `/learning` UI (hosted)
-- Hosted `/ready` expects Alembic head `016`
+- Hosted `/ready` expects Alembic head `017`
 - Human approval remains required for high-impact candidates
 - Statistical significance is not claimed on tiny samples — honest `INCONCLUSIVE` default

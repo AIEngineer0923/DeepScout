@@ -25,8 +25,8 @@ Do not bind `0.0.0.0` unless you understand that MODE A has no login.
 
 The versioned release stack is the supported no-build container path. It uses two public images:
 
-- `ghcr.io/francescoveryra-dot/deepscout-api:0.1.4` for the migration, API, and worker roles;
-- `ghcr.io/francescoveryra-dot/deepscout-web:0.1.4` for the Next.js frontend.
+- `ghcr.io/francescoveryra-dot/deepscout-api:0.1.6` for the migration, API, and worker roles;
+- `ghcr.io/francescoveryra-dot/deepscout-web:0.1.6` for the Next.js frontend.
 
 PostgreSQL/pgvector and Redis remain separate upstream services. From a checkout of the matching
 release tag:

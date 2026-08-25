@@ -1,6 +1,6 @@
 # Agent runtime internals
 
-How DeepScout's research runtime actually works (v0.1.5). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
+How DeepScout's research runtime actually works (v0.1.6). This document is derived from the current codebase, not from generic LangChain/LangGraph tutorials.
 
 ## Answerability and constrained deliverables
 
@@ -46,8 +46,8 @@ Acquisition stores the original document or caption text and detects its languag
 metadata plus bounded content/script checks. Evidence quotes always point to that immutable original
 snapshot. The report model may explain or synthesize evidence in the requested output language, but
 translated prose is derived presentation: it cannot replace the original quote, URL, title, locator,
-or source language. No separate machine-translation service or translated evidence store is used in
-v0.1.5.
+or source language. No separate machine-translation service or translated evidence store is used
+as of v0.1.6.
 
 Cross-language semantic retrieval uses the configured multilingual embedding space. For semantic
 intent, dense retrieval receives the stronger RRF contribution; BM25 and PostgreSQL FTS remain

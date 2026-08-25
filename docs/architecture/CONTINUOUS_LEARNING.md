@@ -180,7 +180,7 @@ Effectiveness analytics (`/api/v1/learning/effectiveness`) reads persisted aggre
 | `learning_policy_monitoring` | Post-promotion observation windows |
 | `learning_experiment_jobs` | Durable async experiment queue |
 
-Hosted `/ready` expects Alembic head **016**.
+Hosted `/ready` expects Alembic head **017**.
 
 ---
 

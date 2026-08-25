@@ -8,6 +8,38 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.6] - 2026-08-25
+
+### Fixed
+
+- Anonymous visitors can open every published demo plan even though the public workspace
+  intentionally omits internal task tool assignments.
+- Public report pages no longer advertise owner-only Markdown/PDF export routes.
+- Repository-facing version labels, release instructions, architecture/environment references,
+  evaluator count, claim semantics, SSE/fetch architecture, container defaults, and the complete
+  changelog now agree with the implemented release.
+
+## [0.1.5] - 2026-08-25
+
+### Security
+
+- OAuth callbacks are bound to the initiating browser; public demos expose only sanitized,
+  read-only projections; hosted LangSmith credentials are scoped to the owning run.
+- HITL decisions, run/monitor quotas, budget accounting, and SSE lifecycle controls are
+  concurrency-safe and bounded.
+- Retrieved content receives multilingual prompt-injection filtering; PDF and XML parsing are
+  isolated and bounded; factual verification requires corroboration from distinct sources.
+- Redirect, Markdown URL, rate-limit identity, and public-evaluation mutation boundaries were
+  hardened with negative regression coverage.
+
+### Changed
+
+- Research budgets now enforce hard maxima and elapsed wall time.
+- The API runtime uses a pinned Alpine base; release Compose services are non-root, read-only,
+  capability-free, and protected by `no-new-privileges`.
+- Release publication scans images for HIGH/CRITICAL vulnerabilities and emits SBOM, provenance,
+  and GitHub attestations for amd64 and arm64 manifests.
+
 ## [0.1.4] - 2026-08-24
 
 ### Fixed
@@ -160,7 +192,9 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.1...v0.1.2

@@ -4,7 +4,7 @@
 [![CodeQL](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml/badge.svg)](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**Version 0.1.4** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
+**Version 0.1.6** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
 
 DeepScout is an open-source system for structured, evidence-based research. It turns a research goal into an explicit workflow: requirements, a task plan, source collection, evidence extraction, coverage checks, a cited report, and persisted evaluations.
 
@@ -64,7 +64,7 @@ Tagged releases publish `linux/amd64` and `linux/arm64` images with exact versio
 immutable SHA, and `latest` tags. Runtime credentials remain external.
 
 ```bash
-git clone --branch v0.1.4 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.6 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 docker compose -f infra/docker/docker-compose.release.yml pull
@@ -88,7 +88,7 @@ verification, shutdown, and source-build commands.
 7. **Claims & evidence** — Claims linked to snapshot quotes; provenance chain to sources.
 8. **Quality** — Evidence-backed material requirement coverage, bounded corrective research, contradiction detection, and a contract-aware final critic.
 9. **Report** — Markdown report with citations rendered in the UI (not raw `**` / pipe tables).
-10. **Evaluations** — The registry exposes 53 evaluator slots per run; deterministic results are persisted alongside explicit unavailable/skipped states.
+10. **Evaluations** — The registry exposes 70 evaluator slots per run; deterministic results are persisted alongside explicit unavailable/skipped states.
 11. **Continuous learning** — Non-demo terminal runs can create sanitized learning cases. Candidate policy changes pass through diagnosis, bounded experiments, risk-based promotion, optional HITL, versioning, monitoring, and rollback. Web content and user feedback are not operational authority. DeepScout does not autonomously modify its source code or train models. See [Continuous learning architecture](docs/architecture/CONTINUOUS_LEARNING.md).
 12. **Hosted extras** — BYOK vault, tenant isolation, public demo catalog, `/learning` operator UI, optional LangSmith tracing.
 
@@ -107,7 +107,7 @@ Not included as production backends today: SPLADE, Neo4j GraphRAG, community Gra
 | Planning & agents | <img src="docs/assets/screenshots/research-flow.png" alt="Research flow diagram: orchestrator, agents, verification, synthesis" width="100%"> |
 | Sources | Fetched URLs, pin/exclude, export CSV/JSON — <img src="docs/assets/screenshots/sources.png" alt="Sources list with fetch status and worker assignment" width="100%"> |
 | Captured content | Source snapshots, word counts, linked evidence, download — <img src="docs/assets/screenshots/captured-content.png" alt="Captured source snapshots with word counts, linked evidence, and download actions" width="100%"> |
-| Claims / evidence | Verified claims with quotes and source links — <img src="docs/assets/screenshots/claims-evidence.png" alt="Claims and evidence verification table" width="100%"> |
+| Claims / evidence | Snapshot-backed quotes and source links; one source is partial, while full verification requires corroboration from two distinct sources — <img src="docs/assets/screenshots/claims-evidence.png" alt="Claims and evidence verification table" width="100%"> |
 | Quality | Deterministic checks + contradiction cards — <img src="docs/assets/screenshots/quality-contradictions.png" alt="Quality checks and contradiction list" width="100%"> |
 | Final report | Rendered Markdown, PDF/JSON export, follow-up — <img src="docs/assets/screenshots/final-report.png" alt="Final report with citations and export actions" width="100%"> |
 | Evaluations | Explicit result, method, and applicability per evaluator — <img src="docs/assets/screenshots/evaluations-security.png" alt="Security and planning evaluator cards with result, method, and applicability" width="100%"> |
@@ -184,6 +184,8 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | [docs/architecture/CONTINUOUS_LEARNING.md](docs/architecture/CONTINUOUS_LEARNING.md) | Adaptive policies, monitoring, rollback |
 | [docs/architecture-overview.md](docs/architecture-overview.md) | System flow, AI/retrieval, deployment roles |
 | [docs/agent-runtime.md](docs/agent-runtime.md) | Orchestrator, planner, workers, LangChain/LangGraph roles |
+| [docs/releases/v0.1.6.md](docs/releases/v0.1.6.md) | Current release notes |
+| [docs/security-review-v0.1.5.md](docs/security-review-v0.1.5.md) | 360-degree security review and residual risks |
 | [docs/repository-map.md](docs/repository-map.md) | Where code lives (for humans and coding agents) |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Monorepo context and ADR index |
 | [docs/architecture/](docs/architecture/) | Detailed design docs and ADRs |

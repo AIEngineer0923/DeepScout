@@ -1,6 +1,6 @@
 # Architecture overview
 
-High-level map of how DeepScout works today (v0.1.4). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
+High-level map of how DeepScout works today (v0.1.6). For ADRs and deep dives see [docs/architecture/](architecture/) and [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## Request flow
 

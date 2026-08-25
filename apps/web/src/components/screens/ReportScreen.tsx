@@ -82,16 +82,18 @@ export function ReportScreen() {
                 >
                   {copied ? t("report.copied") : t("action.copyReport")}
                 </button>
-                <a className="btn" href={api.exportUrl(workspace.run_id, "markdown")}>
-                  {t("action.exportMarkdown")}
-                </a>
-                <a className="btn" href={api.exportUrl(workspace.run_id, "pdf")}>
-                  {t("action.exportPdf")}
-                </a>
                 {!demoReadOnly ? (
-                  <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>
-                    {t("action.exportJson")}
-                  </a>
+                  <>
+                    <a className="btn" href={api.exportUrl(workspace.run_id, "markdown")}>
+                      {t("action.exportMarkdown")}
+                    </a>
+                    <a className="btn" href={api.exportUrl(workspace.run_id, "pdf")}>
+                      {t("action.exportPdf")}
+                    </a>
+                    <a className="btn" href={api.exportUrl(workspace.run_id, "json")}>
+                      {t("action.exportJson")}
+                    </a>
+                  </>
                 ) : null}
               </div>
             ) : null}

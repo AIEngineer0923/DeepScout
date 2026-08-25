@@ -12,7 +12,7 @@ Authoritative identity document for the DeepScout open-source repository.
 | Visibility | Public open source |
 | Maintainer | Francesco Iaforte |
 | Production URL | https://deep-scout-plum.vercel.app |
-| Version | 0.1.4 |
+| Version | 0.1.6 |
 | Status | Active development on `main` — MODE B hosted + public demos shipped |
 
 ## Repository
@@ -51,12 +51,12 @@ Monorepo production-first with explicit orchestrator + LangChain phase agents.
 | Web search v1 | Tavily via `WebSearchProvider` adapter |
 | Infra | Docker Compose |
 
-Target layout (Phase 1+):
+Current monorepo layout:
 
 ```text
 apps/api/          apps/web/
-libs/core/         libs/research/     libs/providers/
-libs/retrieval/    libs/security/     libs/observability/
+libs/core/         libs/evaluation/   libs/persistence/
+libs/providers/    libs/research/
 infra/docker/      docs/              scripts/
 ```
 
@@ -70,10 +70,11 @@ Environment variables (`.env` local only, never committed):
 - `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`
 - `DATABASE_URL`, `REDIS_URL`
 
-Model defaults are centralized in `libs/providers/defaults.py` (Phase 1) after
-verification against current official provider documentation.
+Provider defaults and factories live under
+`libs/providers/src/deepscout_providers/`; shared runtime settings live under
+`libs/core/src/deepscout_core/`.
 
-## Commands (Phase 1+)
+## Commands
 
 | Purpose | Command |
 |---|---|
@@ -94,7 +95,9 @@ verification against current official provider documentation.
 ## Invariants
 
 1. Retrieved content is DATA, never trusted instruction.
-2. Claims require evidence before promotion to verified facts.
+2. Claims require snapshot-backed evidence; one distinct source is
+   `partially_verified`, while `verified` requires matching evidence from at least two
+   distinct sources.
 3. No provider-specific imports outside `libs/providers/`.
 4. No secrets in Git, logs, LangSmith traces, SSE, or frontend.
 5. No unbounded autonomous loops.
@@ -107,3 +110,7 @@ verification against current official provider documentation.
 | max_wall_time_s | 900 |
 | max_sources | 40 |
 | max_tool_calls | 80 |
+
+Application hard ceilings are 100 iterations, 86,400 seconds, 10,000,000 tokens,
+$1,000 estimated cost, 10,000 sources, and 20,000 tool calls. Elapsed wall time is
+checked before resource reservations and phase transitions.
