@@ -4,7 +4,7 @@
 [![CodeQL](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml/badge.svg)](https://github.com/francescoveryra-dot/deepscout/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**Version 0.1.6** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
+**Version 0.1.7** · [Live app](https://deep-scout-plum.vercel.app) · [Explore demo](https://deep-scout-plum.vercel.app/demo)
 
 DeepScout is an open-source system for structured, evidence-based research. It turns a research goal into an explicit workflow: requirements, a task plan, source collection, evidence extraction, coverage checks, a cited report, and persisted evaluations.
 
@@ -64,7 +64,7 @@ Tagged releases publish `linux/amd64` and `linux/arm64` images with exact versio
 immutable SHA, and `latest` tags. Runtime credentials remain external.
 
 ```bash
-git clone --branch v0.1.6 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
+git clone --branch v0.1.7 --depth 1 https://github.com/francescoveryra-dot/deepscout.git
 cd deepscout
 cp .env.example .env
 docker compose -f infra/docker/docker-compose.release.yml pull
@@ -184,7 +184,7 @@ Details, troubleshooting, and Docker-only path: [docs/local-development.md](docs
 | [docs/architecture/CONTINUOUS_LEARNING.md](docs/architecture/CONTINUOUS_LEARNING.md) | Adaptive policies, monitoring, rollback |
 | [docs/architecture-overview.md](docs/architecture-overview.md) | System flow, AI/retrieval, deployment roles |
 | [docs/agent-runtime.md](docs/agent-runtime.md) | Orchestrator, planner, workers, LangChain/LangGraph roles |
-| [docs/releases/v0.1.6.md](docs/releases/v0.1.6.md) | Current release notes |
+| [docs/releases/v0.1.7.md](docs/releases/v0.1.7.md) | Current release notes |
 | [docs/security-review-v0.1.5.md](docs/security-review-v0.1.5.md) | 360-degree security review and residual risks |
 | [docs/repository-map.md](docs/repository-map.md) | Where code lives (for humans and coding agents) |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Monorepo context and ADR index |

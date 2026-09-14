@@ -46,7 +46,7 @@ uv run alembic upgrade head
 cd ../..
 ```
 
-Confirm: `uv run alembic current` should show the current head (`017` for DeepScout v0.1.6).
+Confirm: `uv run alembic current` should show the current head (`017` for DeepScout v0.1.7).
 
 ## Run the stack
 

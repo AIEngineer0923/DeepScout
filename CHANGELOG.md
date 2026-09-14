@@ -8,6 +8,20 @@ All notable changes to DeepScout are documented in this file. The format follows
 
 No unreleased changes yet.
 
+## [0.1.7] - 2026-09-14
+
+### Security
+
+- Frontend Dependabot advisories are closed without leaving the Next.js 15 / Vitest 4 lines:
+  Next.js `15.5.25` (Windows and AVIF image-optimization RCE), `sharp` `0.35.4` (libheif),
+  `js-yaml` `4.3.2` (merge-key CPU exhaustion), and Vitest/`@vitest/mocker` `4.1.11`
+  (redirect-mock path traversal). Vitest 5 is not taken because it is a breaking test-runner jump.
+
+### Changed
+
+- `npm run lint` uses the ESLint CLI with a Next.js-compatible flat config so Next.js 15.5 no
+  longer prompts interactively to bootstrap ESLint.
+
 ## [0.1.6] - 2026-08-25
 
 ### Fixed
@@ -192,7 +206,8 @@ First public, versioned DeepScout release.
 - A persistent API, worker, and PostgreSQL/pgvector database are required; a Vercel-only deployment
   is not a complete DeepScout runtime.
 
-[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/francescoveryra-dot/deepscout/compare/v0.1.3...v0.1.4
