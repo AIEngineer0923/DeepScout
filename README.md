@@ -204,7 +204,3 @@ cd apps/web && npm test && npm run build
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
-
-## Author
-
-Francesco Iaforte — [github.com/francescoveryra-dot](https://github.com/francescoveryra-dot)
